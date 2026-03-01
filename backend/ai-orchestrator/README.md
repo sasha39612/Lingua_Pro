@@ -15,8 +15,9 @@ Coordinates AI-driven task generation and feedback across services. Centralizes 
 
 ## Technology Stack
 
-- **Runtime**: Node.js
+- **Runtime**: Node.js 18+
 - **Framework**: NestJS
+- **Language**: TypeScript (strict mode)
 - **AI APIs**: OpenAI (GPT-4 Turbo, Whisper)
 - **Streaming**: Server-Sent Events (SSE) or WebSocket for real-time feedback
 - **Environment Config**: Secure storage of AI_API_KEY

@@ -1,4 +1,6 @@
-# docker-compose configuration for local development of microservices
+# docker-compose configuration for Lingua Pro — Language Training Platform
+# Stack: Next.js + React (frontend) | NestJS + Node.js (microservices) | PostgreSQL + Prisma
+# Deployment: Hetzner cloud via Docker + Docker Compose
 # Note: all services are expected to supply a Dockerfile from day one.  
 # For deployment on Hetzner, images can be built locally and pushed to a
 # registry accessible from the Hetzner cloud, or the compose file can be
@@ -109,3 +111,7 @@ networks:
 #   and run: docker-compose pull && docker-compose up -d to deploy.
 # - All services must expose a /health endpoint (checked via healthcheck directives).
 # - Use named volumes (e.g., postgres_data) to persist data across restarts.
+# - Frontend: Next.js 15+ (latest stable), React 18+, TypeScript (strict)
+# - Backend services: Node.js 18+, NestJS, TypeScript (strict)
+# - Database: PostgreSQL 15+ with Prisma ORM and multi-language support
+# - Networking: lingua-network Docker bridge for internal service communication

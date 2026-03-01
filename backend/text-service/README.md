@@ -14,7 +14,8 @@ Handles reading and writing tasks. Generates AI-based text prompts and comprehen
 
 ## Technology Stack
 
-- **Runtime**: Node.js
+- **Runtime**: Node.js 18+
+- **Language**: TypeScript (strict mode)
 - **Framework**: NestJS
 - **Database**: PostgreSQL
 - **ORM**: Prisma with `@nestjs/prisma` integration

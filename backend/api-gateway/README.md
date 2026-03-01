@@ -18,7 +18,8 @@ This service is the single entry point for all frontend requests. It handles rou
 
 ## Technology Stack
 
-- **Runtime**: Node.js
+- **Runtime**: Node.js 18+
+- **Language**: TypeScript (strict mode)
 - **Framework**: NestJS
-- **GraphQL**: Apollo Server or similar
+- **GraphQL**: Apollo Server with @nestjs/graphql
 - **Authentication**: JWT validation middleware

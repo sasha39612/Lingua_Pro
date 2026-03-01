@@ -14,7 +14,8 @@ Responsible for user registration, login, JWT issuance, and role management. Sup
 
 ## Technology Stack
 
-- **Runtime**: Node.js
+- **Runtime**: Node.js 18+
+- **Language**: TypeScript (strict mode)
 - **Framework**: NestJS
 - **Database**: PostgreSQL (via shared db connection)
 - **ORM**: Prisma with `@nestjs/prisma` integration

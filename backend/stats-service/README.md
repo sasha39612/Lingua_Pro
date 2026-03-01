@@ -14,7 +14,8 @@ Aggregates and exposes performance metrics across all student activities. Comput
 
 ## Technology Stack
 
-- **Runtime**: Node.js
+- **Runtime**: Node.js 18+
+- **Language**: TypeScript (strict mode)
 - **Framework**: NestJS
 - **Database**: PostgreSQL
 - **ORM**: Prisma with `@nestjs/prisma` integration

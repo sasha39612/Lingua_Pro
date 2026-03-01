@@ -2,6 +2,18 @@
 
 Contains deployment manifests, Terraform/CloudFormation templates, and configuration for CI/CD. Includes networking, database provisioning, and service definitions used by docker-compose or Kubernetes.
 
+## Technology Stack Overview
+
+- **Frontend**: Next.js 15+ (latest stable), React 18+, TypeScript (strict)
+- **Backend**: Node.js 18+, NestJS (all microservices)
+- **Database**: PostgreSQL 15+ with Prisma ORM
+- **Containerization**: Docker + Docker Compose
+- **Networking**: Docker bridge network (`lingua-network`)
+- **Deployment**: Hetzner cloud
+- **CI/CD**: GitHub Actions
+
+---
+
 ## Database Schema
 
 The PostgreSQL database is initialized with the following tables:

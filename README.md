@@ -82,13 +82,14 @@ This project is designed to run **entirely on remote servers**. No local develop
 - **Containerize everything**: frontend, backend services, database, AI orchestrator.
 - **PostgreSQL in container**: Use a Docker volume for persistence.
 - **Docker Compose**: Orchestrate all services on Hetzner for easy startup/restart.
-- **Environment variables**: `.env` files per service or centralized for shared variables:
+- **Environment variables**: `.env` files per service or centralized for shared variables. An example `.env`:
   ```env
   POSTGRES_USER=demo
   POSTGRES_PASSWORD=demo
   POSTGRES_DB=english_platform
-  AI_API_KEY=...
-  JWT_SECRET=...
+  AI_API_KEY=your-openai-api-key-here
+  JWT_SECRET=supersecretjwtkey
+  SUPPORTED_LANGUAGES=EN,DE,AL,PL
   ```
 - **Volumes & persistence**: Ensure audio/text storage survives container restarts.
 - **Health endpoints**: Each container exposes `/health` for monitoring.
@@ -103,3 +104,43 @@ This project is designed to run **entirely on remote servers**. No local develop
 - **Data persistence** in PostgreSQL ensures history and statistics are maintained.
 - **Frontend → API Gateway only** ensures clean microservice separation.
 - **JWT authentication** secures role-based access (student/admin).
+
+---
+
+## Technology Stack
+
+### Frontend
+- **Framework**: Next.js 15+ (latest stable)
+- **UI Library**: React 18+
+- **Language**: TypeScript (strict mode)
+- **Styling**: TailwindCSS or similar
+- **API Communication**: GraphQL client (Apollo Client)
+- **State Management**: React Context or Zustand
+
+### Backend Microservices
+- **Runtime**: Node.js 18+
+- **Framework**: NestJS
+- **ORM**: Prisma with `@nestjs/prisma` integration
+- **Language**: TypeScript (strict mode)
+- **API**: GraphQL (API Gateway) + REST (inter-service communication)
+
+### AI Orchestrator
+- **Runtime**: Node.js 18+
+- **Framework**: NestJS
+- **Language**: TypeScript (strict mode)
+- **External APIs**: OpenAI (GPT-4 Turbo, Whisper)
+- **Streaming**: Server-Sent Events (SSE) or WebSocket
+
+### Database
+- **Engine**: PostgreSQL 15+
+- **Migrations**: Prisma migrate
+- **Multi-language Support**: `language` column on users, texts, and audio_records tables
+- **Supported Languages**: English, German, Albanian, Polish (extensible)
+
+### Development & Deployment
+- **Containerization**: Docker + Docker Compose
+- **Networking**: Internal Docker bridge network (`lingua-network`)
+- **Deployment Target**: Hetzner cloud
+- **CI/CD**: GitHub Actions (image build and push)
+
+---
