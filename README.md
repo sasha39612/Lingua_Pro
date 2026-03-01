@@ -89,21 +89,17 @@ This project is designed to run **entirely on remote servers**. No local develop
   POSTGRES_DB=english_platform
   AI_API_KEY=...
   JWT_SECRET=...
+  ```
+- **Volumes & persistence**: Ensure audio/text storage survives container restarts.
+- **Health endpoints**: Each container exposes `/health` for monitoring.
+- **CI/CD**: GitHub Actions (or another CI) builds and pushes Docker images directly to Hetzner; implement proper tagging and restart strategies.
 
-Volumes & persistence: Ensure audio/text storage survives container restarts.
+---
 
-Health endpoints: Each container exposes /health for monitoring.
+## Implementation Notes
 
-CI/CD: GitHub Actions (or another CI) builds and pushes Docker images directly to Hetzner; implement proper tagging and restart strategies.
-
-Notes
-
-Level-based AI tasks ensure content matches student skill (A0–C2).
-
-Streaming feedback allows partial results while AI is processing — critical for long tasks.
-
-Data persistence in PostgreSQL ensures history and statistics are maintained.
-
-Frontend communicates only with API Gateway for clean microservice separation.
-
-JWT authentication secures role-based access (student/admin).
+- **Level-based AI tasks** ensure content matches student skill (A0–C2).
+- **Streaming feedback** allows partial results while AI is processing — critical for long tasks.
+- **Data persistence** in PostgreSQL ensures history and statistics are maintained.
+- **Frontend → API Gateway only** ensures clean microservice separation.
+- **JWT authentication** secures role-based access (student/admin).

@@ -19,7 +19,10 @@ services:
       test: ["CMD-SHELL","curl -f http://localhost:3000/health || exit 1"]
     depends_on:
       - api-gateway
+    networks:
+      - lingua-network
 
+  # api-gateway service (GraphQL endpoint + routing)
   api-gateway:
     build: ./backend/api-gateway
     ports:
@@ -32,26 +35,36 @@ services:
       - audio-service
       - stats-service
       - ai-orchestrator
+    networks:
+      - lingua-network
 
   auth-service:
     build: ./backend/auth-service
     healthcheck:
       test: ["CMD-SHELL","curl -f http://localhost:4001/health || exit 1"]
+    networks:
+      - lingua-network
 
   text-service:
     build: ./backend/text-service
     healthcheck:
       test: ["CMD-SHELL","curl -f http://localhost:4002/health || exit 1"]
+    networks:
+      - lingua-network
 
   audio-service:
     build: ./backend/audio-service
     healthcheck:
       test: ["CMD-SHELL","curl -f http://localhost:4003/health || exit 1"]
+    networks:
+      - lingua-network
 
   stats-service:
     build: ./backend/stats-service
     healthcheck:
       test: ["CMD-SHELL","curl -f http://localhost:4004/health || exit 1"]
+    networks:
+      - lingua-network
 
   ai-orchestrator:
     build: ./backend/ai-orchestrator
@@ -59,6 +72,8 @@ services:
       - AI_API_KEY=${AI_API_KEY}
     healthcheck:
       test: ["CMD-SHELL","curl -f http://localhost:4005/health || exit 1"]
+    networks:
+      - lingua-network
 
   postgres:
     image: postgres:15
@@ -71,12 +86,19 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL","pg_isready -U ${POSTGRES_USER}"]
+    networks:
+      - lingua-network
 
 # shared volumes for persistence
 volumes:
   postgres_data:
   # add other named volumes for uploads if needed, e.g., audio_data:
   #   driver: local
+
+# internal network for service-to-service communication
+networks:
+  lingua-network:
+    driver: bridge
 
 # NOTES:
 # - Create a .env file in the root with: POSTGRES_USER, POSTGRES_PASSWORD,

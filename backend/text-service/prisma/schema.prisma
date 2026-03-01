@@ -1,0 +1,62 @@
+// Prisma schema for Text Service
+// Manages reading and writing tasks, corrections, and feedback
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int     @id @default(autoincrement())
+  email     String  @unique
+  passwordHash String  @map("password_hash")
+  role      String  @default("student")
+  language  String  @default("english")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  texts Text[]
+
+  @@map("users")
+}
+
+model Text {
+  id            Int     @id @default(autoincrement())
+  userId        Int     @map("user_id")
+  language      String
+  originalText  String  @map("original_text")
+  correctedText String? @map("corrected_text")
+  textScore     Float?  @map("text_score")
+  feedback      String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([language])
+  @@index([createdAt])
+  @@map("texts")
+}
+
+model Task {
+  id              Int     @id @default(autoincrement())
+  language        String
+  level           String  // "A0", "A1", "A2", "B1", "B2", "C1", "C2"
+  skill           String  // "listening", "reading", "writing", "speaking"
+  prompt          String
+  audioUrl        String? @map("audio_url")
+  referenceText   String? @map("reference_text")
+  answerOptions   String[]  @map("answer_options")
+  correctAnswer   String? @map("correct_answer")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([language])
+  @@index([level])
+  @@index([skill])
+  @@map("tasks")
+}
