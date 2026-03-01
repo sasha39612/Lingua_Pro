@@ -8,6 +8,7 @@ Contains deployment manifests, Terraform/CloudFormation templates, and configura
 - **Backend**: Node.js 18+, NestJS (all microservices)
 - **Database**: PostgreSQL 15+ with Prisma ORM
 - **Containerization**: Docker + Docker Compose
+- **Package Management**: pnpm workspace enforced by `pnpm-workspace.yaml` in repo root
 - **Networking**: Docker bridge network (`lingua-network`)
 - **Deployment**: Hetzner cloud
 - **CI/CD**: GitHub Actions

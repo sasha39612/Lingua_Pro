@@ -91,9 +91,23 @@ This project is designed to run **entirely on remote servers**. No local develop
   JWT_SECRET=supersecretjwtkey
   SUPPORTED_LANGUAGES=EN,DE,AL,PL
   ```
-- **Volumes & persistence**: Ensure audio/text storage survives container restarts.
+- **Volumes & persistence**: Ensure audio/text storage survives container restarts (e.g. `audio_data` volume mounted by audio-service).
 - **Health endpoints**: Each container exposes `/health` for monitoring.
 - **CI/CD**: GitHub Actions (or another CI) builds and pushes Docker images directly to Hetzner; implement proper tagging and restart strategies.
+
+### Starting on Hetzner
+1. Provision a Hetzner cloud instance (e.g., Ubuntu 24.04) and install Docker & Docker Compose.
+2. Clone the repository and create a `.env` file with the required variables.
+3. Either build images locally and push to a registry accessible from the server, or rely on the Dockerfiles in each directory.
+4. On the Hetzner host, run:
+   ```bash
+   docker-compose pull    # fetch updated images if using a registry
+   docker-compose up -d   # builds and starts all containers
+   ```
+5. Verify health with `docker-compose ps` or `curl http://localhost:<port>/health` for each service.
+6. For updates, rebuild images, push, then `docker-compose pull && docker-compose up -d` again.
+
+These steps allow developers to bring the full stack online with a single command on the remote server.
 
 ---
 
@@ -120,6 +134,7 @@ This project is designed to run **entirely on remote servers**. No local develop
 ### Backend Microservices
 - **Runtime**: Node.js 18+
 - **Framework**: NestJS
+- **Package Manager**: pnpm workspace (preferred over npm)
 - **ORM**: Prisma with `@nestjs/prisma` integration
 - **Language**: TypeScript (strict mode)
 - **API**: GraphQL (API Gateway) + REST (inter-service communication)

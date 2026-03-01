@@ -42,6 +42,9 @@ services:
 
   auth-service:
     build: ./backend/auth-service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
     healthcheck:
       test: ["CMD-SHELL","curl -f http://localhost:4001/health || exit 1"]
     networks:
@@ -56,6 +59,10 @@ services:
 
   audio-service:
     build: ./backend/audio-service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    volumes:
+      - audio_data:/var/app/uploads   # container path for audio/text files
     healthcheck:
       test: ["CMD-SHELL","curl -f http://localhost:4003/health || exit 1"]
     networks:
@@ -94,8 +101,11 @@ services:
 # shared volumes for persistence
 volumes:
   postgres_data:
-  # add other named volumes for uploads if needed, e.g., audio_data:
-  #   driver: local
+  audio_data:   # persistent storage for user audio/text uploads
+  # add other named volumes if needed
+
+# Note: each service directory must include its own Dockerfile at the root
+# (e.g. frontend/Dockerfile, backend/auth-service/Dockerfile, etc.).
 
 # internal network for service-to-service communication
 networks:
