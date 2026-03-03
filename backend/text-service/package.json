@@ -1,0 +1,35 @@
+{
+  "name": "text-service",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start:prod": "node dist/main.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "start": "ts-node -r tsconfig-paths/register src/main.ts"
+  },
+  "dependencies": {
+    "@apollo/subgraph": "*",
+    "@nestjs/apollo": "*",
+    "@nestjs/axios": "*",
+    "@nestjs/common": "*",
+    "@nestjs/core": "*",
+    "@nestjs/graphql": "*",
+    "@prisma/client": "^7.4.2",
+    "apollo-server-express": "*",
+    "axios": "*",
+    "express": "*",
+    "graphql-tag": "*",
+    "reflect-metadata": "*",
+    "rxjs": "*"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "*",
+    "@types/dotenv": "^8.2.3",
+    "@types/express": "*",
+    "prisma": "^7.4.2",
+    "ts-node": "*",
+    "typescript": "*"
+  }
+}

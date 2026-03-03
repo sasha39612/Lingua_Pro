@@ -2,17 +2,22 @@
 import { buildSubgraphSchema } from '@apollo/subgraph';
 // @ts-ignore
 import { gql } from 'graphql-tag';
+import axios from 'axios';
+// @ts-ignore - Prisma v7 types export resolution
+import { PrismaClient } from '@prisma/client';
+
+// central prisma client used by both GraphQL resolvers and helpers
+const prisma = new PrismaClient();
+
+// base HTTP client for AI orchestrator calls
+const orchestrator = axios.create({
+  baseURL: process.env.AI_ORCHESTRATOR_URL || 'http://ai-orchestrator:4005',
+  timeout: 10000,
+});
 
 /**
- * Text Service GraphQL Schema
- * 
- * Provides:
- * - Text entity for federation
- * - Queries: texts (list), text (single)
- * - Mutation: submitText (receives text, returns analysis)
- * 
- * In production, submitText would call AI Orchestrator
- * For now, uses simple mock analysis
+ * GraphQL type definitions for text service.
+ * includes Text entity and Task entity for federation.
  */
 export const textTypeDefs = gql`
   type Text @key(fields: "id") {
@@ -26,9 +31,23 @@ export const textTypeDefs = gql`
     createdAt: String!
   }
 
+  type Task {
+    id: ID!
+    language: String!
+    level: String!
+    skill: String!
+    prompt: String!
+    audioUrl: String
+    referenceText: String
+    answerOptions: [String!]!
+    correctAnswer: String
+    createdAt: String!
+  }
+
   type Query {
     texts(userId: ID!): [Text!]!
     text(id: ID!): Text
+    tasks(language: String!, level: String!, skill: String): [Task!]!
   }
 
   type Mutation {
@@ -37,19 +56,13 @@ export const textTypeDefs = gql`
 `;
 
 /**
- * Simple mock AI analysis for demonstration
- * 
- * In production, this would call AI Orchestrator:
- * - Send text to language model
- * - Receive corrections, scores, feedback
- * - Store in database
+ * A very small local fallback analysis used when the AI orchestrator
+ * cannot be reached.  It mimics the original Phase‑1 functionality.
  */
-function simulateAIAnalysis(text: string) {
-  // Mock analysis rules
+export function simulateAIAnalysis(text: string) {
   const corrections: string[] = [];
   const issues: string[] = [];
 
-  // Check for common errors
   if (text.includes('studing')) {
     corrections.push(text.replace('studing', 'studying'));
     issues.push('Spelling: "studing" → "studying"');
@@ -63,21 +76,91 @@ function simulateAIAnalysis(text: string) {
   }
 
   const corrected = corrections.length > 0 ? corrections[0] : text;
-  const feedback = issues.length > 0 
+  const feedback = issues.length > 0
     ? issues.join('; ')
     : 'Great work! No obvious errors detected.';
 
   return { corrected, feedback };
 }
 
-function calculateTextScore(original: string, corrections: any): number {
-  // Simple scoring based on original text length and corrections
-  const wordCount = original.split(' ').length;
-  const errorCount = corrections.feedback === 'Great work! No obvious errors detected.' ? 0 : 1;
-  
-  // Score: 1.0 if no errors, decreases with more errors
-  const score = Math.max(0.5, 1.0 - (errorCount * 0.15));
+export function calculateTextScore(original: string, corrections: any): number {
+  const errorCount =
+    corrections.feedback === 'Great work! No obvious errors detected.' ? 0 : 1;
+  const score = Math.max(0.5, 1.0 - errorCount * 0.15);
   return parseFloat(score.toFixed(2));
+}
+
+/**
+ * Helper used by both REST controllers and GraphQL resolvers.
+ * Sends the submission to the AI orchestrator and persists the
+ * result in the database. Returns the saved Text record.
+ */
+export async function analyzeAndSave(
+  userId: string,
+  language: string,
+  text: string
+) {
+  let corrected = text;
+  let feedback = 'Great work! No obvious errors detected.';
+  let textScore: number | null = null;
+
+  try {
+    const resp = await orchestrator.post('/text/analyze', { text, language });
+    const data = resp.data || {};
+    corrected = data.correctedText || corrected;
+    feedback = data.feedback || feedback;
+    textScore = data.textScore;
+  } catch (e: any) {
+    console.warn('orchestrator error, falling back to local mock analysis', e?.message || e);
+    const local = simulateAIAnalysis(text);
+    corrected = local.corrected;
+    feedback = local.feedback;
+    textScore = calculateTextScore(text, local);
+  }
+
+  const record = await prisma.text.create({
+    data: {
+      userId: parseInt(userId, 10),
+      language,
+      originalText: text,
+      correctedText: corrected,
+      textScore,
+      feedback
+    }
+  });
+
+  return record;
+}
+
+/**
+ * Query the database for tasks matching language/level/skill. If none exist
+ * then attempt to generate them via the AI orchestrator and persist the new
+ * items so the next request can hit the cache.
+ */
+export async function fetchTasks(
+  language: string,
+  level: string,
+  skill?: string
+) {
+  const where: any = { language, level };
+  if (skill) where.skill = skill;
+
+  let tasks = await prisma.task.findMany({ where });
+  if (tasks.length === 0) {
+    try {
+      const resp = await orchestrator.post('/tasks/generate', { language, level, skill });
+      if (resp.data?.tasks) {
+        tasks = resp.data.tasks;
+        for (const t of tasks) {
+          await prisma.task.create({ data: t });
+        }
+      }
+    } catch (e: any) {
+      console.error('failed to generate tasks from orchestrator', e?.message || e);
+      tasks = [];
+    }
+  }
+  return tasks;
 }
 
 export const textSchema = buildSubgraphSchema([
@@ -85,48 +168,16 @@ export const textSchema = buildSubgraphSchema([
     typeDefs: textTypeDefs,
     resolvers: {
       Query: {
-        texts: (_: any, { userId }: any) => [
-          {
-            id: '1',
-            userId,
-            language: 'english',
-            originalText: 'Hello world',
-            correctedText: 'Hello, world.',
-            textScore: 0.85,
-            feedback: 'Missing comma',
-            createdAt: new Date().toISOString()
-          }
-        ],
-        text: (_: any, { id }: any) => ({
-          id,
-          userId: '1',
-          language: 'english',
-          originalText: 'Hello world',
-          correctedText: 'Hello, world.',
-          textScore: 0.85,
-          feedback: 'Missing comma',
-          createdAt: new Date().toISOString()
-        })
+        texts: (_: any, { userId }: any) =>
+          prisma.text.findMany({ where: { userId: parseInt(userId, 10) } }),
+        text: (_: any, { id }: any) =>
+          prisma.text.findUnique({ where: { id: parseInt(id, 10) } }),
+        tasks: (_: any, { language, level, skill }: any) =>
+          fetchTasks(language, level, skill)
       },
       Mutation: {
-        submitText: (_: any, { userId, language, text }: any, context: any) => {
-          // In production: AI orchestrator would analyze text here
-          // For now: simple mock with grammar feedback
-          
-          const corrections = simulateAIAnalysis(text);
-          const score = calculateTextScore(text, corrections);
-          
-          return {
-            id: 'text_' + Date.now(),
-            userId,
-            language,
-            originalText: text,
-            correctedText: corrections.corrected,
-            textScore: score,
-            feedback: corrections.feedback,
-            createdAt: new Date().toISOString()
-          };
-        }
+        submitText: (_: any, { userId, language, text }: any) =>
+          analyzeAndSave(userId, language, text)
       },
       Text: {
         __resolveReference: (text: any) => text
