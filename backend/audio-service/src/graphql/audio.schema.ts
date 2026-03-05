@@ -11,7 +11,7 @@ export const audioTypeDefs = gql`
     transcript: String
     pronunciationScore: Float
     feedback: String
-    audioUrl: String
+    audioPath: String
     createdAt: String!
   }
 
@@ -21,50 +21,45 @@ export const audioTypeDefs = gql`
   }
 
   type Mutation {
-    submitAudio(userId: ID!, language: String!, audioUrl: String!): AudioRecord!
+    submitAudio(userId: ID!, language: String!, audioPath: String!): AudioRecord!
   }
 `;
+
+export const audioResolvers = {
+  Query: {
+    audioRecords: (_: any, { userId }: any, context: any) => {
+      // Will be implemented by AudioService
+      return context.audioService.getAudioByUserId(userId);
+    },
+    audioRecord: (_: any, { id }: any, context: any) => {
+      // Will be implemented by AudioService
+      return context.audioService.getAudioById(id);
+    }
+  },
+  Mutation: {
+    submitAudio: (_: any, { userId, language, audioPath }: any, context: any) => {
+      // Will be implemented by AudioService
+      return context.audioService.analyzeAudio(userId, language, audioPath);
+    }
+  }
+};
 
 export const audioSchema = buildSubgraphSchema([
   {
     typeDefs: audioTypeDefs,
-    resolvers: {
-      Query: {
-        audioRecords: (_: any, { userId }: any) => [
-          {
-            id: '1',
-            userId,
-            language: 'english',
-            transcript: 'Hello world',
-            pronunciationScore: 0.88,
-            feedback: 'Clear pronunciation',
-            audioUrl: 's3://bucket/audio-1.wav',
-            createdAt: new Date().toISOString()
-          }
-        ],
-        audioRecord: (_: any, { id }: any) => ({
-          id,
-          userId: '1',
-          language: 'english',
-          transcript: 'Hello world',
-          pronunciationScore: 0.88,
-          feedback: 'Clear pronunciation',
-          audioUrl: 's3://bucket/audio-1.wav',
-          createdAt: new Date().toISOString()
-        })
-      },
-      Mutation: {
-        submitAudio: (_: any, { userId, language, audioUrl }: any) => ({
-          id: Math.random().toString(),
-          userId,
-          language,
-          transcript: 'Transcribed text',
-          pronunciationScore: 0.85,
-          feedback: 'Good attempt',
-          audioUrl,
-          createdAt: new Date().toISOString()
-        })
-      }
-    }
+    resolvers: audioResolvers
   }
 ]);
+
+// Fallback simulation for testing
+export function simulateAudioAnalysis(audioPath: string, language: string) {
+  const fileName = audioPath.split('/').pop();
+  return {
+    id: Math.random().toString(),
+    transcript: `[Transcribed from ${fileName}] Sample transcription for ${language} language`,
+    pronunciationScore: Math.round(Math.random() * 100),
+    feedback: 'Analysis complete',
+    audioPath,
+    createdAt: new Date().toISOString()
+  };
+}
