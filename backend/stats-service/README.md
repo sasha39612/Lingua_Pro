@@ -33,3 +33,33 @@ Queries across all tables for aggregation:
 - `texts` for writing/reading scores, aggregating `text_score` over time
 - `audio_records` for speaking/listening scores, aggregating `pronunciation_score` over time
 - Computes metrics like avg_text_score, avg_pronunciation_score, mistake counts per category
+
+## Project Structure
+
+```text
+backend/stats-service
+├── src
+│   ├── app.ts
+│   ├── server.ts
+│   ├── app.module.ts
+│   ├── health.controller.ts
+│   ├── prisma
+│   │   ├── prisma.module.ts
+│   │   └── prisma.service.ts
+│   ├── stats
+│   │   ├── stats.module.ts
+│   │   ├── stats.controller.ts
+│   │   ├── stats.service.ts
+│   │   └── dto
+│   │       └── get-stats-query.dto.ts
+│   └── routes
+│       └── stats.routes.ts
+├── prisma
+│   └── schema.prisma
+├── package.json
+├── tsconfig.json
+└── README.md
+```
+
+> Keep only the folders/files that actually exist in your repo.  
+> If Express legacy files are removed, also remove `app.ts` and `src/routes/*` from this tree.
