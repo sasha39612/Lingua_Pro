@@ -12,13 +12,19 @@ import { GatewayResolver } from './graphql/gateway.resolver';
 import { DelegatedResolver } from './graphql/delegated.resolver';
 import { MutationDelegationResolver } from './graphql/mutation-delegation.resolver';
 import { AuthContextService } from './auth/auth-context.service';
-import { ApolloGateway, IntrospectAndCompose } from '@apollo/gateway';
+import { ApolloGateway, IntrospectAndCompose, RemoteGraphQLDataSource } from '@apollo/gateway';
+import { GqlThrottlerGuard } from './graphql/gql-throttler.guard';
 
 const subgraphUrls = {
   authService: process.env.AUTH_SERVICE_URL || 'http://auth-service:4001/graphql',
   textService: process.env.TEXT_SERVICE_URL || 'http://text-service:4002/graphql',
   audioService: process.env.AUDIO_SERVICE_URL || 'http://audio-service:4003/graphql',
   statsService: process.env.STATS_SERVICE_URL || 'http://stats-service:4004/graphql',
+  aiOrchestratorService:
+    process.env.AI_ORCHESTRATOR_GRAPHQL_URL ||
+    (process.env.AI_ORCHESTRATOR_URL
+      ? `${process.env.AI_ORCHESTRATOR_URL.replace(/\/$/, '')}/graphql`
+      : undefined),
 };
 
 const gateway = new ApolloGateway({
@@ -28,9 +34,48 @@ const gateway = new ApolloGateway({
       { name: 'text', url: subgraphUrls.textService },
       { name: 'audio', url: subgraphUrls.audioService },
       { name: 'stats', url: subgraphUrls.statsService },
+      ...(subgraphUrls.aiOrchestratorService
+        ? [{ name: 'ai-orchestrator', url: subgraphUrls.aiOrchestratorService }]
+        : []),
     ],
     pollIntervalInMs: 10000,
   }),
+  buildService: ({ url }) =>
+    new RemoteGraphQLDataSource({
+      url,
+      willSendRequest({ request, context }: any) {
+        const headers = request.http?.headers;
+        if (!headers) {
+          return;
+        }
+
+        const authHeader = context?.req?.headers?.authorization || context?.req?.headers?.Authorization;
+        const traceId = context?.req?.headers?.['x-trace-id'];
+        const userId = context?.authContext?.userId;
+        const userRole = context?.authContext?.user?.role;
+        const userLanguage = context?.authContext?.user?.language;
+
+        if (authHeader) {
+          headers.set('authorization', authHeader);
+        }
+
+        if (traceId) {
+          headers.set('x-trace-id', String(traceId));
+        }
+
+        if (userId) {
+          headers.set('x-user-id', String(userId));
+        }
+
+        if (userRole) {
+          headers.set('x-user-role', String(userRole));
+        }
+
+        if (userLanguage) {
+          headers.set('x-user-language', String(userLanguage));
+        }
+      },
+    }),
 });
 
 @Module({
@@ -45,10 +90,10 @@ const gateway = new ApolloGateway({
       useFactory: async () => ({
         gateway,
         path: '/graphql',
-        context: ({ req }: any) => {
+        context: async ({ req }: any) => {
           // Extract and validate JWT, attach to context
           const authContextService = new AuthContextService();
-          const authContext = authContextService.extractContext(req);
+          const authContext = await authContextService.extractContext(req);
           return { req, authContext };
         },
       }),
@@ -61,6 +106,7 @@ const gateway = new ApolloGateway({
     GatewayResolver,
     DelegatedResolver,
     MutationDelegationResolver,
+    { provide: APP_GUARD, useClass: GqlThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard }
   ]
 })

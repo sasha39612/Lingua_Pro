@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import CircuitBreaker from 'opossum';
+import CircuitBreaker = require('opossum');
 
 @Injectable()
 export class CircuitBreakerService {

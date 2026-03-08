@@ -5,8 +5,8 @@ This service is the single entry point for all frontend requests. It handles rou
 ## Responsibilities
 
 - **GraphQL Endpoint**: Exposes a unified GraphQL API for the frontend to query all features (listening, reading, writing, speaking, statistics, user auth).
-- **Request Routing**: Routes GraphQL queries/mutations to appropriate microservices (auth-service, text-service, audio-service, stats-service, ai-orchestrator) via internal network.
-- **Authentication Middleware**: Validates JWT tokens from the frontend and injects user context into all downstream requests.
+- **Request Routing**: Routes GraphQL queries/mutations to appropriate microservices (auth-service, text-service, audio-service, stats-service, and optionally ai-orchestrator when `AI_ORCHESTRATOR_GRAPHQL_URL` or `AI_ORCHESTRATOR_URL` is configured) via internal network.
+- **Authentication Middleware**: Validates JWT tokens from the frontend and forwards auth/user context headers to downstream services.
 - **Rate Limiting**: Prevents abuse by enforcing request limits per user/IP.
 - **Request Aggregation**: Combines responses from multiple services into a single GraphQL response.
 - **Health Check**: Exposes `/health` endpoint for monitoring.
