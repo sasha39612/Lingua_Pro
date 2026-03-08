@@ -4,6 +4,7 @@ import FormData from 'form-data';
 
 @Injectable()
 export class AiOrchestratorService {
+  private readonly orchestratorBaseUrl = process.env.AI_ORCHESTRATOR_URL;
   private readonly whisperApiUrl = 'https://api.openai.com/v1/audio/transcriptions';
   private readonly openaiApiKey = process.env.OPENAI_API_KEY;
 
@@ -15,14 +16,8 @@ export class AiOrchestratorService {
     language: string;
     confidence: number;
   }> {
-    if (!this.openaiApiKey) {
-      throw new BadRequestException('OPENAI_API_KEY is not configured');
-    }
-
-    const languageCode = this.mapLanguageToCode(language);
-
     try {
-      const transcript = await this.callWhisperApi(audioBuffer, languageCode);
+      const transcript = await this.transcribeAudio(audioBuffer, language);
       const confidence = this.calculateConfidence(transcript);
 
       return {
@@ -32,8 +27,37 @@ export class AiOrchestratorService {
       };
     } catch (error) {
       console.error('AI Orchestrator error:', error);
-      throw new BadRequestException(`Failed to process audio: ${error.message}`);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new BadRequestException(`Failed to process audio: ${message}`);
     }
+  }
+
+  private async transcribeAudio(audioBuffer: Buffer, language: string): Promise<string> {
+    if (this.orchestratorBaseUrl) {
+      try {
+        const response = await axios.post(
+          `${this.orchestratorBaseUrl.replace(/\/$/, '')}/audio/transcribe`,
+          {
+            audioBase64: audioBuffer.toString('base64'),
+            language
+          },
+          { timeout: 60000 }
+        );
+
+        if (response?.data?.transcript) {
+          return String(response.data.transcript);
+        }
+      } catch (error) {
+        console.warn('AI orchestrator transcription call failed, falling back to direct Whisper API');
+      }
+    }
+
+    if (!this.openaiApiKey) {
+      throw new BadRequestException('OPENAI_API_KEY is not configured');
+    }
+
+    const languageCode = this.mapLanguageToCode(language);
+    return this.callWhisperApi(audioBuffer, languageCode);
   }
 
   private async callWhisperApi(audioBuffer: Buffer, languageCode: string): Promise<string> {
@@ -114,8 +138,33 @@ export class AiOrchestratorService {
     feedback: string;
     suggestions: string[];
   }> {
-    // Placeholder for pronunciation analysis
-    // In production, integrate with specialized pronunciation API or ML model
+    if (this.orchestratorBaseUrl) {
+      try {
+        const response = await axios.post(
+          `${this.orchestratorBaseUrl.replace(/\/$/, '')}/audio/pronunciation`,
+          {
+            transcript,
+            language,
+            expectedText
+          },
+          { timeout: 30000 }
+        );
+
+        if (response?.data?.score !== undefined) {
+          return {
+            score: Number(response.data.score),
+            feedback: String(response.data.feedback || ''),
+            suggestions: Array.isArray(response.data.suggestions)
+              ? response.data.suggestions.map((s: unknown) => String(s))
+              : []
+          };
+        }
+      } catch (error) {
+        console.warn('AI orchestrator pronunciation call failed, using fallback analysis');
+      }
+    }
+
+    // Fallback analysis when orchestrator endpoint is unavailable.
     const score = this.calculatePronunciationScore(transcript, expectedText);
 
     return {

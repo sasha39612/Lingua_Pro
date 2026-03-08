@@ -58,10 +58,10 @@ export class AudioService {
         id: audioRecord.id,
         userId: audioRecord.userId,
         language: audioRecord.language,
-        transcript: audioRecord.transcript,
-        pronunciationScore: audioRecord.pronunciationScore,
-        feedback: audioRecord.feedback,
-        audioUrl: audioRecord.audioUrl,
+          transcript: audioRecord.transcript ?? transcript,
+          pronunciationScore: audioRecord.pronunciationScore ?? pronunciationScore,
+          feedback: audioRecord.feedback ?? feedback,
+          audioUrl: audioRecord.audioUrl ?? audioUrl,
         confidence,
         suggestions,
         createdAt: audioRecord.createdAt
@@ -82,6 +82,67 @@ export class AudioService {
 
   async getUserStats(userId: string) {
     return this.audioRepository.getUserAudioStats(parseInt(userId));
+  }
+
+  async getListeningTasks(language: string, level?: string) {
+    if (!process.env.DATABASE_URL) {
+      return [];
+    }
+    return this.audioRepository.getListeningTasks(language, level);
+  }
+
+  async evaluateComprehension(
+    userAnswer: string,
+    correctAnswer: string
+  ): Promise<{ isCorrect: boolean; score: number; feedback: string }> {
+    const normalizedUser = (userAnswer || '').trim().toLowerCase();
+    const normalizedCorrect = (correctAnswer || '').trim().toLowerCase();
+
+    if (!normalizedCorrect) {
+      return {
+        isCorrect: false,
+        score: 0,
+        feedback: 'Correct answer is missing for this task.'
+      };
+    }
+
+    const isCorrect = normalizedUser === normalizedCorrect;
+    const score = isCorrect ? 1 : 0;
+    return {
+      isCorrect,
+      score,
+      feedback: isCorrect
+        ? 'Correct answer. Good listening comprehension.'
+        : 'Incorrect answer. Replay the audio and try again.'
+    };
+  }
+
+  async generateComprehension(taskId: string): Promise<{
+    taskId: number;
+    prompt: string;
+    answerOptions: string[];
+    correctAnswer: string | null;
+  }> {
+    if (!process.env.DATABASE_URL) {
+      return {
+        taskId: parseInt(taskId, 10),
+        prompt: 'Database is unavailable. Cannot load listening task.',
+        answerOptions: [],
+        correctAnswer: null
+      };
+    }
+
+    const task = await this.audioRepository.getTaskById(parseInt(taskId, 10));
+    if (!task) {
+      throw new Error('Listening task not found');
+    }
+
+    return {
+      taskId: task.id,
+      prompt: task.prompt,
+      answerOptions: task.answerOptions,
+      correctAnswer: task.correctAnswer
+    };
   }
 
   private async downloadAudio(audioUrl: string): Promise<Buffer> {

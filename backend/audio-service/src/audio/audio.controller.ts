@@ -1,4 +1,4 @@
-import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, Get, Param, Query } from '@nestjs/common';
 import { AudioService } from './audio.service';
 
 interface CheckAudioRequest {
@@ -19,6 +19,15 @@ interface CheckAudioResponse {
   confidence: number;
   suggestions: string[];
   createdAt: Date;
+}
+
+interface EvaluateComprehensionRequest {
+  userAnswer: string;
+  correctAnswer: string;
+}
+
+interface GenerateComprehensionRequest {
+  taskId: string;
 }
 
 @Controller('audio')
@@ -58,5 +67,31 @@ export class AudioController {
       throw new BadRequestException('userId is required');
     }
     return this.audioService.getUserStats(userId);
+  }
+
+  @Get('listening-tasks')
+  async getListeningTasks(@Query('language') language: string, @Query('level') level?: string) {
+    if (!language) {
+      throw new BadRequestException('language is required');
+    }
+    return this.audioService.getListeningTasks(language, level);
+  }
+
+  @Post('comprehension/evaluate')
+  async evaluateComprehension(@Body() body: EvaluateComprehensionRequest) {
+    const { userAnswer, correctAnswer } = body;
+    if (!userAnswer || !correctAnswer) {
+      throw new BadRequestException('userAnswer and correctAnswer are required');
+    }
+    return this.audioService.evaluateComprehension(userAnswer, correctAnswer);
+  }
+
+  @Post('comprehension/generate')
+  async generateComprehension(@Body() body: GenerateComprehensionRequest) {
+    const { taskId } = body;
+    if (!taskId) {
+      throw new BadRequestException('taskId is required');
+    }
+    return this.audioService.generateComprehension(taskId);
   }
 }

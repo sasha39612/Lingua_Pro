@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AudioRecord } from '@prisma/client';
+import type { AudioRecord, Task } from '../generated/prisma';
 
 interface CreateAudioRecordInput {
   userId: number;
@@ -9,12 +9,6 @@ interface CreateAudioRecordInput {
   pronunciationScore: number;
   audioUrl: string;
   feedback: string;
-}
-
-interface UpdateAudioRecordInput {
-  transcript?: string;
-  pronunciationScore?: number;
-  feedback?: string;
 }
 
 @Injectable()
@@ -47,26 +41,6 @@ export class AudioRepository {
     });
   }
 
-  async getAudioRecordsByLanguage(language: string): Promise<AudioRecord[]> {
-    return this.prisma.audioRecord.findMany({
-      where: { language },
-      orderBy: { createdAt: 'desc' }
-    });
-  }
-
-  async updateAudioRecord(id: number, data: UpdateAudioRecordInput): Promise<AudioRecord> {
-    return this.prisma.audioRecord.update({
-      where: { id },
-      data
-    });
-  }
-
-  async deleteAudioRecord(id: number): Promise<AudioRecord> {
-    return this.prisma.audioRecord.delete({
-      where: { id }
-    });
-  }
-
   async getUserAudioStats(userId: number): Promise<{
     totalRecords: number;
     averagePronunciationScore: number;
@@ -84,13 +58,31 @@ export class AudioRepository {
       };
     }
 
-    const totalScore = records.reduce((sum, record) => sum + (record.pronunciationScore || 0), 0);
-    const languages = [...new Set(records.map(r => r.language))];
+    const totalScore = records.reduce((sum: number, record: AudioRecord) => sum + (record.pronunciationScore || 0), 0);
+    const languages = [...new Set(records.map((r: AudioRecord) => r.language))];
 
     return {
       totalRecords: records.length,
       averagePronunciationScore: totalScore / records.length,
       languages
     };
+  }
+
+  async getListeningTasks(language: string, level?: string): Promise<Task[]> {
+    return this.prisma.task.findMany({
+      where: {
+        language,
+        skill: 'listening',
+        ...(level ? { level } : {})
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+  }
+
+  async getTaskById(id: number): Promise<Task | null> {
+    return this.prisma.task.findUnique({
+      where: { id }
+    });
   }
 }
