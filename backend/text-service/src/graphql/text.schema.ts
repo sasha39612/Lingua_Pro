@@ -3,11 +3,22 @@ import { buildSubgraphSchema } from '@apollo/subgraph';
 // @ts-ignore
 import { gql } from 'graphql-tag';
 import axios from 'axios';
+import * as dotenv from 'dotenv';
 // @ts-ignore - Prisma v7 types export resolution
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+
+dotenv.config();
+
+const databaseUrl =
+  process.env.DATABASE_URL ||
+  'postgresql://user:password@localhost:5432/lingua_pro_text?schema=public';
+const pool = new Pool({ connectionString: databaseUrl });
+const adapter = new PrismaPg(pool);
 
 // central prisma client used by both GraphQL resolvers and helpers
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter });
 
 // base HTTP client for AI orchestrator calls
 const orchestrator = axios.create({
@@ -109,7 +120,10 @@ export async function analyzeAndSave(
     const data = resp.data || {};
     corrected = data.correctedText || corrected;
     feedback = data.feedback || feedback;
-    textScore = data.textScore;
+    textScore = typeof data.textScore === 'number' ? data.textScore : null;
+    if (textScore === null) {
+      textScore = calculateTextScore(text, { feedback });
+    }
   } catch (e: any) {
     console.warn('orchestrator error, falling back to local mock analysis', e?.message || e);
     const local = simulateAIAnalysis(text);
@@ -118,18 +132,32 @@ export async function analyzeAndSave(
     textScore = calculateTextScore(text, local);
   }
 
-  const record = await prisma.text.create({
-    data: {
+  try {
+    const record = await prisma.text.create({
+      data: {
+        userId: parseInt(userId, 10),
+        language,
+        originalText: text,
+        correctedText: corrected,
+        textScore,
+        feedback
+      }
+    });
+
+    return record;
+  } catch (e: any) {
+    console.error('failed to persist text analysis', e?.message || e);
+    return {
+      id: -1,
       userId: parseInt(userId, 10),
       language,
       originalText: text,
       correctedText: corrected,
       textScore,
-      feedback
-    }
-  });
-
-  return record;
+      feedback,
+      createdAt: new Date().toISOString(),
+    };
+  }
 }
 
 /**
@@ -145,14 +173,24 @@ export async function fetchTasks(
   const where: any = { language, level };
   if (skill) where.skill = skill;
 
-  let tasks = await prisma.task.findMany({ where });
+  let tasks: any[] = [];
+  try {
+    tasks = await prisma.task.findMany({ where });
+  } catch (e: any) {
+    console.error('failed to query cached tasks', e?.message || e);
+    tasks = [];
+  }
   if (tasks.length === 0) {
     try {
       const resp = await orchestrator.post('/tasks/generate', { language, level, skill });
       if (resp.data?.tasks) {
         tasks = resp.data.tasks;
         for (const t of tasks) {
-          await prisma.task.create({ data: t });
+          try {
+            await prisma.task.create({ data: t });
+          } catch (e: any) {
+            console.warn('failed to persist generated task', e?.message || e);
+          }
         }
       }
     } catch (e: any) {

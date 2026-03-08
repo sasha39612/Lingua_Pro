@@ -7,7 +7,7 @@ import { textSchema } from './graphql/text.schema';
 import { HealthController } from './health/health.controller';
 import { TextController } from './text/text.controller';
 import { TextService } from './text/text.service';
-import { PrismaService } from '@nestjs/prisma';
+import { PrismaService } from './prisma/prisma.service';
 
 @Module({
   imports: [

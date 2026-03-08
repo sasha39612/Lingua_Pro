@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { PrismaService } from '@nestjs/prisma';
+import { PrismaService } from '../prisma/prisma.service';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()
@@ -27,7 +27,10 @@ export class TextService {
       if (resp.data) {
         corrected = resp.data.correctedText || corrected;
         feedback = resp.data.feedback || feedback;
-        textScore = resp.data.textScore;
+        textScore = typeof resp.data.textScore === 'number' ? resp.data.textScore : null;
+        if (textScore === null) {
+          textScore = calculateTextScore(text, { feedback });
+        }
       }
     } catch (err: any) {
       // fallback to local analysis
@@ -38,18 +41,34 @@ export class TextService {
       textScore = calculateTextScore(text, { feedback });
     }
 
-    const record = await this.prisma.text.create({
-      data: {
+    try {
+      const record = await this.prisma.text.create({
+        data: {
+          userId,
+          language,
+          originalText: text,
+          correctedText: corrected,
+          textScore,
+          feedback
+        }
+      });
+
+      return record;
+    } catch (err: any) {
+      this.logger.error('failed to persist text analysis', err?.message || err);
+      return {
+        id: -1,
         userId,
         language,
         originalText: text,
         correctedText: corrected,
         textScore,
-        feedback
-      }
-    });
-
-    return record;
+        feedback,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        persisted: false
+      };
+    }
   }
 
   async getTasks(language: string, level: string, skill?: string) {
@@ -57,7 +76,13 @@ export class TextService {
     if (skill) {
       where.skill = skill;
     }
-    let tasks = await this.prisma.task.findMany({ where });
+    let tasks: any[] = [];
+    try {
+      tasks = await this.prisma.task.findMany({ where });
+    } catch (err: any) {
+      this.logger.error('failed to query cached tasks', err?.message || err);
+      tasks = [];
+    }
     if (tasks.length === 0) {
       try {
         const resp = await lastValueFrom(
@@ -67,7 +92,11 @@ export class TextService {
           tasks = resp.data.tasks;
           // persist tasks for future queries
           for (const t of tasks) {
-            await this.prisma.task.create({ data: t });
+            try {
+              await this.prisma.task.create({ data: t });
+            } catch (err: any) {
+              this.logger.warn('failed to persist generated task', err?.message || err);
+            }
           }
         }
       } catch (err: any) {

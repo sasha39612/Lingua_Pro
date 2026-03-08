@@ -16,11 +16,13 @@
     "@nestjs/common": "*",
     "@nestjs/core": "*",
     "@nestjs/graphql": "*",
+    "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "apollo-server-express": "*",
     "axios": "*",
     "express": "*",
     "graphql-tag": "*",
+    "pg": "^8.20.0",
     "reflect-metadata": "*",
     "rxjs": "*"
   },
@@ -28,6 +30,7 @@
     "@nestjs/cli": "*",
     "@types/dotenv": "^8.2.3",
     "@types/express": "*",
+    "@types/pg": "^8.18.0",
     "prisma": "^7.4.2",
     "ts-node": "*",
     "typescript": "*"
