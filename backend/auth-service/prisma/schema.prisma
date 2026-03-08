@@ -11,32 +11,31 @@ generator client {
 }
 
 model User {
-  id        Int     @id @default(autoincrement())
-  email     String  @unique
-  passwordHash String  @map("password_hash")
-  role      String  @default("student") // "student" or "admin"
-  language  String  @default("english")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String
+  role         String    @default("student")
+  language     String    @default("english")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
   texts        Text[]
   audioRecords AudioRecord[]
-  sessions     Session[]
-
   @@map("users")
 }
 
 /// Tracks active login sessions for token revocation and auditing
 model Session {
-  id         Int      @id @default(autoincrement())
-  userId     Int      @map("user_id")
-  token      String   @unique
-  expiresAt  DateTime @map("expires_at")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([token])
   @@map("sessions")
 }
 

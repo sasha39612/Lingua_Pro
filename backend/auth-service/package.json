@@ -9,15 +9,19 @@
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
-    "@prisma/client": "*",
+    "@apollo/subgraph": "*",
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "^7.4.2",
     "argon2": "*",
-    "jsonwebtoken": "*",
+    "graphql": "*",
     "graphql-tag": "*",
-    "@apollo/subgraph": "*"
+    "jsonwebtoken": "*",
+    "pg": "^8.20.0"
   },
   "devDependencies": {
-    "typescript": "*",
     "@types/jsonwebtoken": "*",
-    "prisma": "*"
+    "@types/pg": "^8.18.0",
+    "prisma": "*",
+    "typescript": "*"
   }
 }

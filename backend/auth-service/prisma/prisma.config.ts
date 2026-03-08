@@ -1,10 +1,7 @@
-import { defineConfig } from '@prisma/internals';
-
-export default defineConfig({
+export default {
   datasources: {
     db: {
-      url: process.env.DATABASE_URL || '',
-      directUrl: process.env.DATABASE_URL_UNPOOLED,
-    },
-  },
-});
+      url: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/lingua_pro_auth?schema=public'
+    }
+  }
+};
