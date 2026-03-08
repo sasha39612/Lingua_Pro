@@ -18,7 +18,7 @@ Aggregates and exposes performance metrics across all student activities. Comput
 - **Language**: TypeScript (strict mode)
 - **Framework**: NestJS
 - **Database**: PostgreSQL
-- **ORM**: Prisma with `@nestjs/prisma` integration
+- **ORM**: Prisma (`PrismaService` + `PrismaClient`)
 - **Caching** (optional): Redis for frequently accessed metrics
 
 ## Communication
@@ -39,7 +39,6 @@ Queries across all tables for aggregation:
 ```text
 backend/stats-service
 ├── src
-│   ├── app.ts
 │   ├── server.ts
 │   ├── app.module.ts
 │   ├── health.controller.ts
@@ -52,14 +51,9 @@ backend/stats-service
 │   │   ├── stats.service.ts
 │   │   └── dto
 │   │       └── get-stats-query.dto.ts
-│   └── routes
-│       └── stats.routes.ts
 ├── prisma
 │   └── schema.prisma
 ├── package.json
 ├── tsconfig.json
 └── README.md
 ```
-
-> Keep only the folders/files that actually exist in your repo.  
-> If Express legacy files are removed, also remove `app.ts` and `src/routes/*` from this tree.
