@@ -1,124 +1,58 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, Logger } from '@nestjs/common';
 
 type Period = 'week' | 'month' | 'all';
-
-type AggregateRow = {
-  avg_text_score: number | null;
-  avg_pronunciation_score: number | null;
-};
-
-type HistoryRow = {
-  date: Date | string;
-  text_score: number | null;
-  pronunciation_score: number | null;
-};
-
-type TextFeedbackRow = {
-  feedback: string | null;
-};
-
-type AudioFeedbackRow = {
-  feedback: string | null;
-  pronunciation_score: number | null;
-};
 
 type MistakeCounts = Record<string, number>;
 
 @Injectable()
 export class StatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(StatsService.name);
+  private readonly textServiceUrl: string;
+  private readonly audioServiceUrl: string;
+
+  constructor() {
+    this.textServiceUrl = process.env.TEXT_SERVICE_URL || 'http://text-service:4002';
+    this.audioServiceUrl = process.env.AUDIO_SERVICE_URL || 'http://audio-service:4003';
+  }
 
   async getStats(language: string, period: Period) {
     const requestedLanguage = language.trim().toUpperCase();
     const normalizedLanguage = this.normalizeLanguage(requestedLanguage);
     const fromDate = this.getFromDate(period);
+    const fromParam = fromDate ? fromDate.toISOString() : undefined;
 
-    const aggregate = await this.prisma.$queryRaw<AggregateRow[]>`
-      SELECT
-        (
-          SELECT AVG(t.text_score)::float
-          FROM texts t
-          JOIN users u ON u.id = t.user_id
-          WHERE LOWER(u.language) = ${normalizedLanguage}
-            AND (CAST(${fromDate} AS timestamp) IS NULL OR t.created_at >= CAST(${fromDate} AS timestamp))
-        ) AS avg_text_score,
-        (
-          SELECT AVG(a.pronunciation_score)::float
-          FROM audio_records a
-          JOIN users u ON u.id = a.user_id
-          WHERE LOWER(u.language) = ${normalizedLanguage}
-            AND (CAST(${fromDate} AS timestamp) IS NULL OR a.created_at >= CAST(${fromDate} AS timestamp))
-        ) AS avg_pronunciation_score
-    `;
+    const [textData, audioData] = await Promise.all([
+      this.fetchTexts(normalizedLanguage, fromParam),
+      this.fetchAudioRecords(normalizedLanguage, fromParam),
+    ]);
 
-    const history = await this.prisma.$queryRaw<HistoryRow[]>`
-      WITH text_daily AS (
-        SELECT
-          DATE(t.created_at) AS date,
-          AVG(t.text_score)::float AS text_score
-        FROM texts t
-        JOIN users u ON u.id = t.user_id
-        WHERE LOWER(u.language) = ${normalizedLanguage}
-          AND (CAST(${fromDate} AS timestamp) IS NULL OR t.created_at >= CAST(${fromDate} AS timestamp))
-        GROUP BY DATE(t.created_at)
-      ),
-      audio_daily AS (
-        SELECT
-          DATE(a.created_at) AS date,
-          AVG(a.pronunciation_score)::float AS pronunciation_score
-        FROM audio_records a
-        JOIN users u ON u.id = a.user_id
-        WHERE LOWER(u.language) = ${normalizedLanguage}
-          AND (CAST(${fromDate} AS timestamp) IS NULL OR a.created_at >= CAST(${fromDate} AS timestamp))
-        GROUP BY DATE(a.created_at)
-      )
-      SELECT
-        COALESCE(td.date, ad.date) AS date,
-        td.text_score,
-        ad.pronunciation_score
-      FROM text_daily td
-      FULL OUTER JOIN audio_daily ad ON td.date = ad.date
-      ORDER BY COALESCE(td.date, ad.date) ASC
-    `;
+    const textScores = textData
+      .map((t) => t.textScore)
+      .filter((s): s is number => typeof s === 'number');
 
-    const textFeedbackRows = await this.prisma.$queryRaw<TextFeedbackRow[]>`
-      SELECT t.feedback
-      FROM texts t
-      JOIN users u ON u.id = t.user_id
-      WHERE LOWER(u.language) = ${normalizedLanguage}
-        AND (CAST(${fromDate} AS timestamp) IS NULL OR t.created_at >= CAST(${fromDate} AS timestamp))
-    `;
+    const audioScores = audioData
+      .map((a) => a.pronunciationScore)
+      .filter((s): s is number => typeof s === 'number');
 
-    const audioFeedbackRows = await this.prisma.$queryRaw<AudioFeedbackRow[]>`
-      SELECT a.feedback, a.pronunciation_score
-      FROM audio_records a
-      JOIN users u ON u.id = a.user_id
-      WHERE LOWER(u.language) = ${normalizedLanguage}
-        AND (CAST(${fromDate} AS timestamp) IS NULL OR a.created_at >= CAST(${fromDate} AS timestamp))
-    `;
+    const avg_text_score =
+      textScores.length > 0 ? textScores.reduce((a, b) => a + b, 0) / textScores.length : 0;
 
-    const row = aggregate[0] ?? {
-      avg_text_score: null,
-      avg_pronunciation_score: null,
-    };
+    const avg_pronunciation_score =
+      audioScores.length > 0
+        ? audioScores.reduce((a, b) => a + b, 0) / audioScores.length
+        : 0;
 
-    const mistakeCountsByType = this.buildMistakeCountsByType(textFeedbackRows, audioFeedbackRows);
+    const mistakeCountsByType = this.buildMistakeCountsByType(textData, audioData);
     const mistakesTotal = Object.values(mistakeCountsByType).reduce((sum, v) => sum + v, 0);
 
-    const progressOverTime = history.map((h: HistoryRow) => ({
-      date: this.toIsoDate(h.date),
-      text_score: h.text_score ?? 0,
-      pronunciation_score: h.pronunciation_score ?? 0,
-    }));
-
+    const progressOverTime = this.buildDailyHistory(textData, audioData);
     const charts = this.buildFrontendCharts(mistakeCountsByType, progressOverTime);
 
     return {
       language: requestedLanguage,
       period,
-      avg_text_score: row.avg_text_score ?? 0,
-      avg_pronunciation_score: row.avg_pronunciation_score ?? 0,
+      avg_text_score,
+      avg_pronunciation_score,
       mistakes_total: mistakesTotal,
       mistake_counts_by_type: mistakeCountsByType,
       history: progressOverTime,
@@ -126,54 +60,96 @@ export class StatsService {
     };
   }
 
-  private normalizeLanguage(input: string): string {
-    const value = input.trim().toLowerCase();
-
-    const aliases: Record<string, string> = {
-      en: 'english',
-      english: 'english',
-      es: 'spanish',
-      spanish: 'spanish',
-      de: 'german',
-      german: 'german',
-      fr: 'french',
-      french: 'french',
-      it: 'italian',
-      italian: 'italian',
-      uk: 'ukrainian',
-      ua: 'ukrainian',
-      ukrainian: 'ukrainian',
-      pl: 'polish',
-      polish: 'polish',
-    };
-
-    return aliases[value] ?? value;
+  private async fetchTexts(
+    language: string,
+    from?: string,
+  ): Promise<{ textScore: number | null; feedback: string | null; createdAt: string }[]> {
+    try {
+      const url = new URL(`${this.textServiceUrl}/text/by-language`);
+      url.searchParams.set('language', language);
+      if (from) url.searchParams.set('from', from);
+      const resp = await fetch(url.toString());
+      const data = await resp.json() as { texts?: { textScore: number | null; feedback: string | null; createdAt: string }[] };
+      return data?.texts ?? [];
+    } catch (err: any) {
+      this.logger.warn('could not fetch texts from text-service', err?.message);
+      return [];
+    }
   }
 
-  private buildMistakeCountsByType(
-    textFeedbackRows: TextFeedbackRow[],
-    audioFeedbackRows: AudioFeedbackRow[],
-  ): MistakeCounts {
-    const counts: MistakeCounts = {};
+  private async fetchAudioRecords(
+    language: string,
+    from?: string,
+  ): Promise<{ pronunciationScore: number | null; feedback: string | null; createdAt: string }[]> {
+    try {
+      const url = new URL(`${this.audioServiceUrl}/audio/by-language`);
+      url.searchParams.set('language', language);
+      if (from) url.searchParams.set('from', from);
+      const resp = await fetch(url.toString());
+      const data = await resp.json() as { records?: { pronunciationScore: number | null; feedback: string | null; createdAt: string }[] };
+      return data?.records ?? [];
+    } catch (err: any) {
+      this.logger.warn('could not fetch records from audio-service', err?.message);
+      return [];
+    }
+  }
 
-    for (const row of textFeedbackRows) {
-      const feedback = row.feedback?.trim();
-      if (!feedback || feedback === 'Great work! No obvious errors detected.') continue;
-
-      const parts = feedback.split(';').map((p) => p.trim()).filter(Boolean);
-      for (const part of parts) {
-        const mistakeType = this.detectMistakeType(part);
-        counts[mistakeType] = (counts[mistakeType] ?? 0) + 1;
+  private buildDailyHistory(
+    texts: { textScore: number | null; createdAt: string }[],
+    audioRecords: { pronunciationScore: number | null; createdAt: string }[],
+  ) {
+    const textByDate: Record<string, number[]> = {};
+    for (const t of texts) {
+      const date = t.createdAt.slice(0, 10);
+      if (typeof t.textScore === 'number') {
+        (textByDate[date] ??= []).push(t.textScore);
       }
     }
 
-    for (const row of audioFeedbackRows) {
+    const audioByDate: Record<string, number[]> = {};
+    for (const a of audioRecords) {
+      const date = a.createdAt.slice(0, 10);
+      if (typeof a.pronunciationScore === 'number') {
+        (audioByDate[date] ??= []).push(a.pronunciationScore);
+      }
+    }
+
+    const allDates = [...new Set([...Object.keys(textByDate), ...Object.keys(audioByDate)])].sort();
+
+    return allDates.map((date) => {
+      const ts = textByDate[date];
+      const as = audioByDate[date];
+      return {
+        date,
+        text_score: ts ? ts.reduce((a, b) => a + b, 0) / ts.length : 0,
+        pronunciation_score: as ? as.reduce((a, b) => a + b, 0) / as.length : 0,
+      };
+    });
+  }
+
+  private buildMistakeCountsByType(
+    textRows: { feedback: string | null }[],
+    audioRows: { feedback: string | null; pronunciationScore: number | null }[],
+  ): MistakeCounts {
+    const counts: MistakeCounts = {};
+
+    for (const row of textRows) {
+      const feedback = row.feedback?.trim();
+      if (!feedback || feedback === 'Great work! No obvious errors detected.') continue;
+
+      for (const part of feedback.split(';').map((p) => p.trim()).filter(Boolean)) {
+        const type = this.detectMistakeType(part);
+        counts[type] = (counts[type] ?? 0) + 1;
+      }
+    }
+
+    for (const row of audioRows) {
       const fromFeedback = this.detectAudioMistakeType(row.feedback);
       if (fromFeedback) counts[fromFeedback] = (counts[fromFeedback] ?? 0) + 1;
 
-      if (typeof row.pronunciation_score === 'number' && row.pronunciation_score < 0.85) {
-        const scoreType = row.pronunciation_score < 0.7 ? 'pronunciation_major' : 'pronunciation_minor';
-        counts[scoreType] = (counts[scoreType] ?? 0) + 1;
+      if (typeof row.pronunciationScore === 'number' && row.pronunciationScore < 0.85) {
+        const type = row.pronunciationScore < 0.7 ? 'pronunciation_major' : 'pronunciation_minor';
+        counts[type] = (counts[type] ?? 0) + 1;
       }
     }
 
@@ -202,13 +178,11 @@ export class StatsService {
 
   private detectAudioMistakeType(feedback: string | null): string | null {
     if (!feedback) return null;
-
-    const normalized = feedback.toLowerCase();
-    if (normalized.includes('excellent pronunciation')) return null;
-    if (normalized.includes('good pronunciation')) return 'pronunciation_minor';
-    if (normalized.includes('acceptable pronunciation')) return 'pronunciation_minor';
-    if (normalized.includes('pronunciation')) return 'pronunciation_major';
-
+    const n = feedback.toLowerCase();
+    if (n.includes('excellent pronunciation')) return null;
+    if (n.includes('good pronunciation')) return 'pronunciation_minor';
+    if (n.includes('acceptable pronunciation')) return 'pronunciation_minor';
+    if (n.includes('pronunciation')) return 'pronunciation_major';
     return null;
   }
 
@@ -217,7 +191,6 @@ export class StatsService {
     progressOverTime: Array<{ date: string; text_score: number; pronunciation_score: number }>,
   ) {
     const sortedMistakes = Object.entries(mistakeCountsByType).sort((a, b) => b[1] - a[1]);
-
     return {
       mistakesByType: {
         labels: sortedMistakes.map(([label]) => label),
@@ -233,28 +206,30 @@ export class StatsService {
 
   private getFromDate(period: Period): Date | null {
     const now = new Date();
-
     if (period === 'week') {
       const d = new Date(now);
       d.setDate(d.getDate() - 7);
       return d;
     }
-
     if (period === 'month') {
       const d = new Date(now);
       d.setMonth(d.getMonth() - 1);
       return d;
     }
-
     return null;
   }
 
-  private toIsoDate(value: Date | string): string {
-    if (value instanceof Date) return value.toISOString().slice(0, 10);
-
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
-
-    return String(value).slice(0, 10);
+  private normalizeLanguage(input: string): string {
+    const value = input.trim().toLowerCase();
+    const aliases: Record<string, string> = {
+      en: 'english', english: 'english',
+      es: 'spanish', spanish: 'spanish',
+      de: 'german',  german: 'german',
+      fr: 'french',  french: 'french',
+      it: 'italian', italian: 'italian',
+      uk: 'ukrainian', ua: 'ukrainian', ukrainian: 'ukrainian',
+      pl: 'polish',  polish: 'polish',
+    };
+    return aliases[value] ?? value;
   }
 }

@@ -1,5 +1,6 @@
 // Prisma schema for Auth Service
-// Manages user authentication and session data
+// Owns: users, sessions
+// Database: auth_db
 
 datasource db {
   provider = "postgresql"
@@ -8,24 +9,21 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
 }
 
 model User {
   id           Int       @id @default(autoincrement())
   email        String    @unique
-  passwordHash String
+  passwordHash String    @map("password_hash")
   role         String    @default("student")
   language     String    @default("english")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
   sessions     Session[]
-  texts        Text[]
-  audioRecords AudioRecord[]
+
   @@map("users")
 }
 
-/// Tracks active login sessions for token revocation and auditing
 model Session {
   id        Int      @id @default(autoincrement())
   userId    Int      @map("user_id")
@@ -38,60 +36,4 @@ model Session {
   @@index([userId])
   @@index([token])
   @@map("sessions")
-}
-
-model Text {
-  id            Int     @id @default(autoincrement())
-  userId        Int     @map("user_id")
-  language      String
-  originalText  String  @map("original_text")
-  correctedText String? @map("corrected_text")
-  textScore     Float?  @map("text_score")
-  feedback      String?
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([language])
-  @@index([createdAt])
-  @@map("texts")
-}
-
-model AudioRecord {
-  id                  Int     @id @default(autoincrement())
-  userId              Int     @map("user_id")
-  language            String
-  transcript          String?
-  pronunciationScore  Float?  @map("pronunciation_score")
-  feedback            String?
-  audioUrl            String? @map("audio_url")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([language])
-  @@index([createdAt])
-  @@map("audio_records")
-}
-
-model Task {
-  id              Int     @id @default(autoincrement())
-  language        String
-  level           String  // "A0", "A1", "A2", "B1", "B2", "C1", "C2"
-  skill           String  // "listening", "reading", "writing", "speaking"
-  prompt          String
-  audioUrl        String? @map("audio_url")
-  referenceText   String? @map("reference_text")
-  answerOptions   String[]  @map("answer_options")
-  correctAnswer   String? @map("correct_answer")
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  @@index([language])
-  @@index([level])
-  @@index([skill])
-  @@map("tasks")
 }

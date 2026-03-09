@@ -19,11 +19,11 @@ pnpm start        # ts-node (auth-service, text-service, ai-orchestrator)
 pnpm start:dev    # ts-node-dev with --respawn (api-gateway, stats-service)
 
 # Build & Production
-pnpm build        # prisma generate && tsc → dist/  (auth, text, audio, stats)
-                  # tsc → dist/  (api-gateway, ai-orchestrator)
+pnpm build        # prisma generate && tsc → dist/  (auth, text, audio)
+                  # tsc → dist/  (api-gateway, stats-service, ai-orchestrator)
 pnpm start:prod   # node dist/main.js  (node dist/server.js for stats-service)
 
-# Database (services with Prisma: auth, text, audio, stats)
+# Database (services with Prisma: auth, text, audio)
 pnpm prisma:generate   # Generate Prisma client manually
 pnpm prisma:migrate    # Create + apply migration (dev only)
 # Production migrations run automatically via entrypoint.sh on container startup
@@ -37,9 +37,11 @@ pnpm test                  # jest
 
 ### Full Stack
 ```bash
-docker-compose up -d       # Build and start all services
+docker-compose up -d       # Build and start all services (local dev)
 docker-compose ps          # Check health
-docker-compose pull && docker-compose up -d  # Deploy update
+
+# Production deploy (uses pre-built GHCR images)
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
 ```
 
 ### Root (pnpm workspace)
@@ -56,156 +58,163 @@ Frontend (Next.js :3000)
   → /api/graphql (Next.js route → proxies to api-gateway)
     → API Gateway (:8080, NestJS, Apollo Federation Gateway)
       → auth-service    (:4001)
-      → text-service    (:4002)
-      → audio-service   (:4003)
-      → stats-service   (:4004)
-      → ai-orchestrator (:4005, optional)
+      → text-service    (:4002)  → ai-orchestrator (:4005)
+      → audio-service   (:4003)  → ai-orchestrator (:4005)
+      → stats-service   (:4004)  → text-service (:4002) + audio-service (:4003)
 ```
 
 All frontend GraphQL goes through the Next.js `/api/graphql` route, which proxies to the API Gateway. The frontend uses persisted queries with SHA-256 hashes, falling back to full query strings if the persisted query isn't found.
 
+**Direct inter-service HTTP calls are a normal part of the architecture** — not just delegation edge cases:
+- `text-service` → `ai-orchestrator` (REST): text analysis, task generation
+- `audio-service` → `ai-orchestrator` (REST): Whisper transcription, pronunciation analysis
+- `stats-service` → `text-service` (REST `GET /text/by-language`) + `audio-service` (REST `GET /audio/by-language`): stats aggregation — stats-service has no database of its own
+
 ### API Gateway (`backend/api-gateway/`)
-- **Apollo Federation Gateway** using `IntrospectAndCompose` — it polls all subgraph schemas every 10s
+- **Apollo Federation Gateway** using `IntrospectAndCompose` — federates **only** auth-service and text-service (the two GraphQL subgraphs); polls schemas every 10s
+- **audio-service and stats-service are REST-only** — they are NOT in the subgraph list; never add them
 - Applies **JWT auth** globally via `JwtAuthGuard` (decorating public routes with `@Public()`)
 - Passes auth context downstream via HTTP headers: `x-user-id`, `x-user-role`, `x-user-language`, `x-trace-id`
 - **Circuit breaker** via `opossum` (10s timeout, 50% error threshold, 30s reset)
 - **Rate limiting** via `@nestjs/throttler`: 120 requests / 60s per IP
 
 ### Backend Services
-Each service is a **separate NestJS application** implementing an Apollo Federation subgraph. Services communicate with each other only through the API Gateway in normal operation; direct inter-service HTTP calls happen for specific delegation scenarios (e.g., api-gateway calling text-service for mutation delegation).
 
-| Service | Port | Framework | Notes |
-|---------|------|-----------|-------|
-| auth-service | 4001 | Raw Node.js `http` + `buildSubgraphSchema` | No NestJS, uses Prisma + argon2 for passwords, JWT via `jsonwebtoken` |
-| text-service | 4002 | NestJS + Apollo subgraph | Calls ai-orchestrator for analysis |
-| audio-service | 4003 | NestJS | REST controller for audio upload; Prisma for storage |
-| stats-service | 4004 | NestJS | REST endpoints for stats aggregation |
-| ai-orchestrator | 4005 | NestJS | OpenAI client (GPT-4o-mini for text/tasks, Whisper for transcription); local fallbacks when `AI_API_KEY` not set |
+| Service | Port | Framework | GraphQL subgraph? | Database | Notes |
+|---------|------|-----------|-------------------|----------|-------|
+| auth-service | 4001 | Raw Node.js `http` + `buildSubgraphSchema` | ✅ yes | `auth_db` | No NestJS, uses argon2, JWT via `jsonwebtoken` |
+| text-service | 4002 | NestJS + Apollo subgraph | ✅ yes | `text_db` | Calls ai-orchestrator for analysis |
+| audio-service | 4003 | NestJS | ❌ REST only | `audio_db` | Custom Prisma output path; frontend calls it directly |
+| stats-service | 4004 | NestJS | ❌ REST only | **none** | Aggregates via fetch to text-service + audio-service |
+| ai-orchestrator | 4005 | NestJS | none | OpenAI client; local fallbacks when `AI_API_KEY` not set |
+
+### Database (database-per-service)
+One PostgreSQL container (`postgres:5432`) with three isolated databases:
+
+| Database | Owner | Tables |
+|----------|-------|--------|
+| `auth_db` | auth-service | `users`, `sessions` |
+| `text_db` | text-service | `texts`, `tasks` |
+| `audio_db` | audio-service | `audio_records`, `tasks` |
+
+Databases are created by `infrastructure/postgres-init/init.sql` on first Postgres startup. Prisma schemas contain only the tables each service owns — **no cross-service FK relations** (userId is a plain `Int`). Stats-service has no database: it calls `GET /text/by-language` and `GET /audio/by-language` on the respective services.
+
+Audio-service uses a **custom Prisma output path** (`output = "../src/generated/prisma"`). The generated client is copied in its Dockerfile:
+```dockerfile
+COPY --from=builder /app/backend/audio-service/src/generated ./src/generated
+```
+
+### Stats-service (no DB)
+`stats.service.ts` uses Node 20 native `fetch()` to call:
+- `GET http://text-service:4002/text/by-language?language=&from=`
+- `GET http://audio-service:4003/audio/by-language?language=&from=`
+
+Then aggregates scores, builds daily history, and categorises mistake types in-process. No Prisma, no database dependency.
 
 ### AI Orchestrator
-- All AI calls are funneled through `OrchestratorService`
-- Every OpenAI call has a **retry policy** (3 attempts, exponential backoff 400ms base) and a **timeout** (15–25s per operation)
-- **Local fallbacks** exist for all AI operations — the service stays functional without `AI_API_KEY`
-- Models are configurable via env vars: `OPENAI_TEXT_MODEL`, `OPENAI_TASK_MODEL`, `OPENAI_EVAL_MODEL`, `OPENAI_TRANSCRIPTION_MODEL` (all default to `gpt-4o-mini` or `whisper-1`)
-
-### Database
-- **Each service has its own Prisma schema** and manages its own DB tables. The auth-service schema is the canonical schema (includes User, Session, Text, AudioRecord, Task). Text-service and audio-service have their own subsets.
-- All use `@prisma/adapter-pg` (Prisma v7 driver adapters) with a `pg.Pool` connection
+- All AI calls are funnelled through `OrchestratorService`
+- **Retry policy**: 3 attempts, exponential backoff (400ms base); **timeout**: 15–25s per operation
+- **Local fallbacks** for all operations — stays functional without `AI_API_KEY`
+- Models configurable via env: `OPENAI_TEXT_MODEL`, `OPENAI_TASK_MODEL`, `OPENAI_EVAL_MODEL`, `OPENAI_TRANSCRIPTION_MODEL`
 
 ### Frontend (`frontend/`)
 - **Next.js 15 App Router** with TypeScript strict mode
-- **No Apollo Client** — uses a custom lightweight `graphqlRequest()` function in `src/lib/graphql-client.ts`
-- All GraphQL operations defined in `src/lib/graphql-operations.ts`; hashes for persisted queries in `src/lib/persisted-queries.ts`
+- **No Apollo Client** — custom lightweight `graphqlRequest()` in `src/lib/graphql-client.ts`
+- All GraphQL operations in `src/lib/graphql-operations.ts`; hashes in `src/lib/persisted-queries.ts`
 - **Zustand** for global state (`src/store/app-store.ts`)
-- **React Hook Form + Zod** for form validation
-- **TanStack Query** (`@tanstack/react-query`) for server state / caching
-- App routes map 1:1 to skill pages: `/writing`, `/reading`, `/listening`, `/speaking`, `/stats`, `/dashboard`, `/admin`
+- **React Hook Form + Zod** for form validation; **TanStack Query** for server state / caching
+- `NEXT_PUBLIC_API_URL` is **baked at build time** — must be set as `ARG` in Dockerfile before `pnpm run build`
 
 ## Project Structure
 
 ```
 Lingua_Pro/
-├── docker-compose.yml               # Orchestrates all services
+├── docker-compose.yml               # Local dev orchestration
+├── docker-compose.prod.yml          # Production override (GHCR images, resource limits, localhost ports)
 ├── pnpm-workspace.yaml              # Monorepo: frontend + backend/*
+├── nginx/
+│   ├── nginx.conf                   # Rate limiting, 50M upload limit
+│   └── conf.d/lingua.conf           # HTTP→HTTPS, SSL, proxy rules (replace YOUR_DOMAIN)
+├── scripts/
+│   ├── bootstrap-server.sh          # One-time Ubuntu 24.04 setup (Docker, Nginx, Certbot)
+│   ├── ssl-init.sh                  # Let's Encrypt cert + nginx reload + renewal cron
+│   ├── deploy.sh                    # docker-compose pull + up --no-build (called by CI)
+│   └── health-check.sh              # Cron health monitor with optional Slack alerts
+├── infrastructure/
+│   ├── postgres-init/init.sql       # Creates auth_db, text_db, audio_db on first boot
+│   └── README.md
+├── .github/workflows/deploy.yml     # CI/CD: parallel image builds → GHCR → SSH deploy
+│
 ├── frontend/                        # Next.js 15 App Router
 │   └── src/
 │       ├── app/
 │       │   ├── api/
 │       │   │   ├── graphql/route.ts     # Proxy → API Gateway :8080
 │       │   │   └── ai-feedback/route.ts # SSE streaming endpoint
-│       │   ├── layout.tsx
-│       │   ├── page.tsx                 # Landing / home
-│       │   ├── login/
-│       │   ├── dashboard/
-│       │   ├── writing/
-│       │   ├── reading/
-│       │   ├── listening/
-│       │   ├── speaking/
-│       │   ├── stats/
-│       │   ├── admin/
-│       │   └── settings/
-│       ├── components/                  # One component per page + shared
+│       │   └── [writing|reading|listening|speaking|stats|dashboard|admin|settings]/
+│       ├── components/
 │       │   ├── app-shell.tsx            # Layout wrapper (nav, sidebar)
-│       │   ├── providers.tsx            # React Query + Zustand providers
 │       │   ├── audio-recorder.tsx       # MediaRecorder wrapper
-│       │   ├── streamed-feedback.tsx    # SSE feedback consumer
-│       │   └── [skill]-page.tsx         # writing, reading, listening, speaking, stats…
+│       │   └── streamed-feedback.tsx    # SSE feedback consumer
 │       ├── lib/
 │       │   ├── graphql-client.ts        # fetch wrapper (persisted queries + fallback)
 │       │   ├── graphql-operations.ts    # All GQL query/mutation strings
-│       │   ├── graphql-hooks.ts         # TanStack Query hooks over graphqlRequest
-│       │   ├── graphql-types.ts         # TypeScript types for GQL responses
+│       │   ├── graphql-hooks.ts         # TanStack Query hooks
 │       │   ├── persisted-queries.ts     # SHA-256 hash map per operation name
-│       │   └── types.ts                 # Shared domain types
-│       └── store/
-│           └── app-store.ts             # Zustand store (auth token, user, language)
+│       │   └── types.ts
+│       └── store/app-store.ts           # Zustand (auth token, user, language)
 │
 └── backend/
     ├── api-gateway/                 # NestJS, Apollo Federation Gateway, :8080
     │   └── src/
-    │       ├── app.module.ts            # Gateway + federation config
-    │       ├── auth/
-    │       │   ├── jwt-auth.guard.ts    # Global JWT guard
-    │       │   ├── auth-context.service.ts
-    │       │   └── public.decorator.ts  # @Public() to skip auth
+    │       ├── auth/jwt-auth.guard.ts
     │       ├── graphql/
-    │       │   ├── gateway.resolver.ts
-    │       │   ├── delegated.resolver.ts
-    │       │   ├── mutation-delegation.resolver.ts
-    │       │   ├── gql-throttler.guard.ts
-    │       │   └── text-input.types.ts
-    │       └── services/
-    │           └── circuit-breaker.service.ts  # opossum wrapper
+    │       └── services/circuit-breaker.service.ts
     │
-    ├── auth-service/                # Plain Node.js http, :4001
-    │   ├── prisma/schema.prisma         # Canonical schema (User, Session, Text, AudioRecord, Task)
+    ├── auth-service/                # Plain Node.js http, :4001 → auth_db
+    │   ├── prisma/schema.prisma         # users, sessions only
+    │   └── src/graphql/auth.schema.ts   # register, login, me, logout
+    │
+    ├── text-service/                # NestJS + Apollo subgraph, :4002 → text_db
+    │   ├── prisma/schema.prisma         # texts, tasks (no User model — userId is plain Int)
     │   └── src/
-    │       ├── main.ts                  # Raw HTTP server
-    │       └── graphql/auth.schema.ts   # buildSubgraphSchema (register, login, me, logout)
+    │       ├── graphql/text.schema.ts
+    │       └── text/
+    │           ├── text.service.ts      # analyzeText, getTextsByLanguage, getTasks
+    │           └── text.controller.ts   # POST /text/check, GET /text/tasks, GET /text/by-language
     │
-    ├── text-service/                # NestJS + Apollo subgraph, :4002
-    │   ├── prisma/schema.prisma         # User, Text, Task
-    │   └── src/
-    │       ├── app.module.ts
-    │       ├── graphql/text.schema.ts   # checkText, generateTask mutations
-    │       ├── text/
-    │       │   ├── text.service.ts      # Calls ai-orchestrator REST
-    │       │   └── text.controller.ts
-    │       └── prisma/prisma.service.ts
-    │
-    ├── audio-service/               # NestJS, :4003
-    │   ├── prisma/schema.prisma         # AudioRecord
+    ├── audio-service/               # NestJS, :4003 → audio_db
+    │   ├── prisma/schema.prisma         # audio_records, tasks (no User model)
     │   └── src/
     │       ├── audio/
-    │       │   ├── audio.controller.ts  # POST /audio/analyze, GET /audio/records
-    │       │   ├── audio.service.ts     # Calls ai-orchestrator REST
-    │       │   └── audio.repository.ts  # Prisma queries
-    │       ├── ai-orchestrator/
-    │       │   └── ai-orchestrator.service.ts  # HTTP client for orchestrator
-    │       └── prisma/prisma.service.ts
+    │       │   ├── audio.controller.ts  # POST /check, GET /records/:id, GET /by-language
+    │       │   ├── audio.service.ts
+    │       │   └── audio.repository.ts  # Prisma queries (uses src/generated/prisma)
+    │       └── generated/prisma/        # Custom Prisma output (committed type stubs only)
     │
-    ├── stats-service/               # NestJS, :4004
-    │   ├── prisma/schema.prisma
+    ├── stats-service/               # NestJS, :4004 — NO DATABASE
     │   └── src/
     │       ├── stats/
     │       │   ├── stats.controller.ts  # GET /stats?language=&period=
-    │       │   └── stats.service.ts     # Aggregates text + audio scores
-    │       └── prisma/
+    │       │   └── stats.service.ts     # fetch() → text-service + audio-service
+    │       └── server.ts
     │
     └── ai-orchestrator/             # NestJS, :4005
         └── src/
-            ├── orchestrator.controller.ts  # REST: POST /analyze, /transcribe, /evaluate, /generate-tasks
-            └── orchestrator.service.ts     # OpenAI calls with retry, timeout, local fallbacks
+            ├── orchestrator.controller.ts
+            └── orchestrator.service.ts  # OpenAI calls + retry + local fallbacks
 ```
 
 ## Environment Variables
 
-Create a `.env` file at the repo root (copy from `.env.example`):
+Create `.env` at the repo root (copy from `.env.example`):
 ```env
 POSTGRES_USER=lingua
 POSTGRES_PASSWORD=secret
-POSTGRES_DB=english_platform
-DATABASE_URL=postgresql://lingua:secret@postgres:5432/english_platform
+
+DATABASE_URL_AUTH=postgresql://lingua:secret@postgres:5432/auth_db
+DATABASE_URL_TEXT=postgresql://lingua:secret@postgres:5432/text_db
+DATABASE_URL_AUDIO=postgresql://lingua:secret@postgres:5432/audio_db
 
 JWT_SECRET=supersecretjwtkey
 JWT_EXPIRY=7d
@@ -217,18 +226,19 @@ OPENAI_EVAL_MODEL=gpt-4o-mini
 OPENAI_TRANSCRIPTION_MODEL=whisper-1
 ```
 
-Service-level env overrides (with defaults):
+Service-level env (with defaults):
 - `AUTH_SERVICE_URL` → `http://auth-service:4001/graphql`
-- `TEXT_SERVICE_URL` → `http://text-service:4002/graphql`
-- `AUDIO_SERVICE_URL` → `http://audio-service:4003/graphql`
-- `STATS_SERVICE_URL` → `http://stats-service:4004/graphql`
+- `TEXT_SERVICE_URL` → `http://text-service:4002` (used by stats-service)
+- `AUDIO_SERVICE_URL` → `http://audio-service:4003` (used by stats-service)
 - `AI_ORCHESTRATOR_URL` → `http://ai-orchestrator:4005`
 
 ## Key Conventions
 
-- **Every service must expose `/health` (GET)** — checked by Docker Compose healthchecks
-- **Subgraph services** implement Apollo Federation: use `buildSubgraphSchema` or `@nestjs/graphql` with federation enabled
+- **Every service must expose `GET /health`** — checked by Docker Compose healthchecks
+- **Subgraph services** implement Apollo Federation via `buildSubgraphSchema` or `@nestjs/graphql` with federation enabled
 - The auth-service is intentionally **plain Node.js** (no NestJS) for minimal footprint
-- `x-user-id`, `x-user-role`, `x-user-language` headers are the mechanism for passing auth context from gateway to subservices — services trust these headers (no re-validation)
-- CEFR levels used throughout: A0, A1, A2, B1, B2, C1, C2
+- `x-user-id`, `x-user-role`, `x-user-language` headers propagate auth context from gateway to subservices — services trust these headers without re-validation
+- **No cross-DB foreign keys** — each service stores `userId` as a plain `Int`; user identity is trusted from headers
+- Stats-service uses Node 20 native `fetch()` — no `@nestjs/axios` or Prisma dependency
+- CEFR levels: A0, A1, A2, B1, B2, C1, C2
 - Supported languages: English, German, Albanian, Polish

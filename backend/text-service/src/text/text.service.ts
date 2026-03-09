@@ -71,6 +71,24 @@ export class TextService {
     }
   }
 
+  async getTextsByLanguage(language: string, from?: string) {
+    const where: any = { language };
+    if (from) {
+      where.createdAt = { gte: new Date(from) };
+    }
+    try {
+      const texts = await this.prisma.text.findMany({
+        where,
+        select: { textScore: true, feedback: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      return { texts };
+    } catch (err: any) {
+      this.logger.error('failed to query texts by language', err?.message || err);
+      return { texts: [] };
+    }
+  }
+
   async getTasks(language: string, level: string, skill?: string) {
     const where: any = { language, level };
     if (skill) {

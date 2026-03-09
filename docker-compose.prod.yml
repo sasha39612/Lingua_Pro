@@ -1,0 +1,114 @@
+# Production override — use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+# Pulls pre-built images from GHCR instead of building locally.
+# Ports bound to 127.0.0.1 only — Nginx on the host proxies external traffic.
+
+version: '3.8'
+
+services:
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY}/frontend:${IMAGE_TAG:-latest}
+    ports:
+      - "127.0.0.1:3000:3000"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api-gateway:
+    image: ghcr.io/${GITHUB_REPOSITORY}/api-gateway:${IMAGE_TAG:-latest}
+    ports:
+      - "127.0.0.1:8080:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  auth-service:
+    image: ghcr.io/${GITHUB_REPOSITORY}/auth-service:${IMAGE_TAG:-latest}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  text-service:
+    image: ghcr.io/${GITHUB_REPOSITORY}/text-service:${IMAGE_TAG:-latest}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  audio-service:
+    image: ghcr.io/${GITHUB_REPOSITORY}/audio-service:${IMAGE_TAG:-latest}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  stats-service:
+    image: ghcr.io/${GITHUB_REPOSITORY}/stats-service:${IMAGE_TAG:-latest}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ai-orchestrator:
+    image: ghcr.io/${GITHUB_REPOSITORY}/ai-orchestrator:${IMAGE_TAG:-latest}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

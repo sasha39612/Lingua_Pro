@@ -14,13 +14,13 @@ A microservices-based language learning platform supporting Listening, Reading, 
 
 ---
 
-## Quick Start
+## Quick Start (local)
 
 ```bash
 # 1. Copy and fill in environment variables
 cp .env.example .env
 
-# 2. Build and start all 8 containers
+# 2. Build and start all containers
 docker-compose up -d
 
 # 3. Check that all services are healthy
@@ -40,8 +40,10 @@ All variables live in a single `.env` file at the repo root. See [`.env.example`
 
 | Variable | Description |
 |----------|-------------|
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | PostgreSQL credentials |
-| `DATABASE_URL` | Full connection string — use `postgres` as host (Docker service name) |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` | PostgreSQL credentials |
+| `DATABASE_URL_AUTH` | auth-service connection string (`auth_db`) |
+| `DATABASE_URL_TEXT` | text-service connection string (`text_db`) |
+| `DATABASE_URL_AUDIO` | audio-service connection string (`audio_db`) |
 | `JWT_SECRET` | Secret for signing JWTs |
 | `JWT_EXPIRY` | Token lifetime (default `7d`) |
 | `AI_API_KEY` | OpenAI API key |
@@ -54,18 +56,31 @@ All variables live in a single `.env` file at the repo root. See [`.env.example`
 
 ```
 Lingua_Pro/
-├── .env.example                 # Template for all required env vars
-├── .dockerignore                # Monorepo-level Docker build exclusions
-├── docker-compose.yml           # Orchestrates all 8 containers
-├── pnpm-workspace.yaml          # pnpm monorepo: frontend + backend/*
-├── frontend/                    # Next.js 15, TypeScript, TailwindCSS
-└── backend/
-    ├── api-gateway/             # Apollo Federation Gateway, :8080
-    ├── auth-service/            # JWT auth, plain Node.js, :4001
-    ├── text-service/            # Writing/reading tasks, NestJS, :4002
-    ├── audio-service/           # Speaking/listening + audio storage, NestJS, :4003
-    ├── stats-service/           # Performance aggregation, NestJS, :4004
-    └── ai-orchestrator/         # OpenAI GPT + Whisper integration, NestJS, :4005
+├── .env.example                     # Template for all required env vars
+├── .dockerignore                    # Monorepo-level Docker build exclusions
+├── docker-compose.yml               # Local development orchestration
+├── docker-compose.prod.yml          # Production override (GHCR images, resource limits)
+├── pnpm-workspace.yaml              # pnpm monorepo: frontend + backend/*
+├── frontend/                        # Next.js 15, TypeScript, TailwindCSS
+├── backend/
+│   ├── api-gateway/                 # Apollo Federation Gateway, :8080
+│   ├── auth-service/                # JWT auth, plain Node.js, :4001 — owns auth_db
+│   ├── text-service/                # Writing/reading tasks, NestJS, :4002 — owns text_db
+│   ├── audio-service/               # Speaking/listening + audio storage, NestJS, :4003 — owns audio_db
+│   ├── stats-service/               # Performance aggregation (no DB), NestJS, :4004
+│   └── ai-orchestrator/             # OpenAI GPT + Whisper integration, NestJS, :4005
+├── nginx/
+│   ├── nginx.conf                   # Global Nginx config (rate limiting, upload limits)
+│   └── conf.d/lingua.conf           # Virtual host: HTTP→HTTPS, SSL, proxy rules
+├── scripts/
+│   ├── bootstrap-server.sh          # One-time setup for a fresh Hetzner Ubuntu instance
+│   ├── ssl-init.sh                  # Obtain Let's Encrypt certificate
+│   ├── deploy.sh                    # Pull GHCR images and restart services (used by CI)
+│   └── health-check.sh              # Cron health monitor (optional Slack alerts)
+├── infrastructure/
+│   ├── postgres-init/init.sql       # Creates auth_db, text_db, audio_db on first boot
+│   └── README.md                    # Infrastructure reference
+└── .github/workflows/deploy.yml     # GitHub Actions CI/CD pipeline
 ```
 
 ---
@@ -85,40 +100,78 @@ Lingua_Pro/
 
 ---
 
+## Database Architecture
+
+Each service owns an isolated database on the shared PostgreSQL instance:
+
+| Service | Database | Tables |
+|---------|----------|--------|
+| auth-service | `auth_db` | `users`, `sessions` |
+| text-service | `text_db` | `texts`, `tasks` |
+| audio-service | `audio_db` | `audio_records`, `tasks` |
+| stats-service | — | no DB — aggregates via REST calls to text/audio services |
+
+Databases are created automatically by `infrastructure/postgres-init/init.sql` on first Postgres container startup. Prisma migrations run at service startup via `entrypoint.sh`.
+
+---
+
 ## Docker Build Architecture
 
-All Dockerfiles use a **two-stage build** (builder → runner) and a **monorepo root build context** (`context: .` in docker-compose.yml) because the single `pnpm-lock.yaml` lives at the root.
+All Dockerfiles use a **two-stage build** (builder → runner) with **monorepo root build context** (`context: .`) because `pnpm-lock.yaml` lives at the root.
 
-- **Builder stage**: installs all workspace deps with `pnpm install --frozen-lockfile`, runs `prisma generate && tsc`
-- **Runner stage**: copies compiled `dist/` + root `node_modules/` from the builder — no install step, lean image
+- **Builder stage**: `pnpm install --frozen-lockfile`, `prisma generate && tsc` (where applicable)
+- **Runner stage**: copies compiled `dist/` + root `node_modules/` — no install step, lean image
 
-Services with Prisma (auth, text, audio, stats) use an `entrypoint.sh` that runs `prisma migrate deploy` before starting, ensuring schema migrations are always applied on startup.
+Services with Prisma (auth, text, audio) run `prisma migrate deploy` at startup via `entrypoint.sh`.
 
-The frontend uses Next.js [`output: 'standalone'`](frontend/next.config.ts) — the runner image contains only the self-contained bundle at `.next/standalone/`.
+The frontend uses Next.js [`output: 'standalone'`](frontend/next.config.ts). `NEXT_PUBLIC_API_URL` is baked in at build time via `ARG` — it must be set when building the production image.
 
 ---
 
 ## Deploying on Hetzner
 
-1. Provision a Hetzner instance (Ubuntu 24.04), install Docker + Docker Compose.
-2. Clone the repository and create `.env`:
-   ```bash
-   cp .env.example .env
-   # Edit .env with real credentials
-   ```
-3. Start the stack:
-   ```bash
-   docker-compose up -d
-   ```
-4. Verify all services are healthy:
-   ```bash
-   docker-compose ps
-   curl http://localhost:8080/health
-   ```
-5. To update after a push:
-   ```bash
-   docker-compose up -d --build
-   ```
+### First-time server setup
+
+```bash
+# 1. Bootstrap a fresh Ubuntu 24.04 instance (installs Docker, Nginx, Certbot)
+bash scripts/bootstrap-server.sh
+
+# 2. Clone the repo and configure environment
+cd /opt/lingua-pro
+git clone <repo-url> .
+cp .env.example .env
+nano .env   # fill in real credentials
+
+# 3. Obtain SSL certificate and configure Nginx
+bash scripts/ssl-init.sh your-domain.com your@email.com
+
+# 4. Deploy (pull images from GHCR and start)
+bash scripts/deploy.sh
+```
+
+### CI/CD (GitHub Actions)
+
+Push to `master` → GitHub Actions automatically:
+1. Builds all 7 Docker images in parallel (matrix strategy)
+2. Pushes to GitHub Container Registry (GHCR) tagged with `latest` and commit SHA
+3. SSHs into Hetzner and runs `scripts/deploy.sh`
+
+**Required GitHub Secrets / Variables:**
+
+| Key | Where | Value |
+|-----|-------|-------|
+| `HETZNER_HOST` | Secret | Server IP address |
+| `HETZNER_USER` | Secret | SSH user (`root` or deploy user) |
+| `HETZNER_SSH_KEY` | Secret | Private SSH key |
+| `DOMAIN` | Variable (`vars.DOMAIN`) | Your domain name |
+
+### Manual update after git pull
+
+```bash
+cd /opt/lingua-pro
+git pull
+bash scripts/deploy.sh
+```
 
 ---
 
@@ -159,7 +212,7 @@ The frontend uses Next.js [`output: 'standalone'`](frontend/next.config.ts) — 
 - **Runtime**: Node.js 20 / Alpine
 - **Framework**: NestJS (all services except auth-service which uses plain Node.js `http`)
 - **Package manager**: pnpm workspace
-- **ORM**: Prisma (each service has its own `prisma/schema.prisma`)
+- **ORM**: Prisma per service (auth, text, audio — each with its own schema and database)
 - **API**: Apollo Federation (subgraph per service) + REST (inter-service)
 
 ### AI
@@ -168,7 +221,8 @@ The frontend uses Next.js [`output: 'standalone'`](frontend/next.config.ts) — 
 - **Fallbacks**: All AI operations have local fallbacks — the platform works without `AI_API_KEY`
 
 ### Infrastructure
-- **Database**: PostgreSQL 15 (Alpine), persisted via Docker volume
+- **Database**: PostgreSQL 15 (Alpine) — one instance, three isolated databases
 - **Networking**: `lingua-network` Docker bridge
+- **Reverse proxy**: Nginx (host) with SSL termination via Let's Encrypt
 - **Deployment**: Hetzner cloud, Docker Compose
-- **CI/CD**: GitHub Actions
+- **CI/CD**: GitHub Actions → GHCR → Hetzner SSH deploy

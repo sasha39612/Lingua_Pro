@@ -15,16 +15,11 @@ import { AuthContextService } from './auth/auth-context.service';
 import { ApolloGateway, IntrospectAndCompose, RemoteGraphQLDataSource } from '@apollo/gateway';
 import { GqlThrottlerGuard } from './graphql/gql-throttler.guard';
 
+// Only services that expose an Apollo Federation subgraph at /graphql.
+// audio-service and stats-service are REST-only — do NOT add them here.
 const subgraphUrls = {
   authService: process.env.AUTH_SERVICE_URL || 'http://auth-service:4001/graphql',
   textService: process.env.TEXT_SERVICE_URL || 'http://text-service:4002/graphql',
-  audioService: process.env.AUDIO_SERVICE_URL || 'http://audio-service:4003/graphql',
-  statsService: process.env.STATS_SERVICE_URL || 'http://stats-service:4004/graphql',
-  aiOrchestratorService:
-    process.env.AI_ORCHESTRATOR_GRAPHQL_URL ||
-    (process.env.AI_ORCHESTRATOR_URL
-      ? `${process.env.AI_ORCHESTRATOR_URL.replace(/\/$/, '')}/graphql`
-      : undefined),
 };
 
 const gateway = new ApolloGateway({
@@ -32,11 +27,6 @@ const gateway = new ApolloGateway({
     subgraphs: [
       { name: 'auth', url: subgraphUrls.authService },
       { name: 'text', url: subgraphUrls.textService },
-      { name: 'audio', url: subgraphUrls.audioService },
-      { name: 'stats', url: subgraphUrls.statsService },
-      ...(subgraphUrls.aiOrchestratorService
-        ? [{ name: 'ai-orchestrator', url: subgraphUrls.aiOrchestratorService }]
-        : []),
     ],
     pollIntervalInMs: 10000,
   }),

@@ -68,6 +68,22 @@ export class AudioRepository {
     };
   }
 
+  async getRecordsByLanguage(
+    language: string,
+    from?: string,
+  ): Promise<{ records: { pronunciationScore: number | null; feedback: string | null; createdAt: Date }[] }> {
+    const where: any = { language };
+    if (from) {
+      where.createdAt = { gte: new Date(from) };
+    }
+    const records = await this.prisma.audioRecord.findMany({
+      where,
+      select: { pronunciationScore: true, feedback: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return { records };
+  }
+
   async getListeningTasks(language: string, level?: string): Promise<Task[]> {
     return this.prisma.task.findMany({
       where: {

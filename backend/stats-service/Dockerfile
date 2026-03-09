@@ -17,8 +17,7 @@ COPY backend/ai-orchestrator/package.json ./backend/ai-orchestrator/
 
 RUN pnpm install --frozen-lockfile
 
-# Copy service source (includes prisma/ schema) and build
-# build script already runs: prisma generate && tsc
+# Copy service source and build
 COPY backend/stats-service/ ./backend/stats-service/
 
 WORKDIR /app/backend/stats-service
@@ -34,14 +33,8 @@ ENV NODE_ENV=production
 ENV PORT=4004
 
 # Node resolves node_modules up the directory tree — copy root workspace node_modules
-# (includes Prisma engine binaries compiled for Linux/Alpine by the builder)
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/backend/stats-service/dist ./dist
-COPY --from=builder /app/backend/stats-service/prisma ./prisma
-
-COPY backend/stats-service/entrypoint.sh ./entrypoint.sh
-RUN chmod +x entrypoint.sh
 
 EXPOSE 4004
-# entrypoint runs migrations then: node dist/server.js
-ENTRYPOINT ["./entrypoint.sh"]
+CMD ["node", "dist/server.js"]

@@ -91,6 +91,10 @@ export class AudioService {
     return this.audioRepository.getListeningTasks(language, level);
   }
 
+  async getRecordsByLanguage(language: string, from?: string) {
+    return this.audioRepository.getRecordsByLanguage(language, from);
+  }
+
   async evaluateComprehension(
     userAnswer: string,
     correctAnswer: string

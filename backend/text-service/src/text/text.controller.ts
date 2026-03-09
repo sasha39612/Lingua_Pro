@@ -23,4 +23,12 @@ export class TextController {
   ) {
     return this.textService.getTasks(language, level, skill);
   }
+
+  @Get('by-language')
+  async byLanguage(
+    @Query('language') language: string,
+    @Query('from') from?: string
+  ) {
+    return this.textService.getTextsByLanguage(language, from);
+  }
 }

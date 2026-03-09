@@ -21,6 +21,11 @@ RUN pnpm install --frozen-lockfile
 COPY frontend/ ./frontend/
 
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# NEXT_PUBLIC_* vars are baked into the JS bundle at build time — must be set here
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080/graphql
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 WORKDIR /app/frontend
 RUN pnpm run build
 
