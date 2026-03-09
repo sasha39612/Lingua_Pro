@@ -15,7 +15,7 @@ async function bootstrap() {
     }),
   );
 
-  const port = Number(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT ?? 4004);
   await app.listen(port);
   // eslint-disable-next-line no-console
   console.log(`Stats Service is running on port ${port}`);

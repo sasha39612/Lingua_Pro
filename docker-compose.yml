@@ -119,6 +119,7 @@ services:
       - PORT=4003
       - DATABASE_URL=${DATABASE_URL_AUDIO}
       - AI_ORCHESTRATOR_URL=http://ai-orchestrator:4005
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - audio_data:/var/app/uploads
     healthcheck:

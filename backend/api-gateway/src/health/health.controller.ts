@@ -9,6 +9,6 @@ export class HealthController {
   @SkipThrottle()
   @Get('health')
   health() {
-    return { status: 'ok', uptime: process.uptime(), timestamp: Date.now() };
+    return { status: 'ok', service: 'api-gateway', uptime: process.uptime(), timestamp: new Date().toISOString() };
   }
 }

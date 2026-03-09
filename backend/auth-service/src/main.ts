@@ -96,7 +96,7 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.url === '/health' && req.method === 'GET') {
-    return sendJson(res, 200, { status: 'ok', service: 'auth-service' });
+    return sendJson(res, 200, { status: 'ok', service: 'auth-service', uptime: process.uptime(), timestamp: new Date().toISOString() });
   }
 
   if (req.url !== '/graphql' || req.method !== 'POST') {
