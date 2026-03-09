@@ -1,28 +1,45 @@
-# Frontend Dockerfile
+# ── Stage 1: builder ──────────────────────────────────────────────────────
+# Build context: monorepo root (docker-compose sets context: .)
 FROM node:20-alpine AS builder
-
 WORKDIR /app
-RUN npm install -g pnpm
 
-COPY package.json ./
-RUN pnpm install --no-frozen-lockfile
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
-COPY . .
+# Copy workspace manifests first — layer cache invalidated only when these change
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY frontend/package.json ./frontend/
+COPY backend/api-gateway/package.json ./backend/api-gateway/
+COPY backend/auth-service/package.json ./backend/auth-service/
+COPY backend/text-service/package.json ./backend/text-service/
+COPY backend/audio-service/package.json ./backend/audio-service/
+COPY backend/stats-service/package.json ./backend/stats-service/
+COPY backend/ai-orchestrator/package.json ./backend/ai-orchestrator/
+
+RUN pnpm install --frozen-lockfile
+
+# Copy frontend source and build
+COPY frontend/ ./frontend/
+
+ENV NEXT_TELEMETRY_DISABLED=1
+WORKDIR /app/frontend
 RUN pnpm run build
 
+# ── Stage 2: runner ───────────────────────────────────────────────────────
+# next.config.ts has output: 'standalone' — use the self-contained bundle
 FROM node:20-alpine AS runner
-
 WORKDIR /app
+
+RUN apk add --no-cache curl
+
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-RUN npm install -g pnpm
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/next.config.ts ./
-
-RUN pnpm install --prod --no-frozen-lockfile
+# Standalone server + static assets (must be placed adjacent to server.js)
+COPY --from=builder /app/frontend/.next/standalone ./
+COPY --from=builder /app/frontend/.next/static ./frontend/.next/static
+COPY --from=builder /app/frontend/public ./frontend/public
 
 EXPOSE 3000
-CMD ["pnpm", "start"]
+CMD ["node", "frontend/server.js"]

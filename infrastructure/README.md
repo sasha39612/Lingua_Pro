@@ -1,121 +1,223 @@
 # Infrastructure
 
-Contains deployment manifests, Terraform/CloudFormation templates, and configuration for CI/CD. Includes networking, database provisioning, and service definitions used by docker-compose or Kubernetes.
+Configuration and reference documentation for deployment, database schema, and Prisma setup.
 
-## Technology Stack Overview
+## Technology Stack
 
-- **Frontend**: Next.js 15+ (latest stable), React 18+, TypeScript (strict)
-- **Backend**: Node.js 18+, NestJS (all microservices)
-- **Database**: PostgreSQL 15+ with Prisma ORM
-- **Containerization**: Docker + Docker Compose
-- **Package Management**: pnpm workspace enforced by `pnpm-workspace.yaml` in repo root
-- **Networking**: Docker bridge network (`lingua-network`)
-- **Deployment**: Hetzner cloud
-- **CI/CD**: GitHub Actions
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 15, React 19, TypeScript strict |
+| Backend | Node.js 20, NestJS, TypeScript strict |
+| Auth service | Plain Node.js `http` (no NestJS), port 4001 |
+| API gateway | Apollo Federation Gateway, port 8080 |
+| Database | PostgreSQL 15-alpine |
+| ORM | Prisma (per-service schemas, `prisma migrate deploy` at startup) |
+| Package manager | pnpm workspace (`pnpm-lock.yaml` at repo root) |
+| Containers | Docker + Docker Compose |
+| Networking | Docker bridge network (`lingua-network`) |
+| Deployment | Hetzner cloud |
+| CI/CD | GitHub Actions |
+
+---
+
+## Docker Compose
+
+All services are defined in [`docker-compose.yml`](../docker-compose.yml) at the monorepo root.
+
+**Build context is always the monorepo root** (`context: .`) because `pnpm-lock.yaml` lives there. Each service specifies its own Dockerfile via the `dockerfile:` key:
+
+```yaml
+api-gateway:
+  build:
+    context: .
+    dockerfile: backend/api-gateway/Dockerfile
+```
+
+### Service startup order
+
+`depends_on` with `condition: service_healthy` enforces this chain:
+
+```
+postgres (healthy)
+  → auth-service, text-service, audio-service, stats-service, ai-orchestrator (healthy)
+    → api-gateway (healthy)
+      → frontend
+```
+
+### Volumes
+
+| Volume | Used by | Purpose |
+|--------|---------|---------|
+| `postgres_data` | postgres | Persist database across restarts |
+| `audio_data` | audio-service | Persist uploaded audio files at `/var/app/uploads` |
+
+---
+
+## Environment Variables
+
+Create `.env` at the repo root (copy from [`.env.example`](../.env.example)):
+
+```env
+POSTGRES_USER=lingua
+POSTGRES_PASSWORD=secret
+POSTGRES_DB=english_platform
+
+# Use 'postgres' as host — that's the Docker service name
+DATABASE_URL=postgresql://lingua:secret@postgres:5432/english_platform
+
+JWT_SECRET=supersecret
+JWT_EXPIRY=7d
+
+AI_API_KEY=your_openai_api_key_here
+
+# All default to gpt-4o-mini / whisper-1 if not set
+OPENAI_TEXT_MODEL=gpt-4o-mini
+OPENAI_TASK_MODEL=gpt-4o-mini
+OPENAI_EVAL_MODEL=gpt-4o-mini
+OPENAI_TRANSCRIPTION_MODEL=whisper-1
+```
 
 ---
 
 ## Database Schema
 
-The PostgreSQL database is initialized with the following tables:
+Each service that uses the database has its own `prisma/schema.prisma`. The canonical schema (all tables) lives in [`backend/auth-service/prisma/schema.prisma`](../backend/auth-service/prisma/schema.prisma).
 
 ### `users`
-Stores student and admin account information.
-- `id` (SERIAL PRIMARY KEY)
-- `email` (VARCHAR, unique)
-- `password_hash` (VARCHAR)
-- `role` (VARCHAR: 'student' or 'admin')
-- `language` (VARCHAR: default 'english')
-- `created_at`, `updated_at` (TIMESTAMP)
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | SERIAL PK | |
+| `email` | VARCHAR UNIQUE | |
+| `password_hash` | VARCHAR | argon2 hash |
+| `role` | VARCHAR | `student` or `admin` |
+| `language` | VARCHAR | default `english` |
+| `created_at`, `updated_at` | TIMESTAMP | |
+
+### `sessions`
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | SERIAL PK | |
+| `user_id` | FK → users | CASCADE delete |
+| `token` | VARCHAR UNIQUE | JWT token |
+| `expires_at` | TIMESTAMP | |
+| `created_at` | TIMESTAMP | |
 
 ### `texts`
-Stores writing and reading task results.
-- `id` (SERIAL PRIMARY KEY)
-- `user_id` (INTEGER, FK to users)
-- `language` (VARCHAR)
-- `original_text` (TEXT)
-- `corrected_text` (TEXT)
-- `text_score` (FLOAT)
-- `feedback` (TEXT)
-- `created_at`, `updated_at` (TIMESTAMP)
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | SERIAL PK | |
+| `user_id` | FK → users | |
+| `language` | VARCHAR | |
+| `original_text` | TEXT | |
+| `corrected_text` | TEXT | nullable |
+| `text_score` | FLOAT | 0.0–1.0 |
+| `feedback` | TEXT | nullable |
+| `created_at`, `updated_at` | TIMESTAMP | |
 
 ### `audio_records`
-Stores speaking and listening task results.
-- `id` (SERIAL PRIMARY KEY)
-- `user_id` (INTEGER, FK to users)
-- `language` (VARCHAR)
-- `transcript` (TEXT)
-- `pronunciation_score` (FLOAT)
-- `feedback` (TEXT)
-- `audio_url` (VARCHAR)
-- `created_at`, `updated_at` (TIMESTAMP)
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | SERIAL PK | |
+| `user_id` | FK → users | |
+| `language` | VARCHAR | |
+| `transcript` | TEXT | nullable |
+| `pronunciation_score` | FLOAT | 0.0–1.0 |
+| `feedback` | TEXT | nullable |
+| `audio_url` | VARCHAR | nullable |
+| `created_at`, `updated_at` | TIMESTAMP | |
 
 ### `tasks`
-Stores AI-generated tasks per level and language (recommended but optional).
-- `id` (SERIAL PRIMARY KEY)
-- `language` (VARCHAR)
-- `level` (VARCHAR: A0–C2)
-- `skill` (VARCHAR: 'listening', 'reading', 'writing', or 'speaking')
-- `prompt` (TEXT)
-- `audio_url` (VARCHAR, optional)
-- `reference_text` (TEXT, optional)
-- `answer_options` (TEXT[], optional)
-- `correct_answer` (TEXT, optional)
-- `created_at` (TIMESTAMP)
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | SERIAL PK | |
+| `language` | VARCHAR | |
+| `level` | VARCHAR | A0–C2 |
+| `skill` | VARCHAR | `listening`, `reading`, `writing`, `speaking` |
+| `prompt` | TEXT | |
+| `audio_url` | VARCHAR | nullable |
+| `reference_text` | TEXT | nullable |
+| `answer_options` | TEXT[] | 4 options |
+| `correct_answer` | VARCHAR | nullable |
+| `created_at` | TIMESTAMP | |
 
-## Schema Initialization
-
-Run `database-schema.sql` against the PostgreSQL instance to create all tables and indexes:
-
-```bash
-psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f database-schema.sql
-```
-
-Or use Docker Compose to initialize automatically by adding an init script to the postgres service.
+---
 
 ## Prisma Setup
 
-Each microservice that accesses the database (auth-service, text-service, audio-service, stats-service) includes a Prisma schema file in `prisma/schema.prisma`.
+### Migrations (production)
 
-### Initialize Prisma for a Service
+Migrations run automatically via `entrypoint.sh` in each Prisma service container at startup:
 
-From within each service directory:
+```sh
+npx prisma migrate deploy --schema=./prisma/schema.prisma
+exec node dist/main.js
+```
+
+Services with Prisma: `auth-service`, `text-service`, `audio-service`, `stats-service`.
+
+### Local development
+
+From within a service directory:
 
 ```bash
-# Install Prisma dependencies
-npm install @prisma/client @nestjs/prisma
+# Generate Prisma client after schema changes
+pnpm prisma:generate
 
-# Generate Prisma client from schema
-npx prisma generate
+# Create a new migration
+pnpm prisma:migrate
 
-# Run migrations (if schema changes)
-npx prisma migrate dev --name <migration_name>
-
-# (Optional) View database via Prisma Studio
+# Inspect the database
 npx prisma studio
 ```
 
-### Key Prisma Files
+### Key files per service
 
-- `prisma/schema.prisma` – Data model definition (auto-generates migrations)
-- `.env` – Must include `DATABASE_URL=postgresql://user:password@host:port/database`
-- `prisma/migrations/` – Auto-generated migration files
-
-### NestJS Integration
-
-Services use `@nestjs/prisma` for seamless NestJS integration:
-
-```typescript
-import { PrismaService } from '@nestjs/prisma';
-
-@Injectable()
-export class UsersService {
-  constructor(private prisma: PrismaService) {}
-
-  async findUser(id: number) {
-    return this.prisma.user.findUnique({ where: { id } });
-  }
-}
+```
+backend/<service>/
+├── prisma/
+│   ├── schema.prisma      # Data model — defines tables, relations, indexes
+│   └── migrations/        # Auto-generated SQL migration files
+└── src/prisma/
+    └── prisma.service.ts  # NestJS injectable PrismaService
 ```
 
-This ensures type-safe database operations with auto-generated TypeScript types.
+### Special: audio-service custom Prisma output
+
+`audio-service/prisma/schema.prisma` uses a custom output path:
+```
+generator client {
+  output = "../src/generated/prisma"
+}
+```
+The generated client lands at `src/generated/prisma/` and is required at runtime. The Docker runner image copies this directory from the builder:
+```dockerfile
+COPY --from=builder /app/backend/audio-service/src/generated ./src/generated
+```
+
+---
+
+## Hetzner Deployment
+
+```bash
+# 1. Provision Ubuntu 24.04, install Docker + Docker Compose
+# 2. Clone repo and configure environment
+cp .env.example .env
+# edit .env with real credentials
+
+# 3. Start all services (builds images on first run)
+docker-compose up -d
+
+# 4. Verify
+docker-compose ps
+curl http://localhost:8080/health
+
+# 5. Update after a git pull
+docker-compose up -d --build
+```
+
+### CI/CD with GitHub Actions
+
+Typical pipeline:
+1. Build Docker images and push to a registry (GHCR or Docker Hub)
+2. SSH into Hetzner host
+3. Run `docker-compose pull && docker-compose up -d`

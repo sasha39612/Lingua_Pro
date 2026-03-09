@@ -19,12 +19,14 @@ pnpm start        # ts-node (auth-service, text-service, ai-orchestrator)
 pnpm start:dev    # ts-node-dev with --respawn (api-gateway, stats-service)
 
 # Build & Production
-pnpm build        # tsc → dist/
-pnpm start:prod   # node dist/main.js
+pnpm build        # prisma generate && tsc → dist/  (auth, text, audio, stats)
+                  # tsc → dist/  (api-gateway, ai-orchestrator)
+pnpm start:prod   # node dist/main.js  (node dist/server.js for stats-service)
 
-# Database (services with Prisma)
-pnpm prisma:generate   # Generate Prisma client
-pnpm prisma:migrate    # Run migrations (dev)
+# Database (services with Prisma: auth, text, audio, stats)
+pnpm prisma:generate   # Generate Prisma client manually
+pnpm prisma:migrate    # Create + apply migration (dev only)
+# Production migrations run automatically via entrypoint.sh on container startup
 ```
 
 ### Tests (audio-service, stats-service)
@@ -198,14 +200,21 @@ Lingua_Pro/
 
 ## Environment Variables
 
-Create a `.env` file at the repo root:
+Create a `.env` file at the repo root (copy from `.env.example`):
 ```env
-POSTGRES_USER=demo
-POSTGRES_PASSWORD=demo
+POSTGRES_USER=lingua
+POSTGRES_PASSWORD=secret
 POSTGRES_DB=english_platform
-AI_API_KEY=your-openai-api-key-here
+DATABASE_URL=postgresql://lingua:secret@postgres:5432/english_platform
+
 JWT_SECRET=supersecretjwtkey
-DATABASE_URL=postgresql://demo:demo@postgres:5432/english_platform
+JWT_EXPIRY=7d
+
+AI_API_KEY=your-openai-api-key-here
+OPENAI_TEXT_MODEL=gpt-4o-mini
+OPENAI_TASK_MODEL=gpt-4o-mini
+OPENAI_EVAL_MODEL=gpt-4o-mini
+OPENAI_TRANSCRIPTION_MODEL=whisper-1
 ```
 
 Service-level env overrides (with defaults):
@@ -213,7 +222,7 @@ Service-level env overrides (with defaults):
 - `TEXT_SERVICE_URL` → `http://text-service:4002/graphql`
 - `AUDIO_SERVICE_URL` → `http://audio-service:4003/graphql`
 - `STATS_SERVICE_URL` → `http://stats-service:4004/graphql`
-- `AI_ORCHESTRATOR_URL` / `AI_ORCHESTRATOR_GRAPHQL_URL`
+- `AI_ORCHESTRATOR_URL` → `http://ai-orchestrator:4005`
 
 ## Key Conventions
 

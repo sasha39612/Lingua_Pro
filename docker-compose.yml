@@ -1,91 +1,196 @@
-# docker-compose configuration for Lingua Pro — Language Training Platform
-# Stack: Next.js + React (frontend) | NestJS + Node.js (microservices) | PostgreSQL + Prisma
-# Deployment: Hetzner cloud via Docker + Docker Compose
-# Note: all services are expected to supply a Dockerfile from day one.  
-# For deployment on Hetzner, images can be built locally and pushed to a
-# registry accessible from the Hetzner cloud, or the compose file can be
-# used with `docker-compose` on a Hetzner VM (hcloud) directly.
-# Replace build contexts with image names when deploying to Hetzner.
-
 version: '3.8'
 
+# All services use context: . (monorepo root) because pnpm-lock.yaml lives there.
+# Each Dockerfile is a multi-stage build: builder (install + compile) → runner (lean image).
+# Deploy on Hetzner: docker-compose up -d
+# Update: docker-compose pull && docker-compose up -d
+
 services:
-  # frontend service (Next.js)
+
+  # ── Frontend ──────────────────────────────────────────────────────────────
   frontend:
-    build: ./frontend       # or use an image registry.example.com/lingua/frontend:latest
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://api-gateway:8080/graphql
     healthcheck:
-      test: ["CMD-SHELL","curl -f http://localhost:3000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - lingua-network
 
-  # api-gateway service (GraphQL endpoint + routing)
+  # ── API Gateway ───────────────────────────────────────────────────────────
   api-gateway:
-    build: ./backend/api-gateway
+    build:
+      context: .
+      dockerfile: backend/api-gateway/Dockerfile
     ports:
       - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - JWT_SECRET=${JWT_SECRET}
+      - AUTH_SERVICE_URL=http://auth-service:4001/graphql
+      - TEXT_SERVICE_URL=http://text-service:4002/graphql
+      - AUDIO_SERVICE_URL=http://audio-service:4003/graphql
+      - STATS_SERVICE_URL=http://stats-service:4004/graphql
+      - AI_ORCHESTRATOR_URL=http://ai-orchestrator:4005
     healthcheck:
-      test: ["CMD-SHELL","curl -f http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     depends_on:
-      - auth-service
-      - text-service
-      - audio-service
-      - stats-service
-      - ai-orchestrator
+      auth-service:
+        condition: service_healthy
+      text-service:
+        condition: service_healthy
+      audio-service:
+        condition: service_healthy
+      stats-service:
+        condition: service_healthy
+      ai-orchestrator:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - lingua-network
 
+  # ── Auth Service ──────────────────────────────────────────────────────────
   auth-service:
-    build: ./backend/auth-service
+    build:
+      context: .
+      dockerfile: backend/auth-service/Dockerfile
     environment:
+      - NODE_ENV=production
+      - PORT=4001
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRY=${JWT_EXPIRY:-7d}
     healthcheck:
-      test: ["CMD-SHELL","curl -f http://localhost:4001/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:4001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - lingua-network
 
+  # ── Text Service ──────────────────────────────────────────────────────────
   text-service:
-    build: ./backend/text-service
-    healthcheck:
-      test: ["CMD-SHELL","curl -f http://localhost:4002/health || exit 1"]
-    networks:
-      - lingua-network
-
-  audio-service:
-    build: ./backend/audio-service
+    build:
+      context: .
+      dockerfile: backend/text-service/Dockerfile
     environment:
+      - NODE_ENV=production
+      - PORT=4002
       - DATABASE_URL=${DATABASE_URL}
-    volumes:
-      - audio_data:/var/app/uploads   # container path for audio/text files
+      - AI_ORCHESTRATOR_URL=http://ai-orchestrator:4005
     healthcheck:
-      test: ["CMD-SHELL","curl -f http://localhost:4003/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:4002/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-orchestrator:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - lingua-network
 
-  stats-service:
-    build: ./backend/stats-service
-    healthcheck:
-      test: ["CMD-SHELL","curl -f http://localhost:4004/health || exit 1"]
-    networks:
-      - lingua-network
-
-  ai-orchestrator:
-    build: ./backend/ai-orchestrator
+  # ── Audio Service ─────────────────────────────────────────────────────────
+  audio-service:
+    build:
+      context: .
+      dockerfile: backend/audio-service/Dockerfile
     environment:
-      - AI_API_KEY=${AI_API_KEY}
+      - NODE_ENV=production
+      - PORT=4003
+      - DATABASE_URL=${DATABASE_URL}
+      - AI_ORCHESTRATOR_URL=http://ai-orchestrator:4005
+    volumes:
+      - audio_data:/var/app/uploads
     healthcheck:
-      test: ["CMD-SHELL","curl -f http://localhost:4005/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:4003/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-orchestrator:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - lingua-network
 
+  # ── Stats Service ─────────────────────────────────────────────────────────
+  stats-service:
+    build:
+      context: .
+      dockerfile: backend/stats-service/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=4004
+      - DATABASE_URL=${DATABASE_URL}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4004/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - lingua-network
+
+  # ── AI Orchestrator ───────────────────────────────────────────────────────
+  ai-orchestrator:
+    build:
+      context: .
+      dockerfile: backend/ai-orchestrator/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=4005
+      - AI_API_KEY=${AI_API_KEY}
+      - OPENAI_TEXT_MODEL=${OPENAI_TEXT_MODEL:-gpt-4o-mini}
+      - OPENAI_TASK_MODEL=${OPENAI_TASK_MODEL:-gpt-4o-mini}
+      - OPENAI_EVAL_MODEL=${OPENAI_EVAL_MODEL:-gpt-4o-mini}
+      - OPENAI_TRANSCRIPTION_MODEL=${OPENAI_TRANSCRIPTION_MODEL:-whisper-1}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4005/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - lingua-network
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     restart: always
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
@@ -94,34 +199,19 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL","pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-english_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - lingua-network
 
-# shared volumes for persistence
+# ── Volumes ───────────────────────────────────────────────────────────────
 volumes:
   postgres_data:
-  audio_data:   # persistent storage for user audio/text uploads
-  # add other named volumes if needed
+  audio_data:
 
-# Note: each service directory must include its own Dockerfile at the root
-# (e.g. frontend/Dockerfile, backend/auth-service/Dockerfile, etc.).
-
-# internal network for service-to-service communication
+# ── Network ───────────────────────────────────────────────────────────────
 networks:
   lingua-network:
     driver: bridge
-
-# NOTES:
-# - Create a .env file in the root with: POSTGRES_USER, POSTGRES_PASSWORD,
-#   POSTGRES_DB, AI_API_KEY, JWT_SECRET. Services reference these variables.
-# - Healthchecks allow monitoring and automated restarts on failure.
-# - On Hetzner, run: docker-compose up -d to start the entire stack.
-# - CI/CD pipelines build images, push to a registry, then SSH into Hetzner
-#   and run: docker-compose pull && docker-compose up -d to deploy.
-# - All services must expose a /health endpoint (checked via healthcheck directives).
-# - Use named volumes (e.g., postgres_data) to persist data across restarts.
-# - Frontend: Next.js 15+ (latest stable), React 18+, TypeScript (strict)
-# - Backend services: Node.js 18+, NestJS, TypeScript (strict)
-# - Database: PostgreSQL 15+ with Prisma ORM and multi-language support
-# - Networking: lingua-network Docker bridge for internal service communication

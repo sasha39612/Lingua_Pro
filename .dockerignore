@@ -1,0 +1,31 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies — reinstalled inside container
+**/node_modules
+
+# Local build artifacts — rebuilt inside container
+**/dist
+**/.next
+
+# Prisma generated client (platform-specific binaries must be regenerated inside container)
+**/src/generated
+
+# Sensitive files — must never enter an image
+**/.env
+.env
+.env.*
+!.env.example
+
+# macOS / editor artifacts
+**/.DS_Store
+.DS_Store
+.idea
+.vscode
+
+# Test outputs
+**/coverage
+
+# pnpm local store
+.pnpm-store

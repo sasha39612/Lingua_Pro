@@ -1,161 +1,174 @@
-# Lingua Pro — Language Training Platform MVP Requirements
+# Lingua Pro — Language Training Platform
 
-## Core Skills
-- Listening
-- Reading
-- Writing
-- Speaking
+A microservices-based language learning platform supporting Listening, Reading, Writing, and Speaking skills with AI-powered feedback.
 
 ## Supported Languages
-- English
-- German
-- Albanian
-- Polish
-- Other (future expansion)
+- English, German, Albanian, Polish (extensible)
 
-## Minimum Features
+## Core Features
 - User registration/login with JWT (student/admin roles)
-- Writing tasks → AI corrections (per language)
-- Recording audio → AI pronunciation analysis (per language)
-- View statistics (text + audio scores, per language)
-- AI-generated tasks based on student level (A0–C2) and language
+- Writing tasks → AI corrections per language
+- Audio recording → AI pronunciation analysis
+- Statistics dashboard (text + audio scores, by language and period)
+- AI-generated tasks based on student CEFR level (A0–C2)
 
 ---
 
-## Skill & Feature Requirements
+## Quick Start
 
-| Skill | Feature / Action | Description / Requirements | Notes / AI Integration |
-|-------|-----------------|---------------------------|-----------------------|
-| **Listening** | Play audio task | Student listens to a passage/audio prompt | Optionally show transcript |
-|  | Answer comprehension questions | Multiple choice / free text questions | AI generates questions per level |
-|  | AI feedback | Explain mistakes or missed keywords | Streaming feedback supported |
-|  | Save & score audio | Save audio, calculate score | Display in stats |
-| **Reading** | Show text passage | Display passage for selected level | Optional audio for listening practice |
-|  | Answer comprehension questions | Multiple choice / free text | AI generates questions and evaluates answers |
-|  | AI mistake breakdown | Highlight misread words, speed/comprehension errors | Optional streaming feedback |
-|  | Save & score answers | Save answers and score | Display in stats |
-| **Writing** | Writing task / prompt | AI-generated prompt per level | Stored in DB for history |
-|  | Submit text | Send text to AI for analysis | GPT-4 Turbo returns corrections |
-|  | AI corrections & suggestions | Grammar, style, punctuation | Streaming feedback supported |
-|  | Save & score text | Save original + corrected text, calculate text_score | Display in stats |
-| **Speaking** | Record audio | User records speech via microphone | Frontend handles recording |
-|  | Send audio to AI | Whisper transcribes + evaluates pronunciation | Return transcript + pronunciation score |
-|  | Playback & retry | Student can listen and retry recording | AI feedback streams |
-|  | Save & score audio | Store in DB for stats | Score contributes to metrics |
-| **Authentication** | Registration / Login (JWT) | Secure login/signup with email & password | Roles: student / admin |
-| **Statistics** | View performance | Aggregate writing & speaking scores | Week/month/all-time |
-|  | Track progress over time | Display avg_text_score, avg_pronunciation_score, mistake counts | Charts in frontend |
-| **AI Task Generation** | Generate tasks per level | Generate prompts/audio/reading passages based on level | Centralized via AI Orchestrator |
+```bash
+# 1. Copy and fill in environment variables
+cp .env.example .env
+
+# 2. Build and start all 8 containers
+docker-compose up -d
+
+# 3. Check that all services are healthy
+docker-compose ps
+```
+
+To rebuild a single service after code changes:
+```bash
+docker-compose up -d --build text-service
+```
+
+---
+
+## Environment Variables
+
+All variables live in a single `.env` file at the repo root. See [`.env.example`](.env.example) for all required keys:
+
+| Variable | Description |
+|----------|-------------|
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | PostgreSQL credentials |
+| `DATABASE_URL` | Full connection string — use `postgres` as host (Docker service name) |
+| `JWT_SECRET` | Secret for signing JWTs |
+| `JWT_EXPIRY` | Token lifetime (default `7d`) |
+| `AI_API_KEY` | OpenAI API key |
+| `OPENAI_TEXT_MODEL` / `OPENAI_TASK_MODEL` / `OPENAI_EVAL_MODEL` | GPT model overrides (default `gpt-4o-mini`) |
+| `OPENAI_TRANSCRIPTION_MODEL` | Whisper model override (default `whisper-1`) |
 
 ---
 
 ## Repository Structure
 
-**Monorepo recommended** for demo/learning purposes:
-
-
-english-platform/
-frontend/
-backend/
-api-gateway/
-auth-service/
-text-service/
-audio-service/
-stats-service/
-ai-orchestrator/
-infrastructure/
-docker-compose.yml
-
-
-**Actions:**
-- Each folder contains a `README.md` describing its purpose
-- Initialize Git repository with `main` branch
-- All services must include a `Dockerfile` from day one
+```
+Lingua_Pro/
+├── .env.example                 # Template for all required env vars
+├── .dockerignore                # Monorepo-level Docker build exclusions
+├── docker-compose.yml           # Orchestrates all 8 containers
+├── pnpm-workspace.yaml          # pnpm monorepo: frontend + backend/*
+├── frontend/                    # Next.js 15, TypeScript, TailwindCSS
+└── backend/
+    ├── api-gateway/             # Apollo Federation Gateway, :8080
+    ├── auth-service/            # JWT auth, plain Node.js, :4001
+    ├── text-service/            # Writing/reading tasks, NestJS, :4002
+    ├── audio-service/           # Speaking/listening + audio storage, NestJS, :4003
+    ├── stats-service/           # Performance aggregation, NestJS, :4004
+    └── ai-orchestrator/         # OpenAI GPT + Whisper integration, NestJS, :4005
+```
 
 ---
 
-## Server-First Development (Hetzner)
+## Service Ports
 
-This project is designed to run **entirely on remote servers**. No local development is expected.
+| Service | Port | Health endpoint |
+|---------|------|----------------|
+| frontend | 3000 | `/health` |
+| api-gateway | 8080 | `/health` |
+| auth-service | 4001 | `/health` |
+| text-service | 4002 | `/health` |
+| audio-service | 4003 | `/health` |
+| stats-service | 4004 | `/health` |
+| ai-orchestrator | 4005 | `/health` |
+| postgres | 5432 | `pg_isready` |
 
-**Key Practices:**
-- **Containerize everything**: frontend, backend services, database, AI orchestrator.
-- **PostgreSQL in container**: Use a Docker volume for persistence.
-- **Docker Compose**: Orchestrate all services on Hetzner for easy startup/restart.
-- **Environment variables**: `.env` files per service or centralized for shared variables. An example `.env`:
-  ```env
-  POSTGRES_USER=demo
-  POSTGRES_PASSWORD=demo
-  POSTGRES_DB=english_platform
-  AI_API_KEY=your-openai-api-key-here
-  JWT_SECRET=supersecretjwtkey
-  SUPPORTED_LANGUAGES=EN,DE,AL,PL
-  ```
-- **Volumes & persistence**: Ensure audio/text storage survives container restarts (e.g. `audio_data` volume mounted by audio-service).
-- **Health endpoints**: Each container exposes `/health` for monitoring.
-- **CI/CD**: GitHub Actions (or another CI) builds and pushes Docker images directly to Hetzner; implement proper tagging and restart strategies.
+---
 
-### Starting on Hetzner
-1. Provision a Hetzner cloud instance (e.g., Ubuntu 24.04) and install Docker & Docker Compose.
-2. Clone the repository and create a `.env` file with the required variables.
-3. Either build images locally and push to a registry accessible from the server, or rely on the Dockerfiles in each directory.
-4. On the Hetzner host, run:
+## Docker Build Architecture
+
+All Dockerfiles use a **two-stage build** (builder → runner) and a **monorepo root build context** (`context: .` in docker-compose.yml) because the single `pnpm-lock.yaml` lives at the root.
+
+- **Builder stage**: installs all workspace deps with `pnpm install --frozen-lockfile`, runs `prisma generate && tsc`
+- **Runner stage**: copies compiled `dist/` + root `node_modules/` from the builder — no install step, lean image
+
+Services with Prisma (auth, text, audio, stats) use an `entrypoint.sh` that runs `prisma migrate deploy` before starting, ensuring schema migrations are always applied on startup.
+
+The frontend uses Next.js [`output: 'standalone'`](frontend/next.config.ts) — the runner image contains only the self-contained bundle at `.next/standalone/`.
+
+---
+
+## Deploying on Hetzner
+
+1. Provision a Hetzner instance (Ubuntu 24.04), install Docker + Docker Compose.
+2. Clone the repository and create `.env`:
    ```bash
-   docker-compose pull    # fetch updated images if using a registry
-   docker-compose up -d   # builds and starts all containers
+   cp .env.example .env
+   # Edit .env with real credentials
    ```
-5. Verify health with `docker-compose ps` or `curl http://localhost:<port>/health` for each service.
-6. For updates, rebuild images, push, then `docker-compose pull && docker-compose up -d` again.
-
-These steps allow developers to bring the full stack online with a single command on the remote server.
+3. Start the stack:
+   ```bash
+   docker-compose up -d
+   ```
+4. Verify all services are healthy:
+   ```bash
+   docker-compose ps
+   curl http://localhost:8080/health
+   ```
+5. To update after a push:
+   ```bash
+   docker-compose up -d --build
+   ```
 
 ---
 
-## Implementation Notes
+## Skill & Feature Requirements
 
-- **Level-based AI tasks** ensure content matches student skill (A0–C2).
-- **Streaming feedback** allows partial results while AI is processing — critical for long tasks.
-- **Data persistence** in PostgreSQL ensures history and statistics are maintained.
-- **Frontend → API Gateway only** ensures clean microservice separation.
-- **JWT authentication** secures role-based access (student/admin).
+| Skill | Feature | Description | AI Integration |
+|-------|---------|-------------|----------------|
+| **Listening** | Play audio task | Student listens to a passage | Optionally show transcript |
+| | Answer questions | Multiple choice / free text | AI generates questions per level |
+| | AI feedback | Explain mistakes or missed keywords | Streaming feedback supported |
+| **Reading** | Show text passage | Display passage for selected level | Optional audio |
+| | Answer questions | Multiple choice / free text | AI generates and evaluates answers |
+| | AI mistake breakdown | Highlight errors, speed/comprehension | Streaming feedback supported |
+| **Writing** | Writing prompt | AI-generated per level | Stored in DB |
+| | Submit text | AI analysis | GPT returns corrections |
+| | AI corrections | Grammar, style, punctuation | Streaming feedback supported |
+| **Speaking** | Record audio | User records via microphone | Frontend handles recording |
+| | Send to AI | Whisper transcribes + evaluates | Returns transcript + score |
+| | Playback & retry | Listen and retry | AI feedback streams |
+| **Auth** | Registration / Login | JWT, email + password | Roles: student / admin |
+| **Statistics** | View performance | Aggregated writing & speaking scores | Week/month/all-time |
+| **AI Tasks** | Generate per level | Prompts for any skill and CEFR level | Centralized via AI Orchestrator |
 
 ---
 
 ## Technology Stack
 
 ### Frontend
-- **Framework**: Next.js 15+ (latest stable)
-- **UI Library**: React 18+
-- **Language**: TypeScript (strict mode)
-- **Styling**: TailwindCSS or similar
-- **API Communication**: GraphQL client (Apollo Client)
-- **State Management**: React Context or Zustand
+- **Framework**: Next.js 15 (App Router, `output: 'standalone'`)
+- **Language**: TypeScript strict mode
+- **Styling**: TailwindCSS
+- **State**: Zustand
+- **Forms**: React Hook Form + Zod
+- **Server state**: TanStack Query
+- **GraphQL**: Custom fetch client with persisted queries (no Apollo Client)
 
-### Backend Microservices
-- **Runtime**: Node.js 18+
-- **Framework**: NestJS
-- **Package Manager**: pnpm workspace (preferred over npm)
-- **ORM**: Prisma with `@nestjs/prisma` integration
-- **Language**: TypeScript (strict mode)
-- **API**: GraphQL (API Gateway) + REST (inter-service communication)
+### Backend
+- **Runtime**: Node.js 20 / Alpine
+- **Framework**: NestJS (all services except auth-service which uses plain Node.js `http`)
+- **Package manager**: pnpm workspace
+- **ORM**: Prisma (each service has its own `prisma/schema.prisma`)
+- **API**: Apollo Federation (subgraph per service) + REST (inter-service)
 
-### AI Orchestrator
-- **Runtime**: Node.js 18+
-- **Framework**: NestJS
-- **Language**: TypeScript (strict mode)
-- **External APIs**: OpenAI (GPT-4 Turbo, Whisper)
-- **Streaming**: Server-Sent Events (SSE) or WebSocket
+### AI
+- **Text analysis & task generation**: OpenAI GPT (default `gpt-4o-mini`)
+- **Audio transcription**: OpenAI Whisper (default `whisper-1`)
+- **Fallbacks**: All AI operations have local fallbacks — the platform works without `AI_API_KEY`
 
-### Database
-- **Engine**: PostgreSQL 15+
-- **Migrations**: Prisma migrate
-- **Multi-language Support**: `language` column on users, texts, and audio_records tables
-- **Supported Languages**: English, German, Albanian, Polish (extensible)
-
-### Development & Deployment
-- **Containerization**: Docker + Docker Compose
-- **Networking**: Internal Docker bridge network (`lingua-network`)
-- **Deployment Target**: Hetzner cloud
-- **CI/CD**: GitHub Actions (image build and push)
-
----
+### Infrastructure
+- **Database**: PostgreSQL 15 (Alpine), persisted via Docker volume
+- **Networking**: `lingua-network` Docker bridge
+- **Deployment**: Hetzner cloud, Docker Compose
+- **CI/CD**: GitHub Actions
