@@ -33,6 +33,11 @@ pnpm prisma:migrate    # Create + apply migration (dev only)
 ```bash
 cd backend/audio-service   # or stats-service
 pnpm test                  # jest
+
+# End-to-end smoke test (requires curl + jq, all services must be running)
+bash scripts/e2e-test.sh
+# Against a remote host:
+GW_URL=http://your-host:8080 bash scripts/e2e-test.sh
 ```
 
 ### Full Stack
@@ -139,7 +144,8 @@ Lingua_Pro/
 │   ├── bootstrap-server.sh          # One-time Ubuntu 24.04 setup (Docker, Nginx, Certbot)
 │   ├── ssl-init.sh                  # Let's Encrypt cert + nginx reload + renewal cron
 │   ├── deploy.sh                    # docker-compose pull + up --no-build (called by CI)
-│   └── health-check.sh              # Cron health monitor with optional Slack alerts
+│   ├── health-check.sh              # Cron health monitor with optional Slack alerts
+│   └── e2e-test.sh                  # End-to-end smoke test (requires curl + jq, services running)
 ├── infrastructure/
 │   ├── postgres-init/init.sql       # Creates auth_db, text_db, audio_db on first boot
 │   └── README.md

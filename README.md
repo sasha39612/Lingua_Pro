@@ -76,7 +76,8 @@ Lingua_Pro/
 │   ├── bootstrap-server.sh          # One-time setup for a fresh Hetzner Ubuntu instance
 │   ├── ssl-init.sh                  # Obtain Let's Encrypt certificate
 │   ├── deploy.sh                    # Pull GHCR images and restart services (used by CI)
-│   └── health-check.sh              # Cron health monitor (optional Slack alerts)
+│   ├── health-check.sh              # Cron health monitor (optional Slack alerts)
+│   └── e2e-test.sh                  # End-to-end smoke test (requires curl + jq, services running)
 ├── infrastructure/
 │   ├── postgres-init/init.sql       # Creates auth_db, text_db, audio_db on first boot
 │   └── README.md                    # Infrastructure reference
@@ -125,6 +126,41 @@ All Dockerfiles use a **two-stage build** (builder → runner) with **monorepo r
 Services with Prisma (auth, text, audio) run `prisma migrate deploy` at startup via `entrypoint.sh`.
 
 The frontend uses Next.js [`output: 'standalone'`](frontend/next.config.ts). `NEXT_PUBLIC_API_URL` is baked in at build time via `ARG` — it must be set when building the production image.
+
+---
+
+## Testing
+
+### Unit Tests (Jest)
+
+`audio-service` and `stats-service` have Jest unit test suites:
+
+```bash
+cd backend/audio-service   # or stats-service
+pnpm test
+```
+
+### End-to-End Smoke Test
+
+`scripts/e2e-test.sh` runs a full integration smoke test against running services. Requires `curl` and `jq`.
+
+```bash
+# Against local docker-compose stack (default)
+bash scripts/e2e-test.sh
+
+# Against a remote host
+GW_URL=http://your-host:8080 bash scripts/e2e-test.sh
+```
+
+The script covers:
+1. Health checks for all 5 backend services
+2. Auth — register + login via GraphQL
+3. Text submission → AI analysis
+4. `GET /text/by-language` REST endpoint
+5. AI Orchestrator text analysis and task generation
+6. Text tasks via GraphQL
+7. Audio comprehension evaluation
+8. Stats aggregation
 
 ---
 

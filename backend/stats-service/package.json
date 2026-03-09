@@ -7,7 +7,7 @@
     "start": "node dist/server.js",
     "start:dev": "ts-node src/server.ts",
     "start:prod": "node dist/server.js",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "test": "jest"
   },
   "dependencies": {
@@ -26,6 +26,22 @@
     "ts-jest": "^27.0.6",
     "ts-node": "^10.4.0",
     "typescript": "^5.4.5"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testRegex": "\\.spec\\.ts$",
+    "globals": {
+      "ts-jest": {
+        "tsconfig": {
+          "strict": false,
+          "experimentalDecorators": true,
+          "emitDecoratorMetadata": true,
+          "esModuleInterop": true,
+          "skipLibCheck": true
+        }
+      }
+    }
   },
   "author": "Your Name",
   "license": "MIT"

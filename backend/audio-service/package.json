@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "start": "ts-node src/main.ts",
-    "build": "prisma generate && tsc -p tsconfig.json",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
     "start:prod": "node dist/main.js",
     "test": "jest"
   },
@@ -21,13 +21,34 @@
     "rxjs": "^7.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
     "@nestjs/testing": "^9.0.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^20.0.0",
+    "jest": "^27.0.0",
     "prisma": "^6.16.3",
     "ts-jest": "^27.0.0",
-    "typescript": "^5.4.0",
-    "jest": "^27.0.0",
-    "ts-node": "^10.0.0"
+    "ts-node": "^10.0.0",
+    "typescript": "^5.4.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testRegex": "\\.spec\\.ts$",
+    "moduleNameMapper": {
+      "^axios$": "axios/dist/node/axios.cjs"
+    },
+    "globals": {
+      "ts-jest": {
+        "tsconfig": {
+          "strict": false,
+          "experimentalDecorators": true,
+          "emitDecoratorMetadata": true,
+          "esModuleInterop": true,
+          "skipLibCheck": true,
+          "types": ["jest", "node"]
+        }
+      }
+    }
   },
   "engines": {
     "node": ">=14.0.0"

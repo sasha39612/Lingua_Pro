@@ -1,5 +1,7 @@
 // Prisma schema for Audio Service
-// Manages speaking and listening tasks, transcription, and pronunciation scoring
+// Owns: audio_records, tasks (speaking/listening)
+// Database: audio_db
+// userId is stored as a plain integer — no cross-DB FK to auth_db.users
 
 datasource db {
   provider = "postgresql"
@@ -9,20 +11,6 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
-}
-
-model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         String   @default("student")
-  language     String   @default("english")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  audioRecords AudioRecord[]
-
-  @@map("users")
 }
 
 model AudioRecord {
@@ -36,8 +24,6 @@ model AudioRecord {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId])
   @@index([language])
   @@index([createdAt])
@@ -47,8 +33,8 @@ model AudioRecord {
 model Task {
   id            Int      @id @default(autoincrement())
   language      String
-  level         String // "A0", "A1", "A2", "B1", "B2", "C1", "C2"
-  skill         String // "listening", "reading", "writing", "speaking"
+  level         String
+  skill         String
   prompt        String
   audioUrl      String?  @map("audio_url")
   referenceText String?  @map("reference_text")
