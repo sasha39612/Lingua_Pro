@@ -81,7 +81,9 @@ Lingua_Pro/
 ├── infrastructure/
 │   ├── postgres-init/init.sql       # Creates auth_db, text_db, audio_db on first boot
 │   └── README.md                    # Infrastructure reference
-└── .github/workflows/deploy.yml     # GitHub Actions CI/CD pipeline
+└── .github/
+    ├── workflows/deploy.yml          # GitHub Actions CI/CD pipeline
+    └── workflows/lint.yml            # Lint & type check (push + PRs)
 ```
 
 ---
@@ -187,7 +189,11 @@ bash scripts/deploy.sh
 
 ### CI/CD (GitHub Actions)
 
-Push to `master` → GitHub Actions automatically:
+**On every push and pull request** (`lint.yml`):
+- ESLint on the frontend
+- TypeScript type check (`tsc --noEmit`) on all 7 packages
+
+**On push to `master`** (`deploy.yml`):
 1. Builds all 7 Docker images in parallel (matrix strategy)
 2. Pushes to GitHub Container Registry (GHCR) tagged with `latest` and commit SHA
 3. SSHs into Hetzner and runs `scripts/deploy.sh`

@@ -10,6 +10,7 @@ cd frontend
 pnpm dev          # Start dev server on :3000
 pnpm build        # Production build
 pnpm lint         # ESLint via Next.js
+pnpm typecheck    # TypeScript type check (tsc --noEmit)
 ```
 
 ### Backend Services (each in `backend/<service>/`)
@@ -21,6 +22,7 @@ pnpm start:dev    # ts-node-dev with --respawn (api-gateway, stats-service)
 # Build & Production
 pnpm build        # prisma generate && tsc → dist/  (auth, text, audio)
                   # tsc → dist/  (api-gateway, stats-service, ai-orchestrator)
+pnpm typecheck    # tsc --noEmit (no output, fast type check)
 pnpm start:prod   # node dist/main.js  (node dist/server.js for stats-service)
 
 # Database (services with Prisma: auth, text, audio)
@@ -149,7 +151,9 @@ Lingua_Pro/
 ├── infrastructure/
 │   ├── postgres-init/init.sql       # Creates auth_db, text_db, audio_db on first boot
 │   └── README.md
-├── .github/workflows/deploy.yml     # CI/CD: parallel image builds → GHCR → SSH deploy
+├── .github/
+│   ├── workflows/deploy.yml          # CI/CD: parallel image builds → GHCR → SSH deploy
+│   └── workflows/lint.yml            # Lint & type check on push + PRs
 │
 ├── frontend/                        # Next.js 15 App Router
 │   └── src/
