@@ -29,3 +29,6 @@
 
 # pnpm local store
 .pnpm-store
+
+# Prisma 7: only the .ts config is used; the legacy .js file confuses the CLI
+backend/text-service/prisma.config.js

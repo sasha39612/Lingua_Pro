@@ -32,6 +32,7 @@
     "@nestjs/cli": "*",
     "@types/dotenv": "^8.2.3",
     "@types/express": "*",
+    "@types/node": "*",
     "@types/pg": "^8.18.0",
     "prisma": "^7.4.2",
     "ts-node": "*",

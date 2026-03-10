@@ -1,0 +1,127 @@
+name: E2E Tests (Playwright)
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Environment ──────────────────────────────────────────────────────────
+      # Write a .env file with safe test-only values.
+      # AI_API_KEY is intentionally blank — ai-orchestrator uses local fallbacks.
+      - name: Write .env
+        run: |
+          {
+            echo "POSTGRES_USER=lingua"
+            echo "POSTGRES_PASSWORD=e2etestpassword"
+            echo "DATABASE_URL_AUTH=postgresql://lingua:e2etestpassword@postgres:5432/auth_db"
+            echo "DATABASE_URL_TEXT=postgresql://lingua:e2etestpassword@postgres:5432/text_db"
+            echo "DATABASE_URL_AUDIO=postgresql://lingua:e2etestpassword@postgres:5432/audio_db"
+            echo "JWT_SECRET=e2e-test-jwt-secret-minimum-32-chars"
+            echo "JWT_EXPIRY=1d"
+            echo "AI_API_KEY="
+          } > .env
+
+      # ── Docker ───────────────────────────────────────────────────────────────
+      # BuildKit is required for layer caching; setup-buildx-action installs it
+      # as the default builder and enables the GitHub Actions cache backend.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build all service images (parallel within compose) then start them.
+      # COMPOSE_PROJECT_NAME is fixed so image tags are stable across steps.
+      - name: Build and start services
+        run: docker compose up -d --build
+        env:
+          COMPOSE_PROJECT_NAME: lingua-pro
+          DOCKER_BUILDKIT: "1"
+          COMPOSE_DOCKER_CLI_BUILD: "1"
+
+      # ── Health gate ──────────────────────────────────────────────────────────
+      # Poll every 10 s for up to 4 minutes (24 attempts).
+      - name: Wait for all services to be healthy
+        run: |
+          urls=(
+            "http://localhost:3000/health"
+            "http://localhost:8080/health"
+            "http://localhost:4001/health"
+            "http://localhost:4002/health"
+            "http://localhost:4003/health"
+            "http://localhost:4004/health"
+            "http://localhost:4005/health"
+          )
+          echo "Waiting for services (up to 240 s)..."
+          for i in $(seq 1 24); do
+            all_up=true
+            for url in "${urls[@]}"; do
+              code=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+              if [[ "$code" != "200" ]]; then
+                all_up=false
+                echo "  [$i/24] $url → $code"
+                break
+              fi
+            done
+            if $all_up; then
+              echo "All services healthy after $((i * 10)) s"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "ERROR: services did not become healthy in time"
+          docker compose ps
+          docker compose logs --tail=80
+          exit 1
+
+      # ── Node / pnpm ──────────────────────────────────────────────────────────
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ── Playwright ───────────────────────────────────────────────────────────
+      - name: Install Playwright browsers
+        run: pnpm --filter frontend exec playwright install chromium --with-deps
+
+      - name: Run Playwright tests
+        run: pnpm --filter frontend e2e
+        env:
+          CI: "true"
+
+      # ── Artifacts ────────────────────────────────────────────────────────────
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload test results (failures only)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: frontend/test-results/
+          retention-days: 7
+
+      # Helpful context when something goes wrong
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --tail=100
