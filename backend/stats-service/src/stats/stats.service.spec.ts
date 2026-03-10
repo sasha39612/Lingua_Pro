@@ -12,7 +12,9 @@ function makeAudioRow(pronunciationScore: number | null, feedback: string | null
 
 // ─── Mock global fetch ────────────────────────────────────────────────────────
 
-const globalFetch = jest.fn();
+import { vi } from 'vitest';
+
+const globalFetch = vi.fn();
 (global as any).fetch = globalFetch;
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -21,7 +23,7 @@ describe('StatsService', () => {
   let service: StatsService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.env.TEXT_SERVICE_URL = 'http://text-service:4002';
     process.env.AUDIO_SERVICE_URL = 'http://audio-service:4003';
     service = new StatsService();

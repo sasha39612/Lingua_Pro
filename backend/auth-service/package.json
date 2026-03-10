@@ -7,7 +7,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start:prod": "node dist/main.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "test": "vitest run"
   },
   "dependencies": {
     "@apollo/subgraph": "*",
@@ -23,6 +24,7 @@
     "@types/jsonwebtoken": "*",
     "@types/pg": "^8.18.0",
     "prisma": "*",
-    "typescript": "*"
+    "typescript": "*",
+    "vitest": "^2.0.0"
   }
 }

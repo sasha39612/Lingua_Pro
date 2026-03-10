@@ -8,7 +8,7 @@
     "build": "prisma generate && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "start:prod": "node dist/main.js",
-    "test": "jest"
+    "test": "vitest run"
   },
   "dependencies": {
     "@nestjs/common": "^9.0.0",
@@ -23,33 +23,11 @@
   },
   "devDependencies": {
     "@nestjs/testing": "^9.0.0",
-    "@types/jest": "^27.5.2",
     "@types/node": "^20.0.0",
-    "jest": "^27.0.0",
     "prisma": "^6.16.3",
-    "ts-jest": "^27.0.0",
     "ts-node": "^10.0.0",
-    "typescript": "^5.4.0"
-  },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "node",
-    "testRegex": "\\.spec\\.ts$",
-    "moduleNameMapper": {
-      "^axios$": "axios/dist/node/axios.cjs"
-    },
-    "globals": {
-      "ts-jest": {
-        "tsconfig": {
-          "strict": false,
-          "experimentalDecorators": true,
-          "emitDecoratorMetadata": true,
-          "esModuleInterop": true,
-          "skipLibCheck": true,
-          "types": ["jest", "node"]
-        }
-      }
-    }
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
   },
   "engines": {
     "node": ">=14.0.0"

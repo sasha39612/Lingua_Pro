@@ -11,6 +11,7 @@ pnpm dev          # Start dev server on :3000
 pnpm build        # Production build
 pnpm lint         # ESLint via Next.js
 pnpm typecheck    # TypeScript type check (tsc --noEmit)
+pnpm test         # Vitest unit tests
 ```
 
 ### Backend Services (each in `backend/<service>/`)
@@ -31,10 +32,17 @@ pnpm prisma:migrate    # Create + apply migration (dev only)
 # Production migrations run automatically via entrypoint.sh on container startup
 ```
 
-### Tests (audio-service, stats-service)
+### Tests
 ```bash
-cd backend/audio-service   # or stats-service
-pnpm test                  # jest
+# Unit tests — Vitest (all services)
+pnpm --filter frontend test
+pnpm --filter audio-service test
+pnpm --filter stats-service test
+pnpm --filter auth-service test
+pnpm --filter ai-orchestrator test
+pnpm --filter text-service test
+pnpm --filter api-gateway test
+pnpm -r test                       # run all at once
 
 # End-to-end smoke test (requires curl + jq, all services must be running)
 bash scripts/e2e-test.sh
@@ -153,7 +161,8 @@ Lingua_Pro/
 │   └── README.md
 ├── .github/
 │   ├── workflows/deploy.yml          # CI/CD: parallel image builds → GHCR → SSH deploy
-│   └── workflows/lint.yml            # Lint & type check on push + PRs
+│   ├── workflows/lint.yml            # Lint & type check on push + PRs
+│   └── workflows/test.yml            # Vitest unit tests on push + PRs
 │
 ├── frontend/                        # Next.js 15 App Router
 │   └── src/

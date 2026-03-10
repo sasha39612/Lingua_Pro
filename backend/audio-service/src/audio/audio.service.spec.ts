@@ -1,29 +1,30 @@
+import { vi, type Mocked } from 'vitest';
 import { AudioService } from './audio.service';
 
 const mockAudioRepository = {
-  createAudioRecord: jest.fn(),
-  getAudioRecordsByUserId: jest.fn(),
-  getAudioRecord: jest.fn(),
-  getUserAudioStats: jest.fn(),
-  getListeningTasks: jest.fn(),
-  getRecordsByLanguage: jest.fn(),
-  getTaskById: jest.fn(),
+  createAudioRecord: vi.fn(),
+  getAudioRecordsByUserId: vi.fn(),
+  getAudioRecord: vi.fn(),
+  getUserAudioStats: vi.fn(),
+  getListeningTasks: vi.fn(),
+  getRecordsByLanguage: vi.fn(),
+  getTaskById: vi.fn(),
 };
 
 const mockAiOrchestrator = {
-  processAudioWithWhisper: jest.fn(),
-  analyzePronunciation: jest.fn(),
+  processAudioWithWhisper: vi.fn(),
+  analyzePronunciation: vi.fn(),
 };
 
-jest.mock('axios');
+vi.mock('axios');
 import axios from 'axios';
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+const mockedAxios = axios as Mocked<typeof axios>;
 
 describe('AudioService', () => {
   let service: AudioService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new AudioService(mockAudioRepository as any, mockAiOrchestrator as any);
   });
 
@@ -80,7 +81,7 @@ describe('AudioService', () => {
     };
 
     beforeEach(() => {
-      mockedAxios.get = jest.fn().mockResolvedValue({ data: fakeBuffer });
+      mockedAxios.get = vi.fn().mockResolvedValue({ data: fakeBuffer });
       mockAiOrchestrator.processAudioWithWhisper.mockResolvedValue({
         transcript: 'Hello world',
         confidence: 0.95,

@@ -9,7 +9,7 @@
     "start:prod": "node dist/server.js",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "test": "jest"
+    "test": "vitest run"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.16",
@@ -21,28 +21,10 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "@types/jest": "^27.0.2",
-    "@types/node": "^20.0.0",
-    "jest": "^27.0.6",
-    "ts-jest": "^27.0.6",
+    "@types/node": "^20.19.35",
     "ts-node": "^10.4.0",
-    "typescript": "^5.4.5"
-  },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "node",
-    "testRegex": "\\.spec\\.ts$",
-    "globals": {
-      "ts-jest": {
-        "tsconfig": {
-          "strict": false,
-          "experimentalDecorators": true,
-          "emitDecoratorMetadata": true,
-          "esModuleInterop": true,
-          "skipLibCheck": true
-        }
-      }
-    }
+    "typescript": "^5.4.5",
+    "vitest": "^2.1.9"
   },
   "author": "Your Name",
   "license": "MIT"

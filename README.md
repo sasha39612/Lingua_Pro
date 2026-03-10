@@ -83,7 +83,8 @@ Lingua_Pro/
 │   └── README.md                    # Infrastructure reference
 └── .github/
     ├── workflows/deploy.yml          # GitHub Actions CI/CD pipeline
-    └── workflows/lint.yml            # Lint & type check (push + PRs)
+    ├── workflows/lint.yml            # Lint & type check (push + PRs)
+    └── workflows/test.yml            # Unit tests — Vitest (push + PRs)
 ```
 
 ---
@@ -133,14 +134,31 @@ The frontend uses Next.js [`output: 'standalone'`](frontend/next.config.ts). `NE
 
 ## Testing
 
-### Unit Tests (Jest)
+### Unit Tests (Vitest)
 
-`audio-service` and `stats-service` have Jest unit test suites:
+All 7 packages have Vitest unit test suites:
 
 ```bash
-cd backend/audio-service   # or stats-service
-pnpm test
+pnpm -r test   # run all at once
+# or per package:
+pnpm --filter frontend test
+pnpm --filter auth-service test
+pnpm --filter text-service test
+pnpm --filter audio-service test
+pnpm --filter stats-service test
+pnpm --filter ai-orchestrator test
+pnpm --filter api-gateway test
 ```
+
+| Package | What's tested |
+|---------|---------------|
+| `frontend` | `graphqlRequest` (persisted queries, fallback, error handling), `useAppStore` (all actions) |
+| `auth-service` | `verifyToken` (valid token, revoked session, expired token, JWT_SECRET env) |
+| `text-service` | `TextService` (analyzeText with orchestrator/fallback/DB-fail, getTextsByLanguage, getTasks with cache/generate/fallback) |
+| `audio-service` | `AudioService` (evaluateComprehension, processAudio, getRecords, generateComprehension) |
+| `stats-service` | `StatsService` (averages, language normalisation, mistake counts, daily history, charts, resilience) |
+| `ai-orchestrator` | `OrchestratorService` (local fallbacks for all methods, task shape, phoneme hints, score clamping, OpenAI error fallback) |
+| `api-gateway` | `JwtAuthGuard` (public routes, missing/invalid/valid/malformed token, dev-secret fallback) |
 
 ### End-to-End Smoke Test
 
@@ -192,6 +210,9 @@ bash scripts/deploy.sh
 **On every push and pull request** (`lint.yml`):
 - ESLint on the frontend
 - TypeScript type check (`tsc --noEmit`) on all 7 packages
+
+**On every push and pull request** (`test.yml`):
+- Vitest unit tests for frontend, audio-service, and stats-service
 
 **On push to `master`** (`deploy.yml`):
 1. Builds all 7 Docker images in parallel (matrix strategy)
