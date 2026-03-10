@@ -150,15 +150,15 @@ pnpm --filter ai-orchestrator test
 pnpm --filter api-gateway test
 ```
 
-| Package | What's tested |
-|---------|---------------|
-| `frontend` | `graphqlRequest` (persisted queries, fallback, error handling), `useAppStore` (all actions) |
-| `auth-service` | `verifyToken` (valid token, revoked session, expired token, JWT_SECRET env) |
-| `text-service` | `TextService` (analyzeText with orchestrator/fallback/DB-fail, getTextsByLanguage, getTasks with cache/generate/fallback) |
-| `audio-service` | `AudioService` (evaluateComprehension, processAudio, getRecords, generateComprehension) |
-| `stats-service` | `StatsService` (averages, language normalisation, mistake counts, daily history, charts, resilience) |
-| `ai-orchestrator` | `OrchestratorService` (local fallbacks for all methods, task shape, phoneme hints, score clamping, OpenAI error fallback) |
-| `api-gateway` | `JwtAuthGuard` (public routes, missing/invalid/valid/malformed token, dev-secret fallback) |
+| Package | Files | Tests | What's covered |
+|---------|-------|-------|----------------|
+| `frontend` | 4 | 43 | `graphqlRequest` (persisted queries, fallback, error handling), `useAppStore` (all actions), all 6 TanStack Query hooks (`useRegisterMutation`, `useLoginMutation`, `useCheckTextMutation`, `useTasksQuery`, `useTextsQuery`, `useMeQuery`), persisted-query hash map integrity |
+| `auth-service` | 1 | 32 | All GraphQL resolvers — `register`, `login`, `me`, `user`, `validateToken`, `refreshToken`, `logout`, `updateUserRole`; JWT sign/verify, argon2 hashing, session revocation |
+| `text-service` | 3 | 24 | `TextService` (analyzeText with orchestrator/fallback/DB-fail, getTextsByLanguage, getTasks), `TextController` (all REST endpoints, error propagation), `PrismaService` (lifecycle hooks, connection strings) |
+| `audio-service` | 4 | 59 | `AudioService` (evaluateComprehension, processAudio, getRecords, generateComprehension), `AudioController` (all 8 endpoints, missing-field validation), `AudioRepository` (all Prisma queries), `AiOrchestratorService` (Whisper path, fallback, confidence scoring, pronunciation analysis) |
+| `stats-service` | 3 | 32 | `StatsService` (averages, language normalisation, mistake counts, daily history, charts, resilience), `StatsController` (language uppercasing, period forwarding), `GetStatsQueryDto` (class-validator rules) |
+| `ai-orchestrator` | 2 | 34 | `OrchestratorService` (all operations: local fallbacks, task shape, phoneme hints, score clamping, OpenAI error fallback), `OrchestratorController` (all 5 endpoints including SSE streaming) |
+| `api-gateway` | 5 | 25 | `JwtAuthGuard` (public routes, missing/invalid/valid/malformed token, dev-secret fallback), `CircuitBreakerService` (success, async fallback, rejection propagation), `AuthContextService` (header extraction, token parsing edge cases), `GqlThrottlerGuard` (HTTP + GraphQL context extraction), `GatewayResolver` (health + hello) |
 
 ### End-to-End Smoke Test
 
@@ -212,7 +212,7 @@ bash scripts/deploy.sh
 - TypeScript type check (`tsc --noEmit`) on all 7 packages
 
 **On every push and pull request** (`test.yml`):
-- Vitest unit tests for frontend, audio-service, and stats-service
+- Vitest unit tests for all 7 packages (matrix strategy, runs in parallel)
 
 **On push to `master`** (`deploy.yml`):
 1. Builds all 7 Docker images in parallel (matrix strategy)

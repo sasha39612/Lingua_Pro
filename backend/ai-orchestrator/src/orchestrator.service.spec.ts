@@ -6,11 +6,9 @@ vi.mock('@nestjs/common', async (importOriginal) => {
   const actual = (await importOriginal()) as any;
   return {
     ...actual,
-    Logger: vi.fn().mockImplementation(() => ({
-      warn: vi.fn(),
-      log: vi.fn(),
-      error: vi.fn(),
-    })),
+    Logger: vi.fn(function () {
+      return { warn: vi.fn(), log: vi.fn(), error: vi.fn() };
+    }),
   };
 });
 
