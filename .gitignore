@@ -9,7 +9,6 @@ build/
 .idea/
 .vscode/
 .DS_Store
-pnpm-lock.yaml
 /.pnp
 **/node_modules/
 **/dist/
