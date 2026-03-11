@@ -3,6 +3,10 @@ import { PrismaClient } from '../../src/generated/prisma';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  constructor() {
+    super({ datasourceUrl: process.env.DATABASE_URL });
+  }
+
   async onModuleInit() {
     if (!process.env.DATABASE_URL) {
       console.warn('DATABASE_URL is not set; Prisma connection skipped');
