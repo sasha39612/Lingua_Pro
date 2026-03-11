@@ -24,7 +24,7 @@
     "@types/jsonwebtoken": "*",
     "@types/node": "*",
     "@types/pg": "^8.18.0",
-    "prisma": "*",
+    "prisma": "^7.4.2",
     "typescript": "*",
     "vitest": "^2.0.0"
   }
