@@ -6,7 +6,7 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
 # Copy workspace manifests first — layer cache invalidated only when these change
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY frontend/package.json ./frontend/
 COPY backend/api-gateway/package.json ./backend/api-gateway/
 COPY backend/auth-service/package.json ./backend/auth-service/
