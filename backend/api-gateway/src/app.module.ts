@@ -5,7 +5,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { HealthController } from './health/health.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, Reflector } from '@nestjs/core';
 import { CircuitBreakerService } from './services/circuit-breaker.service';
 import { LoggerModule } from 'nestjs-pino';
 import { GatewayResolver } from './graphql/gateway.resolver';
@@ -91,6 +91,7 @@ const gateway = new ApolloGateway({
   ],
   controllers: [HealthController],
   providers: [
+    Reflector,
     AuthContextService,
     CircuitBreakerService,
     GatewayResolver,
