@@ -1,6 +1,6 @@
 # Production override — use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
 # Pulls pre-built images from GHCR instead of building locally.
-# Ports bound to 127.0.0.1 only — Nginx on the host proxies external traffic.
+# Ports are defined in docker-compose.yml; Nginx on the host proxies external traffic.
 
 version: '3.8'
 
@@ -8,8 +8,6 @@ services:
 
   frontend:
     image: ghcr.io/${GITHUB_REPOSITORY}/frontend:${IMAGE_TAG:-latest}
-    ports:
-      - "127.0.0.1:3000:3000"
     deploy:
       resources:
         limits:
@@ -23,8 +21,6 @@ services:
 
   api-gateway:
     image: ghcr.io/${GITHUB_REPOSITORY}/api-gateway:${IMAGE_TAG:-latest}
-    ports:
-      - "127.0.0.1:8080:8080"
     deploy:
       resources:
         limits:
