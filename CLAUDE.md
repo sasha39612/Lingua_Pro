@@ -12,6 +12,8 @@ pnpm build        # Production build
 pnpm lint         # ESLint via Next.js
 pnpm typecheck    # TypeScript type check (tsc --noEmit)
 pnpm test         # Vitest unit tests
+pnpm analyze      # Build with @next/bundle-analyzer — opens .next/analyze/*.html
+pnpm size         # size-limit bundle budget check (requires a prior build)
 ```
 
 ### Backend Services (each in `backend/<service>/`)

@@ -84,7 +84,8 @@ Lingua_Pro/
 └── .github/
     ├── workflows/deploy.yml          # GitHub Actions CI/CD pipeline
     ├── workflows/lint.yml            # Lint & type check (push + PRs)
-    └── workflows/test.yml            # Unit tests — Vitest (push + PRs)
+    ├── workflows/test.yml            # Unit tests — Vitest (push + PRs)
+    └── workflows/security.yml        # Dependency audit + bundle size check (push + PRs)
 ```
 
 ---
@@ -213,6 +214,10 @@ bash scripts/deploy.sh
 
 **On every push and pull request** (`test.yml`):
 - Vitest unit tests for all 7 packages (matrix strategy, runs in parallel)
+
+**On every push and pull request** (`security.yml`):
+- `pnpm audit --audit-level=high` across all workspace packages — fails on high/critical CVEs
+- Next.js frontend build + `size-limit` bundle budget check (300 kB per chunk); HTML report uploaded as a CI artifact
 
 **On push to `master`** (`deploy.yml`):
 1. Builds all 7 Docker images in parallel (matrix strategy)
