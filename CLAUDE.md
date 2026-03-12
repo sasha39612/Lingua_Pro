@@ -88,10 +88,10 @@ All frontend GraphQL goes through the Next.js `/api/graphql` route, which proxie
 ### API Gateway (`backend/api-gateway/`)
 - **Apollo Federation Gateway** using `IntrospectAndCompose` — federates **only** auth-service and text-service (the two GraphQL subgraphs); polls schemas every 10s
 - **audio-service and stats-service are REST-only** — they are NOT in the subgraph list; never add them
-- Applies **JWT auth** globally via `JwtAuthGuard` (decorating public routes with `@Public()`)
+- Applies **JWT auth** via `JwtAuthGuard` on HTTP routes (decorating public routes with `@Public()`); GraphQL requests use `AuthContextService` inside the Apollo `expressMiddleware` context function
 - Passes auth context downstream via HTTP headers: `x-user-id`, `x-user-role`, `x-user-language`, `x-trace-id`
 - **Circuit breaker** via `opossum` (10s timeout, 50% error threshold, 30s reset)
-- **Rate limiting** via `@nestjs/throttler`: 120 requests / 60s per IP
+- **Rate limiting** handled by Nginx; `@nestjs/throttler` removed due to NestJS 11 incompatibility — do not re-add it
 
 ### Backend Services
 
