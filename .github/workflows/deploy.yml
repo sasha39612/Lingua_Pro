@@ -86,13 +86,15 @@ jobs:
 
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.HETZNER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
             cd /opt/lingua-pro
-            export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
-            export GHCR_USER="${{ github.actor }}"
-            export GITHUB_REPOSITORY="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
-            bash scripts/deploy.sh ${{ github.sha }}
+            bash scripts/deploy.sh "$GITHUB_SHA"
