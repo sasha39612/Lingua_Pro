@@ -78,7 +78,7 @@ jobs:
       - name: Copy compose files to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.HETZNER_HOST }}
+          host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
           source: "docker-compose.yml,docker-compose.prod.yml"
@@ -92,7 +92,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SHA: ${{ github.sha }}
         with:
-          host: ${{ secrets.HETZNER_HOST }}
+          host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
