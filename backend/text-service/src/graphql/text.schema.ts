@@ -31,6 +31,9 @@ const orchestrator = axios.create({
  * includes Text entity and Task entity for federation.
  */
 export const textTypeDefs = gql`
+  extend schema
+    @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key"])
+
   type Text @key(fields: "id") {
     id: ID!
     userId: ID!
