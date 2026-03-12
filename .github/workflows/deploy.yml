@@ -84,12 +84,16 @@ jobs:
           source: "docker-compose.yml,docker-compose.prod.yml,scripts/deploy.sh"
           target: /opt/lingua-pro
 
+      - name: Set lowercase repo name
+        id: repo
+        run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY: ${{ steps.repo.outputs.name }}
           GITHUB_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.SERVER_HOST }}
