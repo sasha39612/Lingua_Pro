@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/app-store';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -9,6 +9,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const token = useAppStore((s) => s.token);
   const user = useAppStore((s) => s.user);
+  // Zustand persist reads from localStorage only on the client. Delay auth
+  // enforcement until after first mount so we don't redirect before the
+  // persisted token has been loaded.
+  const [hydrated, setHydrated] = useState(false);
   const isPublicRoute =
     pathname === '/dashboard' ||
     pathname === '/login' ||
@@ -19,6 +23,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname === '/faq';
 
   useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     if (!token && !isPublicRoute) {
       router.replace('/login');
     }
@@ -28,7 +37,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (token && pathname === '/login') {
       router.replace('/dashboard');
     }
-  }, [token, pathname, router, isPublicRoute, user]);
+  }, [hydrated, token, pathname, router, isPublicRoute, user]);
+
+  if (!hydrated) {
+    return <div className="min-h-screen">{children}</div>;
+  }
 
   if (!token && !isPublicRoute) {
     return (
