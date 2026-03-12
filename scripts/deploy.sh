@@ -16,13 +16,13 @@ echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 export IMAGE_TAG="$IMAGE_TAG"
 
 echo "==> Pulling images (tag: $IMAGE_TAG)..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
 
 echo "==> Starting services..."
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --remove-orphans
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --remove-orphans
 
 echo "==> Cleaning up old images..."
 docker image prune -f
 
 echo "==> Deploy complete (tag: $IMAGE_TAG)"
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
