@@ -22,9 +22,10 @@ async function forwardGraphQL(req: NextRequest) {
     if (!parsed.query) {
       const hash = parsed.extensions?.persistedQuery?.sha256Hash;
       if (hash && PERSISTED_QUERY_MANIFEST[hash]) {
+        const { extensions: _extensions, ...parsedWithoutExtensions } = parsed;
         const { persistedQuery: _persistedQuery, ...restExtensions } = parsed.extensions ?? {};
         body = JSON.stringify({
-          ...parsed,
+          ...parsedWithoutExtensions,
           query: PERSISTED_QUERY_MANIFEST[hash],
           ...(Object.keys(restExtensions).length > 0 ? { extensions: restExtensions } : {}),
         });

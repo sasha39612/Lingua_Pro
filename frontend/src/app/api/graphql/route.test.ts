@@ -46,6 +46,35 @@ describe('/api/graphql route', () => {
     process.env.API_GATEWAY_URL = 'http://gateway.test/graphql';
   });
 
+  it('strips extensions entirely when only persistedQuery was present (the standard app case)', async () => {
+    mockFetch.mockResolvedValue({
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: () => Promise.resolve(JSON.stringify({ data: { me: { id: 1 } } })),
+    });
+
+    const { POST } = await import('./route');
+
+    const requestWithOnlyPersistedQuery = {
+      headers: new Headers(),
+      text: () => Promise.resolve(JSON.stringify({
+        operationName: 'Me',
+        variables: {},
+        extensions: {
+          persistedQuery: { version: 1, sha256Hash: 'knownhash' },
+        },
+      })),
+    };
+
+    await POST(requestWithOnlyPersistedQuery as never);
+
+    const forwardedBody = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(forwardedBody.query).toBe('query Me { me { id } }');
+    // extensions must be completely absent — Apollo rejects any persistedQuery field
+    // that doesn't match the actual query text
+    expect(forwardedBody.extensions).toBeUndefined();
+  });
+
   it('forwards locally resolved persisted queries without persistedQuery metadata', async () => {
     mockFetch.mockResolvedValue({
       status: 200,
