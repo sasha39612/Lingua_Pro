@@ -61,8 +61,15 @@ export const textTypeDefs = gql`
     tasks(language: String!, level: String!, skill: String): [Task!]!
   }
 
+  input CheckTextInput {
+    userId: ID!
+    language: String!
+    text: String!
+  }
+
   type Mutation {
     submitText(userId: ID!, language: String!, text: String!): Text!
+    checkText(input: CheckTextInput!): Text!
   }
 `;
 
@@ -215,7 +222,9 @@ export const textSchema = buildSubgraphSchema([
       },
       Mutation: {
         submitText: (_: any, { userId, language, text }: any) =>
-          analyzeAndSave(userId, language, text)
+          analyzeAndSave(userId, language, text),
+        checkText: (_: any, { input }: any) =>
+          analyzeAndSave(input.userId, input.language, input.text),
       },
       Text: {
         __resolveReference: (text: any) => text
