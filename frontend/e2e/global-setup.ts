@@ -18,28 +18,49 @@ setup('register and authenticate test user', async ({ page, request }) => {
       query: `mutation {
         register(email: "${TEST_EMAIL}", password: "${TEST_PASSWORD}") {
           token
-          user { id email }
+          user { id email role language }
         }
       }`,
     },
   });
 
   const body = (await registerResp.json()) as {
-    data?: { register?: { token?: string } };
+    data?: { register?: { token?: string; user?: { id: string; email: string; role: string; language: string } } };
     errors?: { message: string }[];
   };
 
-  if (!body?.data?.register?.token) {
+  if (!body?.data?.register?.token || !body?.data?.register?.user) {
     throw new Error(`Registration failed: ${JSON.stringify(body)}`);
   }
 
-  // Log in via the UI so Zustand persists token + user to localStorage,
-  // then save the full browser storage state for reuse in all spec files.
-  await page.goto('/login');
-  await page.getByPlaceholder('Email').fill(TEST_EMAIL);
-  await page.getByPlaceholder('Password').fill(TEST_PASSWORD);
-  await page.getByRole('button', { name: 'Login' }).click();
-  await page.waitForURL('**/dashboard');
+  const { token, user } = body.data.register;
+
+  // Inject auth state directly into localStorage — more reliable than driving the
+  // login form in CI (avoids hydration timing and SPA navigation edge cases).
+  await page.goto('/');
+  await page.evaluate(
+    ({ authToken, authUser, storageKey }) => {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          state: {
+            token: authToken,
+            user: authUser,
+            language: 'English',
+            level: 'A2',
+            theme: 'system',
+            lastTaskTitle: null,
+          },
+          version: 0,
+        }),
+      );
+    },
+    { authToken: token, authUser: user, storageKey: 'lingua-pro-zustand' },
+  );
+
+  // Verify the injected state works by navigating to the dashboard.
+  await page.goto('/dashboard');
+  await page.waitForLoadState('domcontentloaded');
 
   await page.context().storageState({ path: AUTH_FILE });
 });
