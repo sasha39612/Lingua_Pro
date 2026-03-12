@@ -77,16 +77,15 @@ jobs:
 
       - name: Write SSH key to file
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.HETZNER_SSH_KEY }}" | base64 -d > "$RUNNER_TEMP/deploy_key"
+          chmod 600 "$RUNNER_TEMP/deploy_key"
 
       - name: Copy compose files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HETZNER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
-          key_path: ~/.ssh/deploy_key
+          key_path: /github/runner_temp/deploy_key
           source: "docker-compose.yml,docker-compose.prod.yml"
           target: /opt/lingua-pro
 
@@ -100,7 +99,7 @@ jobs:
         with:
           host: ${{ secrets.HETZNER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
-          key_path: ~/.ssh/deploy_key
+          key_path: /github/runner_temp/deploy_key
           script: |
             cd /opt/lingua-pro
             bash scripts/deploy.sh "$GITHUB_SHA"
