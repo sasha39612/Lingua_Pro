@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "dev:start": "docker-compose up -d",
+    "dev:docker:down": "docker-compose down"
+  },
   "dependencies": {
     "@nestjs/core": "^11.1.16",
     "@prisma/client": "^7.4.2",
