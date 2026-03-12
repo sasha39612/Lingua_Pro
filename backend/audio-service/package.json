@@ -11,9 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@nestjs/common": "^9.0.0",
-    "@nestjs/core": "^9.0.0",
-    "@nestjs/platform-express": "^9.0.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "axios": "^1.13.6",
@@ -24,7 +24,7 @@
     "rxjs": "^7.0.0"
   },
   "devDependencies": {
-    "@nestjs/testing": "^9.0.0",
+    "@nestjs/testing": "^11.0.0",
     "@types/node": "^20.0.0",
     "@types/pg": "^8.18.0",
     "prisma": "^7.4.2",
