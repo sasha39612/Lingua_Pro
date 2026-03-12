@@ -81,7 +81,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
-          source: "docker-compose.yml,docker-compose.prod.yml"
+          source: "docker-compose.yml,docker-compose.prod.yml,scripts/deploy.sh"
           target: /opt/lingua-pro
 
       - name: Deploy on server
