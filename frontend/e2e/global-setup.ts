@@ -35,24 +35,29 @@ setup('register and authenticate test user', async ({ page, request }) => {
 
   const { token, user } = body.data.register;
 
-  // Verify checkText mutation works directly against the API gateway.
-  // This surfaces backend errors immediately in CI logs before browser tests run.
-  const checkResp = await request.post('http://localhost:8080/graphql', {
-    data: {
-      query: `mutation {
-        checkText(input: { userId: "${user.id}", language: "English", text: "She go to the store yesterday." }) {
-          id feedback
-        }
-      }`,
-    },
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const checkBody = (await checkResp.json()) as { data?: { checkText?: { id: string } }; errors?: { message: string }[] };
-  if (checkBody?.errors?.length) {
-    throw new Error(`checkText mutation failed: ${JSON.stringify(checkBody.errors)}`);
-  }
-  if (!checkBody?.data?.checkText?.id) {
-    throw new Error(`checkText returned unexpected response: ${JSON.stringify(checkBody)}`);
+  // Verify checkText mutation works via both the API gateway directly and the Next.js proxy.
+  // This surfaces errors immediately in CI logs before browser tests run.
+  for (const [label, url] of [
+    ['direct API', 'http://localhost:8080/graphql'],
+    ['Next.js proxy', 'http://localhost:3000/api/graphql'],
+  ] as const) {
+    const checkResp = await request.post(url, {
+      data: {
+        query: `mutation {
+          checkText(input: { userId: "${user.id}", language: "English", text: "She go to the store yesterday." }) {
+            id feedback
+          }
+        }`,
+      },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const checkBody = (await checkResp.json()) as { data?: { checkText?: { id: string } }; errors?: { message: string }[] };
+    if (checkBody?.errors?.length) {
+      throw new Error(`checkText (${label}) failed: ${JSON.stringify(checkBody.errors)}`);
+    }
+    if (!checkBody?.data?.checkText?.id) {
+      throw new Error(`checkText (${label}) unexpected response: ${JSON.stringify(checkBody)}`);
+    }
   }
 
   // Inject auth state directly into localStorage — more reliable than driving the

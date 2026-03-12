@@ -18,10 +18,24 @@ test('submitting text shows AI feedback section', async ({ page }) => {
   await page.getByPlaceholder('Write your paragraph here').fill(
     'She go to the store yesterday and buyed many things for her family.',
   );
+
+  // Capture any /api/graphql response to help diagnose failures
+  let graphqlResponse = '(no request captured)';
+  page.on('response', (resp) => {
+    if (resp.url().includes('/api/graphql')) {
+      resp.text().then((t) => { graphqlResponse = `HTTP ${resp.status()}: ${t.slice(0, 500)}`; }).catch(() => {});
+    }
+  });
+
   await page.getByRole('button', { name: 'Get Corrections' }).click();
 
   // Status updates to confirmation message (AI orchestrator local fallback is fast)
-  await expect(page.getByText('AI correction received.')).toBeVisible({ timeout: 30_000 });
+  const statusEl = page.locator('p.bg-slate-900');
+  const passed = await page.getByText('AI correction received.').waitFor({ state: 'visible', timeout: 30_000 }).then(() => true).catch(() => false);
+  if (!passed) {
+    const statusText = await statusEl.textContent().catch(() => '(could not read status)');
+    throw new Error(`Expected 'AI correction received.' but status was: '${statusText}' | GraphQL response: ${graphqlResponse}`);
+  }
 
   // AI Feedback section appears below the editor
   await expect(page.getByRole('heading', { name: 'AI Feedback' })).toBeVisible();
