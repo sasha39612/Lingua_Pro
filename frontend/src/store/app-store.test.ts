@@ -28,7 +28,7 @@ describe('useAppStore', () => {
     });
 
     it('sets user', () => {
-      const user = { id: 1, email: 'a@b.com', role: 'student' as const, language: 'English' as const };
+      const user = { id: '1', email: 'a@b.com', role: 'student' as const, language: 'English' as const };
       useAppStore.getState().setUser(user);
       expect(useAppStore.getState().user).toEqual(user);
     });
@@ -95,7 +95,7 @@ describe('useAppStore', () => {
     it('clears token, user, recentResults, and lastTaskTitle', () => {
       useAppStore.setState({
         token: 'tok',
-        user: { id: 1, email: 'a@b.com', role: 'student', language: 'English' },
+        user: { id: '1', email: 'a@b.com', role: 'student', language: 'English' },
         lastTaskTitle: 'Write an essay',
         recentResults: [{ id: '1', originalText: 'Hi', createdAt: '2026-01-01T00:00:00Z' }],
       });

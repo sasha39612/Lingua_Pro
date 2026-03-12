@@ -3,14 +3,14 @@ import { graphqlRequest } from './graphql-client';
 
 vi.mock('@/lib/persisted-queries', () => ({
   OPERATION_HASH_BY_NAME: {
-    GetMe: 'abc123hash',
+    Me: 'abc123hash',
     Login: 'def456hash',
   },
 }));
 
 vi.mock('@/lib/graphql-operations', () => ({
   GRAPHQL_OPERATIONS: {
-    GetMe: 'query GetMe { me { id email } }',
+    Me: 'query Me { me { id email } }',
     Login: 'mutation Login($email: String!, $password: String!) { login(email: $email, password: $password) { token } }',
   },
 }));
@@ -32,7 +32,7 @@ describe('graphqlRequest', () => {
   it('sends persisted query with sha256Hash and returns data', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse({ data: { me: { id: 1, email: 'a@b.com' } } }));
 
-    const result = await graphqlRequest({ operationName: 'GetMe' });
+    const result = await graphqlRequest({ operationName: 'Me' });
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, options] = mockFetch.mock.calls[0];
@@ -45,7 +45,7 @@ describe('graphqlRequest', () => {
   it('includes Authorization header when token is provided', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse({ data: { me: { id: 1 } } }));
 
-    await graphqlRequest({ operationName: 'GetMe', token: 'mytoken' });
+    await graphqlRequest({ operationName: 'Me', token: 'mytoken' });
 
     const [, options] = mockFetch.mock.calls[0];
     expect(options.headers['authorization']).toBe('Bearer mytoken');
@@ -54,7 +54,7 @@ describe('graphqlRequest', () => {
   it('omits Authorization header when token is null', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse({ data: { me: { id: 1 } } }));
 
-    await graphqlRequest({ operationName: 'GetMe', token: null });
+    await graphqlRequest({ operationName: 'Me', token: null });
 
     const [, options] = mockFetch.mock.calls[0];
     expect(options.headers).not.toHaveProperty('authorization');
@@ -65,7 +65,7 @@ describe('graphqlRequest', () => {
       mockResponse({ errors: [{ message: 'Not authenticated' }, { message: 'Token expired' }] }),
     );
 
-    await expect(graphqlRequest({ operationName: 'GetMe' })).rejects.toThrow(
+    await expect(graphqlRequest({ operationName: 'Me' })).rejects.toThrow(
       'Not authenticated; Token expired',
     );
   });
@@ -75,12 +75,12 @@ describe('graphqlRequest', () => {
       .mockResolvedValueOnce(mockResponse({})) // persisted query miss → no data
       .mockResolvedValueOnce(mockResponse({ data: { me: { id: 2 } } }));
 
-    const result = await graphqlRequest({ operationName: 'GetMe' });
+    const result = await graphqlRequest({ operationName: 'Me' });
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
     const [, fallbackOptions] = mockFetch.mock.calls[1];
     const fallbackBody = JSON.parse(fallbackOptions.body);
-    expect(fallbackBody.query).toBe('query GetMe { me { id email } }');
+    expect(fallbackBody.query).toBe('query Me { me { id email } }');
     expect(result).toEqual({ me: { id: 2 } });
   });
 
@@ -89,7 +89,7 @@ describe('graphqlRequest', () => {
       .mockResolvedValueOnce(mockResponse({}))
       .mockResolvedValueOnce(mockResponse({ errors: [{ message: 'Server error' }] }));
 
-    await expect(graphqlRequest({ operationName: 'GetMe' })).rejects.toThrow('Server error');
+    await expect(graphqlRequest({ operationName: 'Me' })).rejects.toThrow('Server error');
   });
 
   it('throws when fallback also returns empty payload', async () => {
@@ -97,7 +97,7 @@ describe('graphqlRequest', () => {
       .mockResolvedValueOnce(mockResponse({}))
       .mockResolvedValueOnce(mockResponse({}));
 
-    await expect(graphqlRequest({ operationName: 'GetMe' })).rejects.toThrow(
+    await expect(graphqlRequest({ operationName: 'Me' })).rejects.toThrow(
       'GraphQL returned empty payload',
     );
   });
