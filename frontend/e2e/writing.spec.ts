@@ -52,3 +52,46 @@ test('submitting too-short text does not call API', async ({ page }) => {
   await expect(page.getByText('Submit text for AI corrections.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'AI Feedback' })).not.toBeVisible();
 });
+
+test('GraphQL error updates status message', async ({ page }) => {
+  // Intercept GraphQL and return an error so the catch branch runs
+  await page.route('**/api/graphql', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ errors: [{ message: 'Service unavailable' }] }),
+    });
+  });
+
+  await page.goto('/writing');
+  await page.getByPlaceholder('Write your paragraph here').fill('She go to the store yesterday.');
+  await page.getByRole('button', { name: 'Get Corrections' }).click();
+
+  // Status bar should reflect the error (not the success message)
+  await expect(page.getByText('AI correction received.')).not.toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('heading', { name: 'AI Feedback' })).not.toBeVisible();
+});
+
+test('streamed feedback renders content in teal box after submission', async ({ page }) => {
+  // Intercept /api/ai-feedback and respond with known text
+  await page.route('**/api/ai-feedback**', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'text/plain; charset=utf-8',
+      body: 'Great writing! Keep it up.',
+    });
+  });
+
+  await page.goto('/writing');
+  await page.getByPlaceholder('Write your paragraph here').fill(
+    'She go to the store yesterday and buyed many things.',
+  );
+  await page.getByRole('button', { name: 'Get Corrections' }).click();
+
+  // Wait for AI Feedback section
+  await expect(page.getByRole('heading', { name: 'AI Feedback' })).toBeVisible({ timeout: 30_000 });
+
+  // StreamedFeedback renders in a teal paragraph — content should eventually appear
+  const feedbackPara = page.locator('p.text-teal-900');
+  await expect(feedbackPara).not.toBeEmpty({ timeout: 10_000 });
+});

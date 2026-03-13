@@ -14,6 +14,8 @@ TEXT_URL="${TEXT_URL:-http://localhost:4002}"
 AUDIO_URL="${AUDIO_URL:-http://localhost:4003}"
 STATS_URL="${STATS_URL:-http://localhost:4004}"
 AI_URL="${AI_URL:-http://localhost:4005}"
+AUTH_URL="${AUTH_URL:-http://localhost:4001}"
+FE_URL="${FE_URL:-http://localhost:3000}"
 
 PASS=0
 FAIL=0
@@ -39,11 +41,24 @@ assert_status() {
   if [[ "$code" == "$expected" ]]; then ok "$label (HTTP $code)"; else fail "$label (expected $expected, got $code)"; fi
 }
 
+# ─── 0. Frontend availability ─────────────────────────────────────────────────
+section "0. Frontend availability"
+
+FE_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${FE_URL}" 2>/dev/null || echo "000")
+assert_status "frontend / (Next.js)" "$FE_CODE" "200"
+
+GQL_PROXY=$(curl -s -o /dev/null -w "%{http_code}" \
+  -X POST "${FE_URL}/api/graphql" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ __typename }"}' 2>/dev/null || echo "000")
+assert_status "frontend /api/graphql proxy" "$GQL_PROXY" "200"
+
 # ─── 1. Health checks ─────────────────────────────────────────────────────────
 section "1. Health checks"
 
 for svc in \
   "api-gateway|${GW_URL}/health" \
+  "auth-service|${AUTH_URL}/health" \
   "text-service|${TEXT_URL}/health" \
   "audio-service|${AUDIO_URL}/health" \
   "stats-service|${STATS_URL}/health" \
@@ -55,7 +70,7 @@ do
 done
 
 # ─── 2. Register + Login (auth via API Gateway GraphQL) ───────────────────────
-section "2. Auth – register & login"
+section "2. Auth – register, login, me & refreshToken"
 
 EMAIL="e2e_test_$(date +%s)@lingua.test"
 PASSWORD="Test1234!"
@@ -73,6 +88,18 @@ LOGIN=$(curl -s -X POST "${GW_URL}/graphql" \
   -H "Content-Type: application/json" \
   -d "{\"query\":\"mutation { login(email: \\\"${EMAIL}\\\", password: \\\"${PASSWORD}\\\") { token } }\"}")
 assert_key "login returns token" "$LOGIN" '.data.login.token'
+
+ME=$(curl -s -X POST "${GW_URL}/graphql" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -d '{"query":"{ me { id email } }"}')
+assert_key "me query returns id"    "$ME" '.data.me.id'
+assert_key "me query returns email" "$ME" '.data.me.email'
+
+REFRESH=$(curl -s -X POST "${GW_URL}/graphql" \
+  -H "Content-Type: application/json" \
+  -d "{\"query\":\"mutation { refreshToken(token: \\\"${TOKEN}\\\") { token } }\"}")
+assert_key "refreshToken returns new token" "$REFRESH" '.data.refreshToken.token'
 
 # ─── 3. Text submission → AI analysis ────────────────────────────────────────
 section "3. Text submission → AI analysis"
@@ -93,9 +120,10 @@ TEXT_SCORE=$(echo "$TEXT_SUBMIT" | jq -r '.data.submitText.textScore')
 echo "    text_score=${TEXT_SCORE}  (id=${TEXT_ID})"
 
 # Validate score is in 0-1 range
-if echo "$TEXT_SCORE" | awk 'BEGIN{exit 1} {exit !($1 >= 0 && $1 <= 1)}' 2>/dev/null || \
-   (( $(echo "$TEXT_SCORE >= 0 && $TEXT_SCORE <= 1" | bc -l 2>/dev/null || echo 0) )); then
+if [[ -n "$TEXT_SCORE" ]] && (( $(echo "$TEXT_SCORE >= 0 && $TEXT_SCORE <= 1" | bc -l 2>/dev/null || echo 0) )); then
   ok "textScore is in [0, 1]"
+else
+  fail "textScore '$TEXT_SCORE' is not in [0, 1]"
 fi
 
 # ─── 4. Text REST endpoint /text/by-language ─────────────────────────────────
@@ -181,6 +209,35 @@ if (( $(echo "$AVG_TEXT > 0" | bc -l 2>/dev/null || echo 0) )); then
   ok "avg_text_score > 0 (text submission reflected in stats)"
 else
   fail "avg_text_score should be > 0 after text submission"
+fi
+
+for period in week month; do
+  P_STATS=$(curl -s "${STATS_URL}/stats?language=${LANGUAGE}&period=${period}")
+  assert_key "stats[period=${period}] returns language" "$P_STATS" '.language'
+  assert_key "stats[period=${period}] returns history"  "$P_STATS" '.history'
+done
+
+# ─── 10. Auth – logout + session revocation ───────────────────────────────────
+section "10. Auth – logout + session revocation"
+
+LOGOUT=$(curl -s -X POST "${GW_URL}/graphql" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -d '{"query":"mutation { logout }"}')
+if [[ "$(echo "$LOGOUT" | jq -r '.data.logout')" == "true" ]]; then
+  ok "logout returns true"
+else
+  fail "logout should return true"
+fi
+
+AFTER_LOGOUT=$(curl -s -X POST "${GW_URL}/graphql" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -d '{"query":"{ me { id } }"}')
+if echo "$AFTER_LOGOUT" | jq -e '.data.me == null' > /dev/null 2>&1; then
+  ok "me returns null after logout (session revoked)"
+else
+  fail "me should return null after logout"
 fi
 
 # ─── Summary ──────────────────────────────────────────────────────────────────
