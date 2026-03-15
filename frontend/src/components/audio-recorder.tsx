@@ -5,9 +5,10 @@ import { useMemo, useRef, useState } from 'react';
 interface AudioRecorderProps {
   onRecordingComplete?: (blob: Blob) => void;
   onSendToReview?: () => void;
+  disabled?: boolean;
 }
 
-export function AudioRecorder({ onRecordingComplete, onSendToReview }: AudioRecorderProps) {
+export function AudioRecorder({ onRecordingComplete, onSendToReview, disabled }: AudioRecorderProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -69,7 +70,7 @@ export function AudioRecorder({ onRecordingComplete, onSendToReview }: AudioReco
         <button
           type="button"
           onClick={startRecording}
-          disabled={isRecording}
+          disabled={isRecording || disabled}
           className="rounded-full bg-teal-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           Start Recording
@@ -93,7 +94,7 @@ export function AudioRecorder({ onRecordingComplete, onSendToReview }: AudioReco
         <button
           type="button"
           onClick={onSendToReview}
-          disabled={!audioBlob}
+          disabled={!audioBlob || disabled}
           className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
         >
           Send to review

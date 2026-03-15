@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AudioRecorder } from '@/components/audio-recorder';
 import { LabFrame } from '@/components/lab-frame';
 import { useAppStore } from '@/store/app-store';
 import {
   MOCK_FEEDBACK,
   MOCK_GENERATED_TEXT,
+  STAT_LABELS,
   type FeedbackResult,
   type SpeakingMistake,
 } from '@/lib/speaking-mocks';
@@ -18,23 +19,42 @@ function speakWord(word: string) {
   window.speechSynthesis.speak(utterance);
 }
 
-function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[]) {
-  const mistakeMap = new Map(mistakes.map((m) => [m.spoken.toLowerCase(), m]));
+function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[], generatedText: string) {
+  // keyed by expected word so we can look up while iterating generated text
+  const mistakeByExpected = new Map(mistakes.map((m) => [m.expected.toLowerCase(), m]));
+  const spokenWords = new Set(
+    spokenText.split(' ').map((w) => w.replace(/[.,!?;:]/g, '').toLowerCase()),
+  );
   return (
     <span className="inline leading-10">
-      {spokenText.split(' ').map((word, i) => {
+      {generatedText.split(' ').map((word, i) => {
         const clean = word.replace(/[.,!?;:]/g, '').toLowerCase();
-        const mistake = mistakeMap.get(clean);
+        const mistake = mistakeByExpected.get(clean);
+
         if (mistake) {
+          // mispronounced — show what user said in red with IPA below
           return (
             <span key={i} className="inline-flex flex-col items-center mr-1 align-top">
-              <span className="font-medium text-red-500">{word}</span>
+              <span className="font-medium text-red-500">{mistake.spoken}</span>
               <span className="font-mono text-[10px] leading-none text-red-400 mt-0.5">
                 {mistake.ipa}
               </span>
             </span>
           );
         }
+
+        if (!spokenWords.has(clean)) {
+          // forgotten — red block
+          return (
+            <span
+              key={i}
+              className="inline-block mr-1 rounded bg-red-100 px-1 font-medium text-red-600"
+            >
+              {word}
+            </span>
+          );
+        }
+
         return <span key={i} className="mr-1">{word}</span>;
       })}
     </span>
@@ -70,6 +90,27 @@ export function SpeakingPage() {
   };
 
   const canAnalyze = recordedBlob !== null && generatedText.length > 0;
+
+  const stats = useMemo(() => {
+    if (!feedbackResult || !generatedText) return null;
+    const mistakeExpectedSet = new Set(feedbackResult.mistakes.map((m) => m.expected.toLowerCase()));
+    const mistakeSpokenSet = new Set(feedbackResult.mistakes.map((m) => m.spoken.toLowerCase()));
+    const generatedWordSet = new Set(
+      generatedText.split(' ').map((w) => w.replace(/[.,!?;:]/g, '').toLowerCase()),
+    );
+    const spokenWordSet = new Set(
+      feedbackResult.spokenText.split(' ').map((w) => w.replace(/[.,!?;:]/g, '').toLowerCase()),
+    );
+    const extra = feedbackResult.spokenText.split(' ').filter((w) => {
+      const c = w.replace(/[.,!?;:]/g, '').toLowerCase();
+      return !generatedWordSet.has(c) && !mistakeSpokenSet.has(c);
+    }).length;
+    const forgotten = generatedText.split(' ').filter((w) => {
+      const c = w.replace(/[.,!?;:]/g, '').toLowerCase();
+      return !spokenWordSet.has(c) && !mistakeExpectedSet.has(c);
+    }).length;
+    return { score: feedbackResult.score, pronunciation: feedbackResult.mistakes.length, extra, forgotten };
+  }, [feedbackResult, generatedText]);
 
   return (
     <LabFrame>
@@ -124,17 +165,40 @@ export function SpeakingPage() {
           <AudioRecorder
             onRecordingComplete={(blob) => setRecordedBlob(blob)}
             onSendToReview={handleAnalyze}
+            disabled={!generatedText}
           />
         </section>
 
         {/* Block 4: Pronunciation Feedback */}
         <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Pronunciation Feedback</h2>
-            {feedbackResult ? (
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-teal-700">{feedbackResult.score}</span>
-                <span className="text-sm text-slate-500">/ 100</span>
+            {stats ? (
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold text-teal-700">{stats.score}</span>
+                  <span className="text-sm text-slate-400">/ 100</span>
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 font-medium text-red-600">
+                    {STAT_LABELS.pronunciation}
+                    <span className="ml-1 rounded-full bg-red-100 px-1.5 py-0.5 font-bold">
+                      {stats.pronunciation}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 font-medium text-orange-600">
+                    {STAT_LABELS.extra}
+                    <span className="ml-1 rounded-full bg-orange-100 px-1.5 py-0.5 font-bold">
+                      {stats.extra}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 font-medium text-amber-600">
+                    {STAT_LABELS.missed}
+                    <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 font-bold">
+                      {stats.forgotten}
+                    </span>
+                  </span>
+                </div>
               </div>
             ) : null}
           </div>
@@ -196,7 +260,7 @@ export function SpeakingPage() {
               Red words are pronunciation mistakes — correct IPA shown below each.
             </p>
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">
-              {renderSpokenText(feedbackResult.spokenText, feedbackResult.mistakes)}
+              {renderSpokenText(feedbackResult.spokenText, feedbackResult.mistakes, generatedText)}
             </div>
           </section>
         ) : null}

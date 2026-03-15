@@ -15,12 +15,18 @@ export interface FeedbackResult {
   mistakes: SpeakingMistake[];
 }
 
+export const STAT_LABELS = {
+  pronunciation: 'Pronunciation',
+  extra: 'Added',
+  missed: 'Missed',
+};
+
 export const MOCK_GENERATED_TEXT =
   'The morning light filtered through the curtains as she prepared her bag for the language class.';
 
 export const MOCK_FEEDBACK: FeedbackResult = {
   score: 74,
-  spokenText: 'The morning light filterd through the cortens as she prepaired her bag.',
+  spokenText: 'The morning light filterd through the cortens as she prepaired her beautiful bag.',
   ipaSentence: 'ðə ˈmɔːnɪŋ laɪt ˈfɪltərd θruː ðə ˈkɜːtənz æz ʃiː prɪˈpeərd hər bæɡ',
   mistakes: [
     {
