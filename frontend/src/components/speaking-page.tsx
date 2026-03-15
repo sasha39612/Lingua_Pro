@@ -20,44 +20,69 @@ function speakWord(word: string) {
 }
 
 function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[], generatedText: string) {
-  // keyed by expected word so we can look up while iterating generated text
   const mistakeByExpected = new Map(mistakes.map((m) => [m.expected.toLowerCase(), m]));
+  const mistakeSpokenSet = new Set(mistakes.map((m) => m.spoken.toLowerCase()));
+  const generatedWordSet = new Set(
+    generatedText.split(' ').map((w) => w.replace(/[.,!?;:]/g, '').toLowerCase()),
+  );
   const spokenWords = new Set(
     spokenText.split(' ').map((w) => w.replace(/[.,!?;:]/g, '').toLowerCase()),
   );
+
+  const extraWords = spokenText
+    .split(' ')
+    .filter((w) => {
+      const c = w.replace(/[.,!?;:]/g, '').toLowerCase();
+      return !generatedWordSet.has(c) && !mistakeSpokenSet.has(c);
+    });
+
   return (
-    <span className="inline leading-10">
-      {generatedText.split(' ').map((word, i) => {
-        const clean = word.replace(/[.,!?;:]/g, '').toLowerCase();
-        const mistake = mistakeByExpected.get(clean);
+    <div>
+      <span className="inline leading-10">
+        {generatedText.split(' ').map((word, i) => {
+          const clean = word.replace(/[.,!?;:]/g, '').toLowerCase();
+          const mistake = mistakeByExpected.get(clean);
 
-        if (mistake) {
-          // mispronounced — show what user said in red with IPA below
-          return (
-            <span key={i} className="inline-flex flex-col items-center mr-1 align-top">
-              <span className="font-medium text-red-500">{mistake.spoken}</span>
-              <span className="font-mono text-[10px] leading-none text-red-400 mt-0.5">
-                {mistake.ipa}
+          if (mistake) {
+            return (
+              <span key={i} className="inline-flex flex-col items-center mr-1 align-top">
+                <span className="font-medium text-red-500">{mistake.spoken}</span>
+                <span className="font-mono text-[10px] leading-none text-red-400 mt-0.5">
+                  {mistake.ipa}
+                </span>
               </span>
-            </span>
-          );
-        }
+            );
+          }
 
-        if (!spokenWords.has(clean)) {
-          // forgotten — red block
-          return (
+          if (!spokenWords.has(clean)) {
+            return (
+              <span
+                key={i}
+                className="inline-block mr-1 rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700"
+              >
+                {word}
+              </span>
+            );
+          }
+
+          return <span key={i} className="mr-1">{word}</span>;
+        })}
+      </span>
+
+      {extraWords.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3">
+          <span className="text-xs font-medium text-orange-500">{STAT_LABELS.extra}:</span>
+          {extraWords.map((w, i) => (
             <span
               key={i}
-              className="inline-block mr-1 rounded bg-red-100 px-1 font-medium text-red-600"
+              className="rounded-md border border-orange-300 bg-orange-50 px-1.5 py-0.5 text-sm font-medium text-orange-600 line-through"
             >
-              {word}
+              {w}
             </span>
-          );
-        }
-
-        return <span key={i} className="mr-1">{word}</span>;
-      })}
-    </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -257,7 +282,9 @@ export function SpeakingPage() {
           <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
             <h2 className="text-lg font-semibold">Mistakes Details</h2>
             <p className="mt-1 text-xs text-slate-400">
-              Red words are pronunciation mistakes — correct IPA shown below each.
+              <span className="text-red-400">Red</span> — mispronounced (IPA below) &nbsp;·&nbsp;
+              <span className="text-amber-500">Amber box</span> — missed &nbsp;·&nbsp;
+              <span className="text-orange-400 line-through">Strikethrough</span> — added
             </p>
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">
               {renderSpokenText(feedbackResult.spokenText, feedbackResult.mistakes, generatedText)}
