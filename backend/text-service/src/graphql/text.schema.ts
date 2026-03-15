@@ -121,6 +121,7 @@ export async function analyzeAndSave(
   language: string,
   text: string
 ) {
+  language = language.toLowerCase();
   let corrected = text;
   let feedback = 'Great work! No obvious errors detected.';
   let textScore: number | null = null;
@@ -180,6 +181,7 @@ export async function fetchTasks(
   level: string,
   skill?: string
 ) {
+  language = language.toLowerCase();
   const where: any = { language, level };
   if (skill) where.skill = skill;
 
@@ -194,14 +196,16 @@ export async function fetchTasks(
     try {
       const resp = await orchestrator.post('/tasks/generate', { language, level, skill });
       if (resp.data?.tasks) {
-        tasks = resp.data.tasks;
-        for (const t of tasks) {
+        const created: any[] = [];
+        for (const t of resp.data.tasks) {
           try {
-            await prisma.task.create({ data: t });
+            const record = await prisma.task.create({ data: { ...t, language: t.language?.toLowerCase() ?? language } });
+            created.push(record);
           } catch (e: any) {
             console.warn('failed to persist generated task', e?.message || e);
           }
         }
+        tasks = created;
       }
     } catch (e: any) {
       console.error('failed to generate tasks from orchestrator', e?.message || e);
