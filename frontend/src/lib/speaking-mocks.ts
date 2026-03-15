@@ -20,7 +20,7 @@ export const MOCK_GENERATED_TEXT =
 
 export const MOCK_FEEDBACK: FeedbackResult = {
   score: 74,
-  spokenText: 'The morning light filtered through the curtains as she prepared her bag.',
+  spokenText: 'The morning light filterd through the cortens as she prepaired her bag.',
   ipaSentence: 'ðə ˈmɔːnɪŋ laɪt ˈfɪltərd θruː ðə ˈkɜːtənz æz ʃiː prɪˈpeərd hər bæɡ',
   mistakes: [
     {
