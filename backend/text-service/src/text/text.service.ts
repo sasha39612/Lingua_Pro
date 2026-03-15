@@ -16,6 +16,7 @@ export class TextService {
   }
 
   async analyzeText(userId: number, language: string, text: string) {
+    language = language.toLowerCase();
     let corrected = text;
     let feedback = 'Great work! No obvious errors detected.';
     let textScore: number | null = null;
@@ -72,7 +73,7 @@ export class TextService {
   }
 
   async getTextsByLanguage(language: string, from?: string) {
-    const where: any = { language };
+    const where: any = { language: language.toLowerCase() };
     if (from) {
       where.createdAt = { gte: new Date(from) };
     }
@@ -90,7 +91,7 @@ export class TextService {
   }
 
   async getTasks(language: string, level: string, skill?: string) {
-    const where: any = { language, level };
+    const where: any = { language: language.toLowerCase(), level };
     if (skill) {
       where.skill = skill;
     }
@@ -107,15 +108,16 @@ export class TextService {
           this.http.post(`${this.orchestratorUrl}/tasks/generate`, { language, level, skill })
         );
         if (resp.data?.tasks) {
-          tasks = resp.data.tasks;
-          // persist tasks for future queries
-          for (const t of tasks) {
+          const created: any[] = [];
+          for (const t of resp.data.tasks) {
             try {
-              await this.prisma.task.create({ data: t });
+              const record = await this.prisma.task.create({ data: { ...t, language: t.language?.toLowerCase() ?? t.language } });
+              created.push(record);
             } catch (err: any) {
               this.logger.warn('failed to persist generated task', err?.message || err);
             }
           }
+          tasks = created;
         }
       } catch (err: any) {
         this.logger.error('failed to generate tasks from orchestrator', err?.message || err);

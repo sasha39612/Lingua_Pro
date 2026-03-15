@@ -29,6 +29,7 @@ export class AudioService {
     audioUrl: string,
     expectedText?: string
   ): Promise<AudioProcessingResult> {
+    language = language.toLowerCase();
     try {
       // Download audio from URL
       const audioBuffer = await this.downloadAudio(audioUrl);

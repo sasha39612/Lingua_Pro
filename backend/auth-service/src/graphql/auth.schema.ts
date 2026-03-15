@@ -12,6 +12,7 @@ import { Pool } from 'pg';
 import * as argon2 from 'argon2';
 // @ts-ignore - types may not be installed in this workspace; a declaration shim exists
 import * as jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 
 const DATABASE_URL =
   process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/lingua_pro_auth?schema=public';
@@ -96,7 +97,8 @@ async function createTokenAndSession(user: PrismaUser): Promise<string> {
     id: user.id,
     email: user.email,
     role: user.role,
-    language: user.language
+    language: user.language,
+    jti: randomUUID()
   };
 
   const token = jwt.sign(payload, JWT_SECRET, {

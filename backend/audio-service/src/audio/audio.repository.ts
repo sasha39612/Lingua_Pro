@@ -72,7 +72,7 @@ export class AudioRepository {
     language: string,
     from?: string,
   ): Promise<{ records: { pronunciationScore: number | null; feedback: string | null; createdAt: Date }[] }> {
-    const where: any = { language };
+    const where: any = { language: language.toLowerCase() };
     if (from) {
       where.createdAt = { gte: new Date(from) };
     }
