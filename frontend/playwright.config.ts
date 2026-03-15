@@ -18,13 +18,19 @@ export default defineConfig({
   },
 
   projects: [
-    // Registers a test user and saves auth state to playwright/.auth/user.json
+    // Registers a student test user and saves auth state to playwright/.auth/user.json
     {
       name: 'setup',
       testMatch: /global-setup\.ts/,
     },
 
-    // Authenticated tests — depend on setup to run first
+    // Registers an admin test user and saves auth state to playwright/.auth/admin.json
+    {
+      name: 'admin-setup',
+      testMatch: /admin-setup\.ts/,
+    },
+
+    // Authenticated tests (non-admin) — depend on setup to run first
     {
       name: 'chromium',
       use: {
@@ -32,7 +38,18 @@ export default defineConfig({
         storageState: 'playwright/.auth/user.json',
       },
       dependencies: ['setup'],
-      testMatch: /.*\.spec\.ts/,
+      testMatch: /(?<!admin)\.spec\.ts$/,
+    },
+
+    // Admin tests — use admin auth state
+    {
+      name: 'chromium-admin',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/admin.json',
+      },
+      dependencies: ['admin-setup'],
+      testMatch: /admin\.spec\.ts$/,
     },
   ],
 });
