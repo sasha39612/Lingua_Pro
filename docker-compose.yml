@@ -65,6 +65,8 @@ services:
     build:
       context: .
       dockerfile: backend/auth-service/Dockerfile
+    ports:
+      - "127.0.0.1:4001:4001"
     environment:
       - NODE_ENV=production
       - PORT=4001
@@ -89,6 +91,8 @@ services:
     build:
       context: .
       dockerfile: backend/text-service/Dockerfile
+    ports:
+      - "127.0.0.1:4002:4002"
     environment:
       - NODE_ENV=production
       - PORT=4002
@@ -114,6 +118,8 @@ services:
     build:
       context: .
       dockerfile: backend/audio-service/Dockerfile
+    ports:
+      - "127.0.0.1:4003:4003"
     environment:
       - NODE_ENV=production
       - PORT=4003
@@ -143,6 +149,8 @@ services:
     build:
       context: .
       dockerfile: backend/stats-service/Dockerfile
+    ports:
+      - "127.0.0.1:4004:4004"
     environment:
       - NODE_ENV=production
       - PORT=4004
@@ -168,6 +176,8 @@ services:
     build:
       context: .
       dockerfile: backend/ai-orchestrator/Dockerfile
+    ports:
+      - "127.0.0.1:4005:4005"
     environment:
       - NODE_ENV=production
       - PORT=4005

@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@apollo/server": "^4.0.0",
-    "@apollo/subgraph": "*",
+    "@apollo/subgraph": "^2.13.2",
     "@nestjs/axios": "*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",

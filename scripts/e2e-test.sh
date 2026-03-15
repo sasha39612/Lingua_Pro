@@ -9,6 +9,14 @@
 
 set -euo pipefail
 
+# ─── Preflight checks ─────────────────────────────────────────────────────────
+for cmd in curl jq; do
+  if ! command -v "$cmd" &>/dev/null; then
+    echo "Error: '$cmd' is required but not installed." >&2
+    exit 1
+  fi
+done
+
 GW_URL="${GW_URL:-http://localhost:8080}"
 TEXT_URL="${TEXT_URL:-http://localhost:4002}"
 AUDIO_URL="${AUDIO_URL:-http://localhost:4003}"
@@ -23,8 +31,8 @@ LANGUAGE="English"
 
 # ─── Colour helpers ───────────────────────────────────────────────────────────
 GREEN='\033[0;32m'; RED='\033[0;31m'; CYAN='\033[0;36m'; RESET='\033[0m'
-ok()   { echo -e "${GREEN}  ✓ $1${RESET}"; (( PASS++ )); }
-fail() { echo -e "${RED}  ✗ $1${RESET}"; (( FAIL++ )); }
+ok()   { echo -e "${GREEN}  ✓ $1${RESET}"; (( ++PASS )); }
+fail() { echo -e "${RED}  ✗ $1${RESET}"; (( ++FAIL )); }
 section() { echo -e "\n${CYAN}▶ $1${RESET}"; }
 
 assert_key() {
