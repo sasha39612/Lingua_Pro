@@ -20,19 +20,25 @@ function speakWord(word: string) {
 
 function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[]) {
   const mistakeMap = new Map(mistakes.map((m) => [m.spoken.toLowerCase(), m]));
-  return spokenText.split(' ').map((word, i) => {
-    const clean = word.replace(/[.,!?]/g, '').toLowerCase();
-    const mistake = mistakeMap.get(clean);
-    if (mistake) {
-      return (
-        <span key={i}>
-          <span className="line-through text-red-500">{word}</span>
-          <span className="ml-1 font-medium text-green-700">{mistake.expected}</span>{' '}
-        </span>
-      );
-    }
-    return <span key={i}>{word} </span>;
-  });
+  return (
+    <span className="inline leading-10">
+      {spokenText.split(' ').map((word, i) => {
+        const clean = word.replace(/[.,!?;:]/g, '').toLowerCase();
+        const mistake = mistakeMap.get(clean);
+        if (mistake) {
+          return (
+            <span key={i} className="inline-flex flex-col items-center mr-1 align-top">
+              <span className="font-medium text-red-500">{word}</span>
+              <span className="font-mono text-[10px] leading-none text-red-400 mt-0.5">
+                {mistake.ipa}
+              </span>
+            </span>
+          );
+        }
+        return <span key={i} className="mr-1">{word}</span>;
+      })}
+    </span>
+  );
 }
 
 export function SpeakingPage() {
@@ -186,12 +192,10 @@ export function SpeakingPage() {
         {feedbackResult ? (
           <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
             <h2 className="text-lg font-semibold">Mistakes Details</h2>
-            {feedbackResult.ipaSentence ? (
-              <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 font-mono text-sm text-slate-700">
-                {feedbackResult.ipaSentence}
-              </p>
-            ) : null}
-            <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4 text-sm leading-loose text-slate-800">
+            <p className="mt-1 text-xs text-slate-400">
+              Red words are pronunciation mistakes — correct IPA shown below each.
+            </p>
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">
               {renderSpokenText(feedbackResult.spokenText, feedbackResult.mistakes)}
             </div>
           </section>
