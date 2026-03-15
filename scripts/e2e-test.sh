@@ -44,7 +44,7 @@ assert_status() {
 # ─── 0. Frontend availability ─────────────────────────────────────────────────
 section "0. Frontend availability"
 
-FE_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${FE_URL}" 2>/dev/null || echo "000")
+FE_CODE=$(curl -s -L -o /dev/null -w "%{http_code}" "${FE_URL}" 2>/dev/null || echo "000")
 assert_status "frontend / (Next.js)" "$FE_CODE" "200"
 
 GQL_PROXY=$(curl -s -o /dev/null -w "%{http_code}" \
