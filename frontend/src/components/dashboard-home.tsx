@@ -48,6 +48,10 @@ export function DashboardHome() {
                   Statistic
                 </Link>
                 <span className="h-5 w-px bg-white/35" />
+                <Link href="/settings" className="transition hover:opacity-100 opacity-95">
+                  Settings
+                </Link>
+                <span className="h-5 w-px bg-white/35" />
                 {token ? (
                   <button
                     type="button"

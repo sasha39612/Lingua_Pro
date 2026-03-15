@@ -32,6 +32,10 @@ export function LabFrame({ children }: { children: React.ReactNode }) {
                   Statistic
                 </Link>
                 <span className="h-5 w-px bg-white/35" />
+                <Link href="/settings" className="opacity-95 transition hover:opacity-100">
+                  Settings
+                </Link>
+                <span className="h-5 w-px bg-white/35" />
                 {token ? (
                   <button
                     type="button"
