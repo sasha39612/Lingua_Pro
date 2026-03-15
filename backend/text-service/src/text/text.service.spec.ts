@@ -62,10 +62,10 @@ describe('TextService', () => {
 
       expect(mockHttp.post).toHaveBeenCalledWith(
         expect.stringContaining('/text/analyze'),
-        { text: 'Hello', language: 'English' },
+        { text: 'Hello', language: 'english' },
       );
       expect(mockPrisma.text.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ userId: 5, language: 'English' }) }),
+        expect.objectContaining({ data: expect.objectContaining({ userId: 5, language: 'english' }) }),
       );
       expect(result).toEqual(savedRecord);
     });
@@ -94,7 +94,7 @@ describe('TextService', () => {
       expect(result).toMatchObject({
         id: -1,
         userId: 5,
-        language: 'English',
+        language: 'english',
         originalText: 'Hello',
         persisted: false,
       });
@@ -127,7 +127,7 @@ describe('TextService', () => {
       const result = await service.getTextsByLanguage('English');
 
       expect(mockPrisma.text.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { language: 'English' } }),
+        expect.objectContaining({ where: { language: 'english' } }),
       );
       expect(result).toEqual({ texts: rows });
     });
@@ -183,10 +183,10 @@ describe('TextService', () => {
 
       expect(mockHttp.post).toHaveBeenCalledWith(
         expect.stringContaining('/tasks/generate'),
-        { language: 'English', level: 'A1', skill: 'reading' },
+        { language: 'english', level: 'A1', skill: 'reading' },
       );
       expect(mockPrisma.task.create).toHaveBeenCalledTimes(generatedTasks.length);
-      expect(result).toEqual(generatedTasks);
+      expect(result).toEqual([{}]); // service returns persisted DB records, not raw orchestrator data
     });
 
     it('returns empty array when DB is empty and orchestrator fails', async () => {

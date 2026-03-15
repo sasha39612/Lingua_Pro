@@ -91,7 +91,8 @@ export class TextService {
   }
 
   async getTasks(language: string, level: string, skill?: string) {
-    const where: any = { language: language.toLowerCase(), level };
+    language = language.toLowerCase();
+    const where: any = { language, level };
     if (skill) {
       where.skill = skill;
     }
