@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "dev:start": "docker-compose up -d",
-    "dev:docker:down": "docker-compose down"
+    "dev:start": "docker compose up -d",
+    "dev:docker:down": "docker compose down"
   },
   "dependencies": {
     "@nestjs/core": "^11.1.16",
