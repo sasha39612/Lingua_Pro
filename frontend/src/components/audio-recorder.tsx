@@ -2,7 +2,12 @@
 
 import { useMemo, useRef, useState } from 'react';
 
-export function AudioRecorder() {
+interface AudioRecorderProps {
+  onRecordingComplete?: (blob: Blob) => void;
+  onSendToReview?: () => void;
+}
+
+export function AudioRecorder({ onRecordingComplete, onSendToReview }: AudioRecorderProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -31,6 +36,7 @@ export function AudioRecorder() {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         setAudioBlob(blob);
         stream.getTracks().forEach((track) => track.stop());
+        onRecordingComplete?.(blob);
       };
 
       mediaRecorderRef.current = mediaRecorder;
@@ -46,6 +52,11 @@ export function AudioRecorder() {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
+  };
+
+  const deleteRecording = () => {
+    setAudioBlob(null);
+    chunksRef.current = [];
   };
 
   return (
@@ -76,11 +87,26 @@ export function AudioRecorder() {
       {audioUrl ? (
         <div className="mt-4 rounded-xl border border-slate-200 p-3">
           <audio controls src={audioUrl} className="w-full" />
-          <p className="mt-2 text-xs text-slate-500">
-            Local playback is ready. Upload endpoint wiring can be added to send this blob to backend storage.
-          </p>
         </div>
       ) : null}
+      <div className="mt-4 flex flex-wrap gap-3 border-t border-slate-100 pt-4">
+        <button
+          type="button"
+          onClick={onSendToReview}
+          disabled={!audioBlob}
+          className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+        >
+          Send to review
+        </button>
+        <button
+          type="button"
+          onClick={deleteRecording}
+          disabled={!audioBlob}
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 disabled:opacity-40"
+        >
+          Delete Recording
+        </button>
+      </div>
     </div>
   );
 }
