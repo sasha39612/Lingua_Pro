@@ -58,7 +58,7 @@ function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[], gener
             return (
               <span
                 key={i}
-                className="inline-block mr-1 rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700"
+                className="inline-block mr-1 rounded-md border border-yellow-300 bg-yellow-50 px-1.5 py-0.5 font-medium text-yellow-700"
               >
                 {word}
               </span>
@@ -217,9 +217,9 @@ export function SpeakingPage() {
                       {stats.extra}
                     </span>
                   </span>
-                  <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 font-medium text-amber-600">
+                  <span className="flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-1 font-medium text-yellow-600">
                     {STAT_LABELS.missed}
-                    <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 font-bold">
+                    <span className="ml-1 rounded-full bg-yellow-100 px-1.5 py-0.5 font-bold">
                       {stats.forgotten}
                     </span>
                   </span>
@@ -283,8 +283,8 @@ export function SpeakingPage() {
             <h2 className="text-lg font-semibold">Mistakes Details</h2>
             <p className="mt-1 text-xs text-slate-400">
               <span className="text-red-400">Red</span> — mispronounced (IPA below) &nbsp;·&nbsp;
-              <span className="text-amber-500">Amber box</span> — missed &nbsp;·&nbsp;
-              <span className="text-orange-400 line-through">Strikethrough</span> — added
+              <span className="text-orange-600">Yellow box</span> — missed &nbsp;·&nbsp;
+              <span className="text-yellow-400 line-through">Strikethrough</span> — added
             </p>
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">
               {renderSpokenText(feedbackResult.spokenText, feedbackResult.mistakes, generatedText)}
