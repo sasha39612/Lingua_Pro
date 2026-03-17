@@ -2,6 +2,15 @@
 
 A microservices-based language learning platform supporting Listening, Reading, Writing, and Speaking skills with AI-powered feedback.
 
+## Key Differentiator
+
+Lingua Pro provides phoneme-level pronunciation feedback using Azure Speech scoring combined with GPT-generated explanations.
+
+Unlike basic speech-to-text systems, it:
+- detects mispronounced phonemes with IPA annotation
+- identifies missing and extra words via token-level alignment
+- provides actionable, human-readable feedback for each error
+
 ## Supported Languages
 - English, German, Albanian, Polish (extensible)
 
@@ -299,9 +308,56 @@ bash scripts/deploy.sh
 - **Audio format conversion**: FFmpeg converts browser `audio/webm` to 16 kHz mono PCM WAV for Azure
 - **Fallbacks**: All AI operations have local fallbacks — the platform works without any API keys
 
+### Pronunciation Analysis Pipeline
+
+1. Browser `audio/webm` converted via FFmpeg to 16 kHz mono PCM WAV
+2. Azure Speech SDK performs transcription + phoneme-level scoring (accuracy, fluency, completeness)
+3. Token-level Levenshtein alignment produces `WordAlignment[]` — each word tagged as `correct`, `missing`, `extra`, or `mispronounced`
+4. GPT generates a human-readable feedback string per mistake — no numeric scores, Azure owns all scoring
+
+### AI Cost Overview (Approximate)
+
+Costs vary by request size and model selection.
+
+| Operation | Model | Approx. cost per request |
+|-----------|-------|--------------------------|
+| Pronunciation analysis (feedback) | GPT-4o | ~$0.01–0.02 |
+| Text analysis / correction | GPT-4o | ~$0.005–0.015 |
+| Task generation | GPT-4o-mini | ~$0.001–0.003 |
+| TTS audio generation | gpt-4o-mini-tts | ~$0.001–0.003 |
+| Transcription | Azure Speech | ~$0.001 per 15 s |
+
+At scale, pronunciation analysis and text analysis are the dominant cost drivers. AI endpoints are protected by Nginx rate limiting to prevent abuse.
+
 ### Infrastructure
 - **Database**: PostgreSQL 15 (Alpine) — one instance, three isolated databases
 - **Networking**: `lingua-network` Docker bridge
 - **Reverse proxy**: Nginx (host) with SSL termination via Let's Encrypt
 - **Deployment**: Hetzner cloud, Docker Compose
 - **CI/CD**: GitHub Actions → GHCR → Hetzner SSH deploy
+
+---
+
+## Rate Limiting
+
+Nginx enforces per-IP request rate limits to protect AI endpoints from abuse and runaway costs. Configuration lives in [`nginx/nginx.conf`](nginx/nginx.conf).
+
+AI endpoints (pronunciation analysis, text analysis, TTS) are the primary targets because each request incurs real API cost.
+
+---
+
+## Security
+
+- **JWT authentication** — all non-public endpoints require a valid token; verified at the API Gateway
+- **Role-based access control** — `student` and `admin` roles enforced per resolver/route
+- **Rate limiting** — Nginx limits requests per IP before they reach any backend service
+- **Input validation** — `class-validator` DTOs on all NestJS services; Zod on the frontend
+- **Auth context isolation** — downstream services trust `x-user-id` / `x-user-role` headers set exclusively by the gateway; they never re-validate tokens
+
+---
+
+## Future Improvements
+
+- Async AI processing via job queue (Redis / BullMQ) — decouple long-running pronunciation analysis from the HTTP request cycle
+- Real-time streaming pronunciation feedback via SSE (foundation already exists for text analysis)
+- Caching layer for frequently generated tasks to reduce repeated AI spend

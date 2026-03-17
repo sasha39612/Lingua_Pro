@@ -26,6 +26,8 @@ export class TaskService {
       return this.localTaskGeneration(safeLanguage, safeLevel, safeSkill);
     }
 
+    const isSpeaking = safeSkill === 'speaking';
+
     try {
       const response = await withRetry(
         () =>
@@ -37,10 +39,14 @@ export class TaskService {
               messages: [
                 {
                   role: 'system',
-                  content:
-                    `Generate 3 ${safeSkill} tasks for a ${safeLanguage} learner at CEFR ${safeLevel}. ` +
-                    'Return strict JSON with key tasks containing an array of objects. ' +
-                    'Each task must include: prompt, answerOptions (4 short strings), correctAnswer (A/B/C/D), referenceText (nullable string), audioUrl (nullable string).',
+                  content: isSpeaking
+                    ? `Generate 3 speaking tasks for a ${safeLanguage} learner at CEFR ${safeLevel}. ` +
+                      'Each task is a short passage the student reads aloud. ' +
+                      'Return strict JSON with key tasks containing an array of objects. ' +
+                      'Each task must include: prompt (a one-sentence instruction like "Read the following passage aloud"), referenceText (a 2-4 sentence passage appropriate for the CEFR level), answerOptions (empty array []), correctAnswer (null), audioUrl (null).'
+                    : `Generate 3 ${safeSkill} tasks for a ${safeLanguage} learner at CEFR ${safeLevel}. ` +
+                      'Return strict JSON with key tasks containing an array of objects. ' +
+                      'Each task must include: prompt, answerOptions (4 short strings), correctAnswer (A/B/C/D), referenceText (nullable string), audioUrl (nullable string).',
                 },
                 {
                   role: 'user',
@@ -75,6 +81,23 @@ export class TaskService {
   // ── Local fallback ─────────────────────────────────────────────────────────
 
   private localTaskGeneration(language: string, level: string, skill: string): GeneratedTask[] {
+    if (skill === 'speaking') {
+      return this.speakingPassageSet(language, level).map((referenceText: string, index: number) =>
+        this.normalizeTask(
+          {
+            prompt: 'Read the following passage aloud.',
+            answerOptions: [],
+            correctAnswer: null,
+            audioUrl: null,
+            referenceText,
+          },
+          language,
+          level,
+          skill,
+          index,
+        ),
+      );
+    }
     return this.promptSet(language, level, skill).map((prompt, index) =>
       this.normalizeTask(
         {
@@ -99,17 +122,23 @@ export class TaskService {
     skill: string,
     index: number,
   ): GeneratedTask {
-    const options =
-      Array.isArray(task?.answerOptions) && task.answerOptions.length >= 4
+    const isSpeaking = skill === 'speaking';
+
+    const options = isSpeaking
+      ? []
+      : Array.isArray(task?.answerOptions) && task.answerOptions.length >= 4
         ? task.answerOptions.slice(0, 4).map((item: any) => String(item))
         : ['Option A', 'Option B', 'Option C', 'Option D'];
 
-    const correct = typeof task?.correctAnswer === 'string'
-      ? task.correctAnswer.toUpperCase().trim()
-      : '';
-    const normalizedCorrect = ['A', 'B', 'C', 'D'].includes(correct)
-      ? correct
-      : ['A', 'B', 'C', 'D'][index % 4];
+    let normalizedCorrect: string | null = null;
+    if (!isSpeaking) {
+      const correct = typeof task?.correctAnswer === 'string'
+        ? task.correctAnswer.toUpperCase().trim()
+        : '';
+      normalizedCorrect = ['A', 'B', 'C', 'D'].includes(correct)
+        ? correct
+        : ['A', 'B', 'C', 'D'][index % 4];
+    }
 
     return {
       language,
@@ -121,6 +150,15 @@ export class TaskService {
       answerOptions: options,
       correctAnswer: normalizedCorrect,
     };
+  }
+
+  private speakingPassageSet(language: string, level: string): string[] {
+    const base = `${language}, CEFR ${level}`;
+    return [
+      `My name is Anna. I live in a small house. I have a cat and a dog. Every morning I drink coffee and read the news. (${base})`,
+      `The weather today is sunny and warm. I like to walk in the park after work. There are many trees and flowers there. It makes me feel happy. (${base})`,
+      `I went to the market yesterday. I bought some apples, bread, and milk. The market was very busy. I also met my neighbour there. (${base})`,
+    ];
   }
 
   private promptSet(language: string, level: string, skill: string): string[] {
