@@ -47,8 +47,13 @@ All variables live in a single `.env` file at the repo root. See [`.env.example`
 | `JWT_SECRET` | Secret for signing JWTs |
 | `JWT_EXPIRY` | Token lifetime (default `7d`) |
 | `AI_API_KEY` | OpenAI API key |
-| `OPENAI_TEXT_MODEL` / `OPENAI_TASK_MODEL` / `OPENAI_EVAL_MODEL` | GPT model overrides (default `gpt-4o-mini`) |
-| `OPENAI_TRANSCRIPTION_MODEL` | Whisper model override (default `whisper-1`) |
+| `OPENAI_TEXT_MODEL` | GPT model for text analysis (default `gpt-4o`) |
+| `OPENAI_TASK_MODEL` | GPT model for task generation (default `gpt-4o-mini`) |
+| `OPENAI_EVAL_MODEL` | GPT model for pronunciation feedback (default `gpt-4o`) |
+| `OPENAI_TRANSCRIPTION_MODEL` | Whisper model — fallback when Azure unavailable (default `whisper-1`) |
+| `OPENAI_TTS_MODEL` | TTS model for listening task audio (default `gpt-4o-mini-tts`) |
+| `AZURE_SPEECH_KEY` | Azure Cognitive Services Speech key — primary transcription + pronunciation scoring |
+| `AZURE_SPEECH_REGION` | Azure region (default `westeurope`) |
 
 ---
 
@@ -68,7 +73,7 @@ Lingua_Pro/
 │   ├── text-service/                # Writing/reading tasks, NestJS, :4002 — owns text_db
 │   ├── audio-service/               # Speaking/listening + audio storage, NestJS, :4003 — owns audio_db
 │   ├── stats-service/               # Performance aggregation (no DB), NestJS, :4004
-│   └── ai-orchestrator/             # OpenAI GPT + Whisper integration, NestJS, :4005
+│   └── ai-orchestrator/             # Azure Speech + OpenAI GPT/Whisper/TTS, NestJS, :4005
 ├── nginx/
 │   ├── nginx.conf                   # Global Nginx config (rate limiting, upload limits)
 │   └── conf.d/lingua.conf           # Virtual host: HTTP→HTTPS, SSL, proxy rules
@@ -158,7 +163,7 @@ pnpm --filter api-gateway test
 | `text-service` | 3 | 24 | `TextService` (analyzeText with orchestrator/fallback/DB-fail, getTextsByLanguage, getTasks), `TextController` (all REST endpoints, error propagation), `PrismaService` (lifecycle hooks, connection strings) |
 | `audio-service` | 4 | 59 | `AudioService` (evaluateComprehension, processAudio, getRecords, generateComprehension), `AudioController` (all 8 endpoints, missing-field validation), `AudioRepository` (all Prisma queries), `AiOrchestratorService` (Whisper path, fallback, confidence scoring, pronunciation analysis) |
 | `stats-service` | 3 | 32 | `StatsService` (averages, language normalisation, mistake counts, daily history, charts, resilience), `StatsController` (language uppercasing, period forwarding), `GetStatsQueryDto` (class-validator rules) |
-| `ai-orchestrator` | 2 | 34 | `OrchestratorService` (all operations: local fallbacks, task shape, phoneme hints, score clamping, OpenAI error fallback), `OrchestratorController` (all 5 endpoints including SSE streaming) |
+| `ai-orchestrator` | 7 | ~80 | `SpeechService` (word alignment, Azure/Whisper fallback chain, FFmpeg probe), `TextAiService` (text analysis + SSE), `TaskService` (task generation + local fallback), `PronunciationAiService` (GPT feedback, scoring boundary enforcement), `TtsService` (TTS + null fallback), `OrchestratorService` (facade delegation), `OrchestratorController` (all 6 endpoints) |
 | `api-gateway` | 5 | 25 | `JwtAuthGuard` (public routes, missing/invalid/valid/malformed token, dev-secret fallback), `CircuitBreakerService` (success, async fallback, rejection propagation), `AuthContextService` (header extraction, token parsing edge cases), `GqlThrottlerGuard` (HTTP + GraphQL context extraction), `GatewayResolver` (health + hello) |
 
 ### End-to-End Smoke Test
@@ -257,7 +262,8 @@ bash scripts/deploy.sh
 | | Submit text | AI analysis | GPT returns corrections |
 | | AI corrections | Grammar, style, punctuation | Streaming feedback supported |
 | **Speaking** | Record audio | User records via microphone | Frontend handles recording |
-| | Send to AI | Whisper transcribes + evaluates | Returns transcript + score |
+| | Send to AI | Azure Speech transcribes + scores pronunciation | Returns transcript, phoneme detail, word alignment |
+| | GPT feedback | Explain errors in natural language | Azure scores → GPT generates feedback string |
 | | Playback & retry | Listen and retry | AI feedback streams |
 | **Auth** | Registration / Login | JWT, email + password | Roles: student / admin |
 | **Statistics** | View performance | Aggregated writing & speaking scores | Week/month/all-time |
@@ -284,9 +290,14 @@ bash scripts/deploy.sh
 - **API**: Apollo Federation (subgraph per service) + REST (inter-service)
 
 ### AI
-- **Text analysis & task generation**: OpenAI GPT (default `gpt-4o-mini`)
-- **Audio transcription**: OpenAI Whisper (default `whisper-1`)
-- **Fallbacks**: All AI operations have local fallbacks — the platform works without `AI_API_KEY`
+- **Text analysis**: OpenAI GPT-4o (`OPENAI_TEXT_MODEL`)
+- **Task generation**: OpenAI GPT-4o-mini (`OPENAI_TASK_MODEL`)
+- **Pronunciation scoring**: Azure Cognitive Services Speech SDK — phoneme-level accuracy, fluency, completeness scores
+- **Pronunciation feedback**: OpenAI GPT-4o (`OPENAI_EVAL_MODEL`) — human-readable explanation only, never numeric scores
+- **Audio transcription**: Azure Speech (primary); OpenAI Whisper fallback (`OPENAI_TRANSCRIPTION_MODEL`)
+- **Text-to-speech**: OpenAI gpt-4o-mini-tts (`OPENAI_TTS_MODEL`) — generates listening task audio
+- **Audio format conversion**: FFmpeg converts browser `audio/webm` to 16 kHz mono PCM WAV for Azure
+- **Fallbacks**: All AI operations have local fallbacks — the platform works without any API keys
 
 ### Infrastructure
 - **Database**: PostgreSQL 15 (Alpine) — one instance, three isolated databases

@@ -182,10 +182,13 @@ services:
       - NODE_ENV=production
       - PORT=4005
       - AI_API_KEY=${AI_API_KEY}
-      - OPENAI_TEXT_MODEL=${OPENAI_TEXT_MODEL:-gpt-4o-mini}
+      - OPENAI_TEXT_MODEL=${OPENAI_TEXT_MODEL:-gpt-4o}
       - OPENAI_TASK_MODEL=${OPENAI_TASK_MODEL:-gpt-4o-mini}
-      - OPENAI_EVAL_MODEL=${OPENAI_EVAL_MODEL:-gpt-4o-mini}
+      - OPENAI_EVAL_MODEL=${OPENAI_EVAL_MODEL:-gpt-4o}
       - OPENAI_TRANSCRIPTION_MODEL=${OPENAI_TRANSCRIPTION_MODEL:-whisper-1}
+      - OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY:-}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION:-westeurope}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:4005/health || exit 1"]
       interval: 30s

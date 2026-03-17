@@ -36,7 +36,7 @@ class TranscribeAudioDto {
   language?: string;
 }
 
-class PronunciationEvaluateDto {
+class PronunciationAnalyzeDto {
   @IsString()
   referenceText!: string;
 
@@ -45,15 +45,19 @@ class PronunciationEvaluateDto {
 
   @IsOptional()
   @IsString()
-  transcript?: string;
-
-  @IsOptional()
-  @IsString()
   audioBase64?: string;
 
   @IsOptional()
   @IsString()
   mimeType?: string;
+}
+
+class GenerateSpeechDto {
+  @IsString()
+  text!: string;
+
+  @IsString()
+  language!: string;
 }
 
 @Controller()
@@ -68,11 +72,7 @@ export class OrchestratorController {
   @Post('tasks/generate')
   async generateTasks(@Body() body: GenerateTasksDto) {
     return {
-      tasks: await this.orchestratorService.generateTasks(
-        body.language,
-        body.level,
-        body.skill,
-      ),
+      tasks: await this.orchestratorService.generateTasks(body.language, body.level, body.skill),
     };
   }
 
@@ -85,15 +85,19 @@ export class OrchestratorController {
     );
   }
 
-  @Post('audio/pronunciation/evaluate')
-  async evaluatePronunciation(@Body() body: PronunciationEvaluateDto) {
-    return this.orchestratorService.evaluatePronunciation(
+  @Post('audio/pronunciation/analyze')
+  async analyzePronunciation(@Body() body: PronunciationAnalyzeDto) {
+    return this.orchestratorService.analyzePronunciation(
+      body.audioBase64 || '',
+      body.mimeType || 'audio/webm',
       body.referenceText,
       body.language,
-      body.audioBase64,
-      body.transcript,
-      body.mimeType || 'audio/webm',
     );
+  }
+
+  @Post('audio/tts')
+  async generateSpeech(@Body() body: GenerateSpeechDto) {
+    return this.orchestratorService.synthesizeSpeech(body.text, body.language);
   }
 
   @Sse('text/analyze/stream')

@@ -84,7 +84,7 @@ All frontend GraphQL goes through the Next.js `/api/graphql` route, which proxie
 
 **Direct inter-service HTTP calls are a normal part of the architecture** — not just delegation edge cases:
 - `text-service` → `ai-orchestrator` (REST): text analysis, task generation
-- `audio-service` → `ai-orchestrator` (REST): Whisper transcription, pronunciation analysis
+- `audio-service` → `ai-orchestrator` (REST): transcription (`POST /audio/transcribe`), pronunciation analysis (`POST /audio/pronunciation/analyze`)
 - `stats-service` → `text-service` (REST `GET /text/by-language`) + `audio-service` (REST `GET /audio/by-language`): stats aggregation — stats-service has no database of its own
 
 ### API Gateway (`backend/api-gateway/`)
@@ -103,7 +103,7 @@ All frontend GraphQL goes through the Next.js `/api/graphql` route, which proxie
 | text-service | 4002 | NestJS + Apollo subgraph | ✅ yes | `text_db` | Calls ai-orchestrator for analysis |
 | audio-service | 4003 | NestJS | ❌ REST only | `audio_db` | Custom Prisma output path; frontend calls it directly |
 | stats-service | 4004 | NestJS | ❌ REST only | **none** | Aggregates via fetch to text-service + audio-service |
-| ai-orchestrator | 4005 | NestJS | none | OpenAI client; local fallbacks when `AI_API_KEY` not set |
+| ai-orchestrator | 4005 | NestJS | none | Azure Speech SDK + OpenAI (GPT + Whisper + TTS); local fallbacks when keys not set |
 
 ### Database (database-per-service)
 One PostgreSQL container (`postgres:5432`) with three isolated databases:
@@ -129,10 +129,38 @@ COPY --from=builder /app/backend/audio-service/src/generated ./src/generated
 Then aggregates scores, builds daily history, and categorises mistake types in-process. No Prisma, no database dependency.
 
 ### AI Orchestrator
-- All AI calls are funnelled through `OrchestratorService`
-- **Retry policy**: 3 attempts, exponential backoff (400ms base); **timeout**: 15–25s per operation
-- **Local fallbacks** for all operations — stays functional without `AI_API_KEY`
-- Models configurable via env: `OPENAI_TEXT_MODEL`, `OPENAI_TASK_MODEL`, `OPENAI_EVAL_MODEL`, `OPENAI_TRANSCRIPTION_MODEL`
+`OrchestratorService` is a **thin facade** that composes five focused provider services:
+
+| Provider | Responsibility | Model / Service |
+|----------|---------------|-----------------|
+| `SpeechService` | Audio transcription, phoneme extraction, word alignment | Azure Speech SDK (primary); Whisper fallback |
+| `TextAiService` | Text analysis — grammar, corrections, feedback | `OPENAI_TEXT_MODEL` (default `gpt-4o`) |
+| `TaskService` | CEFR task generation | `OPENAI_TASK_MODEL` (default `gpt-4o-mini`) |
+| `PronunciationAiService` | Human-readable pronunciation feedback string **only** | `OPENAI_EVAL_MODEL` (default `gpt-4o`) |
+| `TtsService` | Text-to-speech audio generation → base64 MP3 | `OPENAI_TTS_MODEL` (default `gpt-4o-mini-tts`) |
+
+**Hard scoring boundary** — never cross it:
+- **Azure** = all numeric scores (`pronunciationScore`, `accuracyScore`, `fluencyScore`, `completenessScore`)
+- **GPT** = human-readable `feedback` string and `phonemeHints[]` only — GPT never produces scores
+
+**Word alignment** — `SpeechService` computes `WordAlignment[]` via token-level Levenshtein after Azure responds:
+```
+type: 'correct' | 'missing' | 'extra' | 'mispronounced'
+```
+
+**Audio conversion** — `SpeechService` uses FFmpeg to convert incoming `audio/webm` (browser MediaRecorder) to 16 kHz mono PCM WAV before passing to Azure SDK. FFmpeg is installed in the Docker image.
+
+**Retry policy**: 3 attempts, exponential backoff (400ms base); **timeout**: 15–25s per operation
+
+**Local fallbacks** for all operations — stays functional without `AI_API_KEY` or `AZURE_SPEECH_KEY`
+
+**Endpoints**:
+- `POST /text/analyze` — text correction + feedback
+- `POST /tasks/generate` — CEFR task generation
+- `POST /audio/transcribe` — transcription with `words[]` and `source`
+- `POST /audio/pronunciation/analyze` — Azure scores + GPT feedback + word alignment
+- `POST /audio/tts` — TTS audio generation
+- `GET /text/analyze/stream` — SSE streaming text analysis
 
 ### Frontend (`frontend/`)
 - **Next.js 15 App Router** with TypeScript strict mode
@@ -222,8 +250,15 @@ Lingua_Pro/
     │
     └── ai-orchestrator/             # NestJS, :4005
         └── src/
-            ├── orchestrator.controller.ts
-            └── orchestrator.service.ts  # OpenAI calls + retry + local fallbacks
+            ├── types.ts                     # Shared types: PhonemeDetail, WordDetail, WordAlignment, PronunciationAnalysisResult, TtsResult, …
+            ├── util.ts                      # Pure helpers: withRetry, withTimeout, safeJsonParse, decodeBase64, …
+            ├── orchestrator.controller.ts   # HTTP layer — 6 endpoints
+            ├── orchestrator.service.ts      # Thin facade — composes the 5 providers below
+            ├── speech.service.ts            # Azure transcription + phoneme extraction + word alignment; Whisper fallback
+            ├── text-ai.service.ts           # GPT-4o: text analysis (reading/writing domain)
+            ├── task.service.ts              # GPT-4o-mini: CEFR task generation
+            ├── pronunciation-ai.service.ts  # GPT-4o: feedback string + phoneme hints ONLY (no scores)
+            └── tts.service.ts               # gpt-4o-mini-tts: text → base64 MP3
 ```
 
 ## Environment Variables
@@ -241,10 +276,15 @@ JWT_SECRET=supersecretjwtkey
 JWT_EXPIRY=7d
 
 AI_API_KEY=your-openai-api-key-here
-OPENAI_TEXT_MODEL=gpt-4o-mini
+OPENAI_TEXT_MODEL=gpt-4o
 OPENAI_TASK_MODEL=gpt-4o-mini
-OPENAI_EVAL_MODEL=gpt-4o-mini
+OPENAI_EVAL_MODEL=gpt-4o
 OPENAI_TRANSCRIPTION_MODEL=whisper-1
+OPENAI_TTS_MODEL=gpt-4o-mini-tts
+
+# Azure Speech Services (ai-orchestrator — primary transcription + pronunciation scoring)
+AZURE_SPEECH_KEY=your-azure-speech-key-here
+AZURE_SPEECH_REGION=westeurope
 ```
 
 Service-level env (with defaults):

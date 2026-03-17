@@ -15,6 +15,7 @@
     "@nestjs/platform-express": "*",
     "class-transformer": "*",
     "class-validator": "*",
+    "microsoft-cognitiveservices-speech-sdk": "*",
     "openai": "*",
     "reflect-metadata": "*",
     "rxjs": "*"

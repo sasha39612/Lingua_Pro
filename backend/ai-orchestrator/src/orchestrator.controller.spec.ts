@@ -9,7 +9,8 @@ function makeController() {
     analyzeText: vi.fn(),
     generateTasks: vi.fn(),
     transcribeAudio: vi.fn(),
-    evaluatePronunciation: vi.fn(),
+    analyzePronunciation: vi.fn(),
+    synthesizeSpeech: vi.fn(),
     streamTextAnalysis: vi.fn(),
   };
   const controller = new OrchestratorController(mockService as any);
@@ -19,9 +20,7 @@ function makeController() {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('OrchestratorController', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  beforeEach(() => vi.clearAllMocks());
 
   // ─── POST /text/analyze ────────────────────────────────────────────────────
 
@@ -39,9 +38,9 @@ describe('OrchestratorController', () => {
 
     it('propagates service errors', async () => {
       const { controller, mockService } = makeController();
-      mockService.analyzeText.mockRejectedValue(new Error('OpenAI down'));
+      mockService.analyzeText.mockRejectedValue(new Error('GPT down'));
 
-      await expect(controller.analyzeText({ text: 'Hello', language: 'English' })).rejects.toThrow('OpenAI down');
+      await expect(controller.analyzeText({ text: 'Hello', language: 'English' })).rejects.toThrow('GPT down');
     });
   });
 
@@ -74,7 +73,7 @@ describe('OrchestratorController', () => {
   describe('transcribeAudio', () => {
     it('calls service with correct params and returns transcript', async () => {
       const { controller, mockService } = makeController();
-      const transcription = { transcript: 'Hello world', language: 'English', confidence: 0.95 };
+      const transcription = { transcript: 'Hello world', language: 'English', confidence: 0.95, words: [], source: 'azure' };
       mockService.transcribeAudio.mockResolvedValue(transcription);
 
       const result = await controller.transcribeAudio({
@@ -106,41 +105,77 @@ describe('OrchestratorController', () => {
     });
   });
 
-  // ─── POST /audio/pronunciation/evaluate ───────────────────────────────────
+  // ─── POST /audio/pronunciation/analyze ────────────────────────────────────
 
-  describe('evaluatePronunciation', () => {
+  describe('analyzePronunciation', () => {
     it('calls service with correct params', async () => {
       const { controller, mockService } = makeController();
-      const evalResult = { pronunciationScore: 0.88, feedback: 'Good', phonemeHints: [], transcript: 'hi' };
-      mockService.evaluatePronunciation.mockResolvedValue(evalResult);
+      const analysisResult = {
+        pronunciationScore: 0.88,
+        feedback: 'Good',
+        phonemeHints: [],
+        transcript: 'hi',
+        accuracyScore: 0.9,
+        fluencyScore: 0.85,
+        completenessScore: 0.92,
+        words: [],
+        alignment: [],
+        source: 'azure+gpt',
+      };
+      mockService.analyzePronunciation.mockResolvedValue(analysisResult);
 
-      const result = await controller.evaluatePronunciation({
+      const result = await controller.analyzePronunciation({
         referenceText: 'Hello world',
         language: 'English',
-        transcript: 'Hello world',
         audioBase64: 'base64',
         mimeType: 'audio/mp3',
       });
 
-      expect(mockService.evaluatePronunciation).toHaveBeenCalledWith(
+      expect(mockService.analyzePronunciation).toHaveBeenCalledWith(
+        'base64',
+        'audio/mp3',
         'Hello world',
         'English',
-        'base64',
-        'Hello world',
-        'audio/mp3',
       );
-      expect(result).toEqual(evalResult);
+      expect(result).toEqual(analysisResult);
     });
 
-    it('defaults mimeType to audio/webm', async () => {
+    it('defaults mimeType to audio/webm and audioBase64 to empty string', async () => {
       const { controller, mockService } = makeController();
-      mockService.evaluatePronunciation.mockResolvedValue({});
+      mockService.analyzePronunciation.mockResolvedValue({});
 
-      await controller.evaluatePronunciation({ referenceText: 'Hi', language: 'English' });
+      await controller.analyzePronunciation({ referenceText: 'Hi', language: 'English' });
 
-      expect(mockService.evaluatePronunciation).toHaveBeenCalledWith(
-        'Hi', 'English', undefined, undefined, 'audio/webm',
+      expect(mockService.analyzePronunciation).toHaveBeenCalledWith(
+        '',
+        'audio/webm',
+        'Hi',
+        'English',
       );
+    });
+  });
+
+  // ─── POST /audio/tts ───────────────────────────────────────────────────────
+
+  describe('generateSpeech', () => {
+    it('calls synthesizeSpeech and returns TtsResult', async () => {
+      const { controller, mockService } = makeController();
+      const ttsResult = { audioBase64: 'abc123', mimeType: 'audio/mpeg', durationEstimateMs: 1200 };
+      mockService.synthesizeSpeech.mockResolvedValue(ttsResult);
+
+      const result = await controller.generateSpeech({ text: 'Hello', language: 'English' });
+
+      expect(mockService.synthesizeSpeech).toHaveBeenCalledWith('Hello', 'English');
+      expect(result).toEqual(ttsResult);
+    });
+
+    it('returns null result when TTS unavailable', async () => {
+      const { controller, mockService } = makeController();
+      mockService.synthesizeSpeech.mockResolvedValue({ audioBase64: null, mimeType: null, durationEstimateMs: null });
+
+      const result = await controller.generateSpeech({ text: 'Hello', language: 'English' });
+
+      expect(result.audioBase64).toBeNull();
     });
   });
 
