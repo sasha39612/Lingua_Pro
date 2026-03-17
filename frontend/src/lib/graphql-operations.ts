@@ -46,6 +46,7 @@ export const GRAPHQL_OPERATIONS = {
       level
       skill
       prompt
+      referenceText
       answerOptions
       correctAnswer
       createdAt

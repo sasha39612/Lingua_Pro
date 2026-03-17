@@ -4,9 +4,10 @@ import { useMemo, useState } from 'react';
 import { AudioRecorder } from '@/components/audio-recorder';
 import { LabFrame } from '@/components/lab-frame';
 import { useAppStore } from '@/store/app-store';
+import { graphqlRequest } from '@/lib/graphql-client';
+import type { TasksData, TasksVariables } from '@/lib/graphql-types';
 import {
   MOCK_FEEDBACK,
-  MOCK_GENERATED_TEXT,
   STAT_LABELS,
   type FeedbackResult,
   type SpeakingMistake,
@@ -89,6 +90,7 @@ function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[], gener
 export function SpeakingPage() {
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
+  const token = useAppStore((s) => s.token);
 
   const [generatedText, setGeneratedText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -96,13 +98,22 @@ export function SpeakingPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [feedbackResult, setFeedbackResult] = useState<FeedbackResult | null>(null);
 
-  const handleGenerateText = () => {
+  const handleGenerateText = async () => {
     setIsGenerating(true);
     setGeneratedText('');
-    setTimeout(() => {
-      setGeneratedText(MOCK_GENERATED_TEXT);
+    try {
+      const data = await graphqlRequest<TasksData, TasksVariables>({
+        operationName: 'Tasks',
+        variables: { language, level, skill: 'speaking' },
+        token,
+      });
+      const first = data.tasks[0];
+      setGeneratedText(first?.referenceText || first?.prompt || '');
+    } catch {
+      setGeneratedText('');
+    } finally {
       setIsGenerating(false);
-    }, 800);
+    }
   };
 
   const handleAnalyze = () => {

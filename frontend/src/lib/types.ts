@@ -24,6 +24,7 @@ export interface LearningTask {
   level: string;
   skill: string;
   prompt: string;
+  referenceText?: string | null;
   answerOptions: string[];
   correctAnswer?: string | null;
   createdAt: string;
