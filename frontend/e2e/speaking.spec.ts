@@ -29,11 +29,23 @@ test('speaking page shows Generated Text section and Generate text button', asyn
 });
 
 test('"Generate text" button shows generated passage', async ({ page }) => {
+  const mockText = 'The morning light filtered through the curtains as she prepared her bag.';
+
+  await page.route('/api/graphql', async (route) => {
+    const body = route.request().postDataJSON();
+    if (body?.operationName === 'Tasks') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { tasks: [{ referenceText: mockText, prompt: mockText }] } }),
+      });
+    } else {
+      await route.continue();
+    }
+  });
+
   await page.goto('/speaking');
   await page.getByRole('button', { name: 'Generate text' }).click();
 
-  // Mock text appears after a short timeout
-  await expect(
-    page.getByText('The morning light filtered through the curtains'),
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(mockText)).toBeVisible({ timeout: 5_000 });
 });
