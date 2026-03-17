@@ -17,7 +17,7 @@ interface CheckAudioResponse {
   feedback: string;
   audioUrl: string;
   confidence: number;
-  suggestions: string[];
+  phonemeHints: string[];
   createdAt: Date;
 }
 

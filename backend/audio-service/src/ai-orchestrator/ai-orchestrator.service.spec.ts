@@ -1,14 +1,6 @@
 import { vi, type Mocked } from 'vitest';
 
 vi.mock('axios');
-vi.mock('form-data', () => ({
-  default: vi.fn(function () {
-    return {
-      append: vi.fn(),
-      getHeaders: vi.fn().mockReturnValue({ 'content-type': 'multipart/form-data' }),
-    };
-  }),
-}));
 
 import axios from 'axios';
 const mockedAxios = axios as Mocked<typeof axios>;
@@ -17,23 +9,16 @@ import { AiOrchestratorService } from './ai-orchestrator.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeService(orchestratorUrl?: string, openaiKey?: string) {
-  const origOrch = process.env.AI_ORCHESTRATOR_URL;
-  const origKey = process.env.OPENAI_API_KEY;
+function makeService(orchestratorUrl?: string) {
+  const orig = process.env.AI_ORCHESTRATOR_URL;
 
   if (orchestratorUrl !== undefined) process.env.AI_ORCHESTRATOR_URL = orchestratorUrl;
   else delete process.env.AI_ORCHESTRATOR_URL;
 
-  if (openaiKey !== undefined) process.env.OPENAI_API_KEY = openaiKey;
-  else delete process.env.OPENAI_API_KEY;
-
   const service = new AiOrchestratorService();
 
-  // restore
-  if (origOrch !== undefined) process.env.AI_ORCHESTRATOR_URL = origOrch;
+  if (orig !== undefined) process.env.AI_ORCHESTRATOR_URL = orig;
   else delete process.env.AI_ORCHESTRATOR_URL;
-  if (origKey !== undefined) process.env.OPENAI_API_KEY = origKey;
-  else delete process.env.OPENAI_API_KEY;
 
   return service;
 }
@@ -41,127 +26,87 @@ function makeService(orchestratorUrl?: string, openaiKey?: string) {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('AiOrchestratorService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  beforeEach(() => vi.clearAllMocks());
 
-  // ─── processAudioWithWhisper ───────────────────────────────────────────────
+  // ─── analyzeAudio ──────────────────────────────────────────────────────────
 
-  describe('processAudioWithWhisper', () => {
-    it('returns transcript via orchestrator when orchestratorUrl is set', async () => {
+  describe('analyzeAudio', () => {
+    it('calls /audio/pronunciation/analyze and returns mapped result', async () => {
       const service = makeService('http://ai-orchestrator:4005');
-      const buf = Buffer.from('audio-data');
 
       mockedAxios.post = vi.fn().mockResolvedValue({
-        data: { transcript: 'Hello world' },
+        data: {
+          pronunciationScore: 0.88,
+          accuracyScore: 0.9,
+          transcript: 'Hello world',
+          feedback: 'Great job!',
+          phonemeHints: ['/th/ in "think"'],
+        },
       });
 
-      const result = await service.processAudioWithWhisper(buf, 'english');
+      const result = await service.analyzeAudio(
+        Buffer.from('audio-data'),
+        'audio/wav',
+        'english',
+        'Hello world',
+      );
 
       expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/audio/transcribe'),
-        expect.objectContaining({ language: 'english' }),
+        expect.stringContaining('/audio/pronunciation/analyze'),
+        expect.objectContaining({ language: 'english', referenceText: 'Hello world' }),
         expect.any(Object),
       );
+      expect(result.pronunciationScore).toBe(0.88);
       expect(result.transcript).toBe('Hello world');
-      expect(result.language).toBe('english');
-      expect(result.confidence).toBeGreaterThan(0);
+      expect(result.feedback).toBe('Great job!');
+      expect(result.phonemeHints).toEqual(['/th/ in "think"']);
+      expect(result.confidence).toBe(0.9); // mapped from accuracyScore
     });
 
-    it('falls back to Whisper API when orchestrator call fails and key is set', async () => {
-      const service = makeService('http://ai-orchestrator:4005', 'sk-test');
+    it('returns local fallback when no orchestratorUrl is set', async () => {
+      const service = makeService(undefined);
 
-      mockedAxios.post = vi.fn()
-        .mockRejectedValueOnce(new Error('orchestrator down'))   // orchestrator fails
-        .mockResolvedValueOnce({ data: { text: 'Fallback transcript' } }); // whisper succeeds
+      const result = await service.analyzeAudio(Buffer.from('data'), 'audio/wav', 'english');
 
-      const buf = Buffer.from('audio-data');
-      const result = await service.processAudioWithWhisper(buf, 'english');
-
-      expect(result.transcript).toBe('Fallback transcript');
-    });
-
-    it('throws BadRequestException when no orchestrator url and no OpenAI key', async () => {
-      const service = makeService(undefined, undefined);
-      const buf = Buffer.from('data');
-
-      await expect(service.processAudioWithWhisper(buf, 'english')).rejects.toThrow(
-        'OPENAI_API_KEY is not configured',
-      );
-    });
-
-    it('confidence is 0.5 for a short transcript (< 10 chars)', async () => {
-      // The source returns 0.5 for transcripts shorter than 10 characters.
-      // Orchestrator path: non-empty string is truthy so it is returned.
-      const service = makeService('http://ai-orchestrator:4005');
-
-      mockedAxios.post = vi.fn().mockResolvedValue({ data: { transcript: 'Hi' } });
-
-      const result = await service.processAudioWithWhisper(Buffer.from('data'), 'english');
-      expect(result.confidence).toBe(0.5);
-    });
-  });
-
-  // ─── analyzePronunciation ──────────────────────────────────────────────────
-
-  describe('analyzePronunciation', () => {
-    it('returns score from orchestrator when available', async () => {
-      const service = makeService('http://ai-orchestrator:4005');
-
-      mockedAxios.post = vi.fn().mockResolvedValue({
-        data: { score: 0.9, feedback: 'Excellent!', suggestions: ['Keep it up'] },
-      });
-
-      const result = await service.analyzePronunciation('Hello', 'english', 'Hello');
-
-      expect(result.score).toBe(0.9);
-      expect(result.feedback).toBe('Excellent!');
-      expect(result.suggestions).toEqual(['Keep it up']);
-    });
-
-    it('uses fallback when no orchestratorUrl is set', async () => {
-      const service = makeService(undefined, undefined);
-
-      const result = await service.analyzePronunciation('Hello', 'english', 'Hello');
-
-      expect(result.score).toBeGreaterThan(0);
-      expect(result.score).toBeLessThanOrEqual(1);
+      expect(result.pronunciationScore).toBeGreaterThan(0);
+      expect(result.pronunciationScore).toBeLessThanOrEqual(1);
       expect(typeof result.feedback).toBe('string');
-      expect(Array.isArray(result.suggestions)).toBe(true);
+      expect(Array.isArray(result.phonemeHints)).toBe(true);
     });
 
-    it('returns fallback score of 0.8 when no expectedText', async () => {
-      const service = makeService(undefined, undefined);
-
-      const result = await service.analyzePronunciation('Hello world', 'english');
-      expect(result.score).toBe(0.8);
-    });
-
-    it('falls back when orchestrator call throws', async () => {
+    it('falls back to local when orchestrator call throws', async () => {
       const service = makeService('http://ai-orchestrator:4005');
-
       mockedAxios.post = vi.fn().mockRejectedValue(new Error('timeout'));
 
-      const result = await service.analyzePronunciation('Hello', 'english', 'Hello');
-      // fallback always returns a number score
-      expect(typeof result.score).toBe('number');
+      const result = await service.analyzeAudio(Buffer.from('data'), 'audio/wav', 'english');
+
+      expect(typeof result.pronunciationScore).toBe('number');
+      expect(typeof result.feedback).toBe('string');
     });
 
-    it('score is between 0 and 1 in fallback mode', async () => {
-      const service = makeService(undefined, undefined);
+    it('falls back when orchestrator returns no pronunciationScore', async () => {
+      const service = makeService('http://ai-orchestrator:4005');
+      mockedAxios.post = vi.fn().mockResolvedValue({ data: {} });
 
-      const result = await service.analyzePronunciation('abc', 'english', 'completely different text');
-      expect(result.score).toBeGreaterThanOrEqual(0);
-      expect(result.score).toBeLessThanOrEqual(1);
+      const result = await service.analyzeAudio(Buffer.from('data'), 'audio/wav', 'english');
+
+      expect(typeof result.pronunciationScore).toBe('number');
     });
 
-    it('includes language-specific suggestions for english', async () => {
-      const service = makeService(undefined, undefined);
+    it('returns language-specific phonemeHints in fallback for english', async () => {
+      const service = makeService(undefined);
 
-      // low score to trigger general suggestions
-      const result = await service.analyzePronunciation('x', 'english');
-      const allSuggestions = result.suggestions.join(' ');
-      expect(allSuggestions.length).toBeGreaterThan(0);
+      const result = await service.analyzeAudio(Buffer.from('data'), 'audio/wav', 'english');
+      const hints = result.phonemeHints.join(' ');
+      expect(hints).toMatch(/th|consonant/i);
+    });
+
+    it('returns language-specific phonemeHints in fallback for german', async () => {
+      const service = makeService(undefined);
+
+      const result = await service.analyzeAudio(Buffer.from('data'), 'audio/wav', 'german');
+      const hints = result.phonemeHints.join(' ');
+      expect(hints).toContain('ich');
     });
   });
 });

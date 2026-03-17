@@ -12,8 +12,7 @@ const mockAudioRepository = {
 };
 
 const mockAiOrchestrator = {
-  processAudioWithWhisper: vi.fn(),
-  analyzePronunciation: vi.fn(),
+  analyzeAudio: vi.fn(),
 };
 
 vi.mock('axios');
@@ -82,14 +81,12 @@ describe('AudioService', () => {
 
     beforeEach(() => {
       mockedAxios.get = vi.fn().mockResolvedValue({ data: fakeBuffer });
-      mockAiOrchestrator.processAudioWithWhisper.mockResolvedValue({
+      mockAiOrchestrator.analyzeAudio.mockResolvedValue({
         transcript: 'Hello world',
-        confidence: 0.95,
-      });
-      mockAiOrchestrator.analyzePronunciation.mockResolvedValue({
-        score: 0.88,
+        pronunciationScore: 0.88,
         feedback: 'Good pronunciation overall.',
-        suggestions: ['Focus on vowel clarity'],
+        phonemeHints: ['Focus on vowel clarity'],
+        confidence: 0.95,
       });
       mockAudioRepository.createAudioRecord.mockResolvedValue(fakeRecord);
     });
@@ -98,8 +95,12 @@ describe('AudioService', () => {
       const result = await service.processAudio('42', 'english', 'https://example.com/audio.mp3');
 
       expect(mockedAxios.get).toHaveBeenCalledWith('https://example.com/audio.mp3', { responseType: 'arraybuffer' });
-      expect(mockAiOrchestrator.processAudioWithWhisper).toHaveBeenCalled();
-      expect(mockAiOrchestrator.analyzePronunciation).toHaveBeenCalledWith('Hello world', 'english', undefined);
+      expect(mockAiOrchestrator.analyzeAudio).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        'audio/wav',
+        'english',
+        undefined,
+      );
       expect(mockAudioRepository.createAudioRecord).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 42,
@@ -117,18 +118,23 @@ describe('AudioService', () => {
         transcript: 'Hello world',
         pronunciationScore: 0.88,
         confidence: 0.95,
-        suggestions: ['Focus on vowel clarity'],
+        phonemeHints: ['Focus on vowel clarity'],
       });
     });
 
-    it('passes expectedText to analyzePronunciation when provided', async () => {
+    it('passes expectedText to analyzeAudio when provided', async () => {
       await service.processAudio('42', 'english', 'https://example.com/audio.mp3', 'Hello world');
-      expect(mockAiOrchestrator.analyzePronunciation).toHaveBeenCalledWith('Hello world', 'english', 'Hello world');
+      expect(mockAiOrchestrator.analyzeAudio).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        'audio/wav',
+        'english',
+        'Hello world',
+      );
     });
 
     it('propagates error from AI orchestrator', async () => {
-      mockAiOrchestrator.processAudioWithWhisper.mockRejectedValue(new Error('Whisper timeout'));
-      await expect(service.processAudio('42', 'english', 'https://example.com/audio.mp3')).rejects.toThrow('Whisper timeout');
+      mockAiOrchestrator.analyzeAudio.mockRejectedValue(new Error('Orchestrator timeout'));
+      await expect(service.processAudio('42', 'english', 'https://example.com/audio.mp3')).rejects.toThrow('Orchestrator timeout');
     });
   });
 

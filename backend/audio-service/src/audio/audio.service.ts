@@ -12,7 +12,7 @@ interface AudioProcessingResult {
   feedback: string;
   audioUrl: string;
   confidence: number;
-  suggestions: string[];
+  phonemeHints: string[];
   createdAt: Date;
 }
 
@@ -34,15 +34,9 @@ export class AudioService {
       // Download audio from URL
       const audioBuffer = await this.downloadAudio(audioUrl);
 
-      // Process through AI Orchestrator → Whisper
-      const { transcript, confidence } = await this.aiOrchestrator.processAudioWithWhisper(
-        audioBuffer,
-        language
-      );
-
-      // Analyze pronunciation
-      const { score: pronunciationScore, feedback, suggestions } = 
-        await this.aiOrchestrator.analyzePronunciation(transcript, language, expectedText);
+      // Single call to orchestrator: transcription + Azure scoring + GPT feedback
+      const { transcript, pronunciationScore, feedback, phonemeHints, confidence } =
+        await this.aiOrchestrator.analyzeAudio(audioBuffer, 'audio/wav', language, expectedText);
 
       // Save to PostgreSQL using repository
       const audioRecord = await this.audioRepository.createAudioRecord({
@@ -51,21 +45,20 @@ export class AudioService {
         transcript,
         pronunciationScore,
         audioUrl,
-        feedback
+        feedback,
       });
 
-      // Return formatted response with transcript and pronunciation score
       return {
         id: audioRecord.id,
         userId: audioRecord.userId,
         language: audioRecord.language,
-          transcript: audioRecord.transcript ?? transcript,
-          pronunciationScore: audioRecord.pronunciationScore ?? pronunciationScore,
-          feedback: audioRecord.feedback ?? feedback,
-          audioUrl: audioRecord.audioUrl ?? audioUrl,
+        transcript: audioRecord.transcript ?? transcript,
+        pronunciationScore: audioRecord.pronunciationScore ?? pronunciationScore,
+        feedback: audioRecord.feedback ?? feedback,
+        audioUrl: audioRecord.audioUrl ?? audioUrl,
         confidence,
-        suggestions,
-        createdAt: audioRecord.createdAt
+        phonemeHints,
+        createdAt: audioRecord.createdAt,
       };
     } catch (error) {
       console.error('Error processing audio:', error);
