@@ -10,10 +10,11 @@ vi.mock('@nestjs/common', async (importOriginal) => {
   };
 });
 
-function makeService() {
+async function makeService() {
   const orig = process.env.AI_API_KEY;
   delete process.env.AI_API_KEY;
-  const { TaskService } = require('./task.service');
+  vi.resetModules();
+  const { TaskService } = await import('./task.service');
   const svc = new TaskService();
   if (orig !== undefined) process.env.AI_API_KEY = orig;
   return svc;
@@ -21,13 +22,13 @@ function makeService() {
 
 describe('TaskService — local fallbacks (no AI_API_KEY)', () => {
   it('returns exactly 3 tasks', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const tasks = await svc.generateTasks('English', 'A1', 'reading');
     expect(tasks).toHaveLength(3);
   });
 
   it('each task has required shape', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const tasks = await svc.generateTasks('English', 'B1', 'writing');
     for (const task of tasks) {
       expect(task).toMatchObject({
@@ -43,19 +44,19 @@ describe('TaskService — local fallbacks (no AI_API_KEY)', () => {
   });
 
   it('normalizes empty language to "English"', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const tasks = await svc.generateTasks('', 'A1');
     expect(tasks[0].language).toBe('English');
   });
 
   it('normalizes empty level to "A1"', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const tasks = await svc.generateTasks('German', '');
     expect(tasks[0].level).toBe('A1');
   });
 
   it('defaults skill to "reading" when omitted', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const tasks = await svc.generateTasks('English', 'A2');
     expect(tasks[0].skill).toBe('reading');
   });

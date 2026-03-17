@@ -10,10 +10,11 @@ vi.mock('@nestjs/common', async (importOriginal) => {
   };
 });
 
-function makeService() {
+async function makeService() {
   const orig = process.env.AI_API_KEY;
   delete process.env.AI_API_KEY;
-  const { TtsService } = require('./tts.service');
+  vi.resetModules();
+  const { TtsService } = await import('./tts.service');
   const svc = new TtsService();
   if (orig !== undefined) process.env.AI_API_KEY = orig;
   return svc;
@@ -21,7 +22,7 @@ function makeService() {
 
 describe('TtsService — no AI_API_KEY', () => {
   it('returns null result without throwing', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const result = await svc.synthesize('Hello world', 'English');
     expect(result.audioBase64).toBeNull();
     expect(result.mimeType).toBeNull();
@@ -29,7 +30,7 @@ describe('TtsService — no AI_API_KEY', () => {
   });
 
   it('returns null result for empty text', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const result = await svc.synthesize('', 'English');
     expect(result.audioBase64).toBeNull();
   });
@@ -43,6 +44,7 @@ describe('TtsService — with mocked OpenAI', () => {
 
   it('returns base64 audioBase64 and audio/mpeg mimeType', async () => {
     const fakeBuffer = Buffer.from('fake mp3 bytes');
+    vi.resetModules();
     vi.doMock('openai', () => ({
       default: vi.fn().mockImplementation(() => ({
         audio: {
@@ -67,6 +69,7 @@ describe('TtsService — with mocked OpenAI', () => {
 
   it('duration estimate: 5-word text is ~2000ms', async () => {
     const fakeBuffer = Buffer.from('x');
+    vi.resetModules();
     vi.doMock('openai', () => ({
       default: vi.fn().mockImplementation(() => ({
         audio: {
@@ -89,6 +92,7 @@ describe('TtsService — with mocked OpenAI', () => {
   });
 
   it('returns null result when OpenAI throws — does not propagate error', async () => {
+    vi.resetModules();
     vi.doMock('openai', () => ({
       default: vi.fn().mockImplementation(() => ({
         audio: {

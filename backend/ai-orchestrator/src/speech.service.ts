@@ -14,6 +14,7 @@ import {
   withRetry,
   withTimeout,
   computeWordAlignment,
+  tokenSimilarity,
 } from './util';
 
 // Azure Speech SDK — imported dynamically to allow the service to run
@@ -407,7 +408,6 @@ export class SpeechService {
     language: string,
     transcript = '',
   ): PronunciationAnalysisRaw {
-    const { tokenSimilarity } = require('./util');
     const sim = transcript
       ? Math.max(0.4, Math.min(0.98, tokenSimilarity(transcript, referenceText)))
       : 0.5;

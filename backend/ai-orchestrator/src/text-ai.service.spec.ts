@@ -12,10 +12,11 @@ vi.mock('@nestjs/common', async (importOriginal) => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeService() {
+async function makeService() {
   const orig = process.env.AI_API_KEY;
   delete process.env.AI_API_KEY;
-  const { TextAiService } = require('./text-ai.service');
+  vi.resetModules();
+  const { TextAiService } = await import('./text-ai.service');
   const svc = new TextAiService();
   if (orig !== undefined) process.env.AI_API_KEY = orig;
   return svc;
@@ -25,7 +26,7 @@ function makeService() {
 
 describe('TextAiService — local fallbacks (no AI_API_KEY)', () => {
   it('returns textScore=0.5 and prompt for empty text', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const result = await svc.analyzeText('', 'English');
     expect(result.textScore).toBe(0.5);
     expect(result.correctedText).toBe('');
@@ -33,38 +34,38 @@ describe('TextAiService — local fallbacks (no AI_API_KEY)', () => {
   });
 
   it('returns textScore=0.5 for whitespace-only text', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const result = await svc.analyzeText('   ', 'English');
     expect(result.textScore).toBe(0.5);
   });
 
   it('corrects "studing" → "studying" and lowers score', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const result = await svc.analyzeText('I am studing English.', 'English');
     expect(result.correctedText).toContain('studying');
     expect(result.textScore).toBe(0.82);
   });
 
   it('adds terminal punctuation when missing', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const result = await svc.analyzeText('Hello world', 'English');
     expect(result.correctedText).toMatch(/[.!?]$/);
   });
 
   it('returns score 0.95 when text needs no correction', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const result = await svc.analyzeText('Hello world.', 'English');
     expect(result.textScore).toBe(0.95);
   });
 
   it('includes language prefix in feedback', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const result = await svc.analyzeText('Hallo Welt.', 'German');
     expect(result.feedback).toContain('[German]');
   });
 
   it('textScore is between 0 and 1', async () => {
-    const svc = makeService();
+    const svc = await makeService();
     const result = await svc.analyzeText('Some text.', 'English');
     expect(result.textScore).toBeGreaterThanOrEqual(0);
     expect(result.textScore).toBeLessThanOrEqual(1);
@@ -72,7 +73,7 @@ describe('TextAiService — local fallbacks (no AI_API_KEY)', () => {
 
   describe('streamTextAnalysis', () => {
     it('emits status:analysis_started, result, status:analysis_complete in order', async () => {
-      const svc = makeService();
+      const svc = await makeService();
       const obs = svc.streamTextAnalysis('Hello world.', 'English');
 
       const events: any[] = [];
