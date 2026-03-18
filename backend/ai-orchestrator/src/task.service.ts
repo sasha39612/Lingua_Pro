@@ -40,10 +40,18 @@ export class TaskService {
                 {
                   role: 'system',
                   content: isSpeaking
-                    ? `Generate 3 speaking tasks for a ${safeLanguage} learner at CEFR ${safeLevel}. ` +
-                      'Each task is a short passage the student reads aloud. ' +
-                      'Return strict JSON with key tasks containing an array of objects. ' +
-                      'Each task must include: prompt (a one-sentence instruction like "Read the following passage aloud"), referenceText (a 2-4 sentence passage appropriate for the CEFR level), answerOptions (empty array []), correctAnswer (null), audioUrl (null).'
+                    ? `Generate 3 speaking practice passages for a ${safeLanguage} learner at CEFR ${safeLevel}. ` +
+                      'Each passage is meant to be read aloud by the student for pronunciation practice. ' +
+                      'DO NOT generate multiple-choice questions, options, or any quiz content. ' +
+                      'Return strict JSON with key "tasks" containing an array of 3 objects. ' +
+                      'Each object MUST include: ' +
+                      '"prompt" (one sentence like "Read the following passage aloud"), ' +
+                      '"referenceText" (a 2-4 sentence natural passage appropriate for the CEFR level — this field is REQUIRED and must be non-empty), ' +
+                      '"focusPhonemes" (array of 2-4 IPA symbols that appear frequently in the passage, e.g. ["θ", "r", "æ"]), ' +
+                      '"answerOptions" (always empty array []), ' +
+                      '"correctAnswer" (always null), ' +
+                      '"audioUrl" (always null). ' +
+                      'The passage must be natural, level-appropriate, and contain the target phonemes.'
                     : `Generate 3 ${safeSkill} tasks for a ${safeLanguage} learner at CEFR ${safeLevel}. ` +
                       'Return strict JSON with key tasks containing an array of objects. ' +
                       'Each task must include: prompt, answerOptions (4 short strings), correctAnswer (A/B/C/D), referenceText (nullable string), audioUrl (nullable string).',
@@ -69,7 +77,16 @@ export class TaskService {
         return this.localTaskGeneration(safeLanguage, safeLevel, safeSkill);
       }
 
-      return candidates
+      const valid = isSpeaking
+        ? candidates.filter((t) => typeof t?.referenceText === 'string' && t.referenceText.trim().length > 0)
+        : candidates;
+
+      if (valid.length === 0) {
+        this.logger.warn('GPT returned speaking tasks without referenceText, using fallback');
+        return this.localTaskGeneration(safeLanguage, safeLevel, safeSkill);
+      }
+
+      return valid
         .slice(0, 3)
         .map((task, index) => this.normalizeTask(task, safeLanguage, safeLevel, safeSkill, index));
     } catch (error: any) {
@@ -82,14 +99,15 @@ export class TaskService {
 
   private localTaskGeneration(language: string, level: string, skill: string): GeneratedTask[] {
     if (skill === 'speaking') {
-      return this.speakingPassageSet(language, level).map((referenceText: string, index: number) =>
+      return this.speakingPassageSet(language, level).map(({ text, phonemes }, index: number) =>
         this.normalizeTask(
           {
             prompt: 'Read the following passage aloud.',
             answerOptions: [],
             correctAnswer: null,
             audioUrl: null,
-            referenceText,
+            referenceText: text,
+            focusPhonemes: phonemes,
           },
           language,
           level,
@@ -140,6 +158,10 @@ export class TaskService {
         : ['A', 'B', 'C', 'D'][index % 4];
     }
 
+    const focusPhonemes = isSpeaking && Array.isArray(task?.focusPhonemes)
+      ? task.focusPhonemes.filter((p: any) => typeof p === 'string' && p.trim().length > 0).slice(0, 6)
+      : null;
+
     return {
       language,
       level,
@@ -147,17 +169,27 @@ export class TaskService {
       prompt: String(task?.prompt || `${language} ${skill} task for level ${level}`),
       audioUrl: task?.audioUrl ? String(task.audioUrl) : null,
       referenceText: task?.referenceText ? String(task.referenceText) : null,
+      focusPhonemes,
       answerOptions: options,
       correctAnswer: normalizedCorrect,
     };
   }
 
-  private speakingPassageSet(language: string, level: string): string[] {
+  private speakingPassageSet(language: string, level: string): { text: string; phonemes: string[] }[] {
     const base = `${language}, CEFR ${level}`;
     return [
-      `My name is Anna. I live in a small house. I have a cat and a dog. Every morning I drink coffee and read the news. (${base})`,
-      `The weather today is sunny and warm. I like to walk in the park after work. There are many trees and flowers there. It makes me feel happy. (${base})`,
-      `I went to the market yesterday. I bought some apples, bread, and milk. The market was very busy. I also met my neighbour there. (${base})`,
+      {
+        text: `My name is Anna. I live in a small house. I have a cat and a dog. Every morning I drink coffee and read the news. (${base})`,
+        phonemes: ['æ', 'n', 'ɪ'],
+      },
+      {
+        text: `The weather today is sunny and warm. I like to walk in the park after work. There are many trees and flowers there. It makes me feel happy. (${base})`,
+        phonemes: ['ð', 'w', 'ɑː'],
+      },
+      {
+        text: `I went to the market yesterday. I bought some apples, bread, and milk. The market was very busy. I also met my neighbour there. (${base})`,
+        phonemes: ['m', 'ɑː', 'b'],
+      },
     ];
   }
 

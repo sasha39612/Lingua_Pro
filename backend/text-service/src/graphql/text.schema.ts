@@ -53,6 +53,7 @@ export const textTypeDefs = gql`
     prompt: String!
     audioUrl: String
     referenceText: String
+    focusPhonemes: [String!]!
     answerOptions: [String!]!
     correctAnswer: String
     createdAt: String!

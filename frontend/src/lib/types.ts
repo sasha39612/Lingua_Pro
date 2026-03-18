@@ -25,6 +25,7 @@ export interface LearningTask {
   skill: string;
   prompt: string;
   referenceText?: string | null;
+  focusPhonemes: string[];
   answerOptions: string[];
   correctAnswer?: string | null;
   createdAt: string;

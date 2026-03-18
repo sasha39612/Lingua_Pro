@@ -47,6 +47,7 @@ export const GRAPHQL_OPERATIONS = {
       skill
       prompt
       referenceText
+      focusPhonemes
       answerOptions
       correctAnswer
       createdAt

@@ -93,6 +93,7 @@ export function SpeakingPage() {
   const token = useAppStore((s) => s.token);
 
   const [generatedText, setGeneratedText] = useState('');
+  const [focusPhonemes, setFocusPhonemes] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -101,6 +102,7 @@ export function SpeakingPage() {
   const handleGenerateText = async () => {
     setIsGenerating(true);
     setGeneratedText('');
+    setFocusPhonemes([]);
     try {
       const data = await graphqlRequest<TasksData, TasksVariables>({
         operationName: 'Tasks',
@@ -108,9 +110,11 @@ export function SpeakingPage() {
         token,
       });
       const first = data.tasks[0];
-      setGeneratedText(first?.referenceText || first?.prompt || '');
+      setGeneratedText(first?.referenceText ?? '');
+      setFocusPhonemes(first?.focusPhonemes ?? []);
     } catch {
       setGeneratedText('');
+      setFocusPhonemes([]);
     } finally {
       setIsGenerating(false);
     }
@@ -179,6 +183,19 @@ export function SpeakingPage() {
               </span>
             )}
           </div>
+          {focusPhonemes.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-slate-400">Focus sounds:</span>
+              {focusPhonemes.map((p) => (
+                <span
+                  key={p}
+                  className="rounded-full bg-teal-50 px-2 py-0.5 font-mono text-xs font-medium text-teal-700"
+                >
+                  /{p}/
+                </span>
+              ))}
+            </div>
+          )}
           <button
             type="button"
             onClick={handleGenerateText}

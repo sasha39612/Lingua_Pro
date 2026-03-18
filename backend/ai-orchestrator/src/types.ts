@@ -72,8 +72,9 @@ export type GeneratedTask = {
   prompt: string;
   audioUrl: string | null;
   referenceText: string | null;
-  answerOptions: string[];      // always 4 elements
-  correctAnswer: string | null; // "A" | "B" | "C" | "D"
+  focusPhonemes: string[] | null; // IPA symbols this passage targets (speaking only)
+  answerOptions: string[];        // always 4 elements; empty for speaking
+  correctAnswer: string | null;   // "A" | "B" | "C" | "D"; null for speaking
 };
 
 // ── TTS ───────────────────────────────────────────────────────────────────────
