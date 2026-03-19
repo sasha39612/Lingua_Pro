@@ -21,6 +21,14 @@ interface CheckAudioResponse {
   createdAt: Date;
 }
 
+interface AnalyzeBase64Request {
+  audioBase64: string;
+  mimeType?: string;
+  language: string;
+  userId: string;
+  expectedText?: string;
+}
+
 interface EvaluateComprehensionRequest {
   userAnswer: string;
   correctAnswer: string;
@@ -33,6 +41,15 @@ interface GenerateComprehensionRequest {
 @Controller('audio')
 export class AudioController {
   constructor(private readonly audioService: AudioService) {}
+
+  @Post('analyze-base64')
+  async analyzeBase64(@Body() body: AnalyzeBase64Request) {
+    const { audioBase64, mimeType, language, userId, expectedText } = body;
+    if (!audioBase64 || !language || !userId) {
+      throw new BadRequestException('audioBase64, language, and userId are required');
+    }
+    return this.audioService.analyzeBase64(audioBase64, mimeType || 'audio/webm', language, userId, expectedText);
+  }
 
   @Post('check')
   async checkAudio(@Body() body: CheckAudioRequest): Promise<CheckAudioResponse> {

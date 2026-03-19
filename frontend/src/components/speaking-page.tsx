@@ -7,7 +7,6 @@ import { useAppStore } from '@/store/app-store';
 import { graphqlRequest } from '@/lib/graphql-client';
 import type { TasksData, TasksVariables } from '@/lib/graphql-types';
 import {
-  MOCK_FEEDBACK,
   STAT_LABELS,
   type FeedbackResult,
   type SpeakingMistake,
@@ -91,6 +90,7 @@ export function SpeakingPage() {
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const token = useAppStore((s) => s.token);
+  const user = useAppStore((s) => s.user);
 
   const [generatedText, setGeneratedText] = useState('');
   const [focusPhonemes, setFocusPhonemes] = useState<string[]>([]);
@@ -120,13 +120,41 @@ export function SpeakingPage() {
     }
   };
 
-  const handleAnalyze = () => {
-    if (!recordedBlob || !generatedText) return;
+  const handleAnalyze = async () => {
+    if (!recordedBlob || !generatedText || !user) return;
     setIsAnalyzing(true);
-    setTimeout(() => {
-      setFeedbackResult(MOCK_FEEDBACK);
+    try {
+      const formData = new FormData();
+      formData.append('audio', recordedBlob, 'recording.webm');
+      formData.append('language', language);
+      formData.append('userId', user.id);
+      formData.append('referenceText', generatedText);
+
+      const res = await fetch('/api/audio/analyze', { method: 'POST', body: formData });
+      if (!res.ok) throw new Error('Analysis failed');
+      const data = await res.json();
+
+      const mistakes: SpeakingMistake[] = (data.alignment ?? [])
+        .filter((a: { type: string }) => a.type === 'mispronounced')
+        .map((a: { expected: string; spoken: string | null }) => ({
+          word: a.expected,
+          expected: a.expected,
+          spoken: a.spoken ?? '',
+          ipa: `/${a.expected}/`,
+          feedback: data.feedback || '',
+        }));
+
+      setFeedbackResult({
+        score: Math.round((data.pronunciationScore ?? 0) * 100),
+        spokenText: data.transcript ?? '',
+        ipaSentence: '',
+        mistakes,
+      });
+    } catch {
+      // analysis failed silently — user can retry
+    } finally {
       setIsAnalyzing(false);
-    }, 1000);
+    }
   };
 
   const canAnalyze = recordedBlob !== null && generatedText.length > 0;

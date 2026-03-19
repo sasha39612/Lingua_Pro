@@ -199,7 +199,8 @@ Lingua_Pro/
 │       ├── app/
 │       │   ├── api/
 │       │   │   ├── graphql/route.ts     # Proxy → API Gateway :8080
-│       │   │   └── ai-feedback/route.ts # SSE streaming endpoint
+│       │   │   ├── ai-feedback/route.ts # SSE streaming endpoint
+│       │   │   └── audio/analyze/route.ts # Multipart audio → base64 → audio-service POST /audio/analyze-base64
 │       │   └── [writing|reading|listening|speaking|stats|dashboard|admin|settings]/
 │       ├── components/
 │       │   ├── app-shell.tsx            # Layout wrapper (nav, sidebar)
@@ -236,7 +237,7 @@ Lingua_Pro/
     │   ├── prisma/schema.prisma         # audio_records, tasks (no User model)
     │   └── src/
     │       ├── audio/
-    │       │   ├── audio.controller.ts  # POST /check, GET /records/:id, GET /by-language
+    │       │   ├── audio.controller.ts  # POST /check, POST /analyze-base64, GET /records/:id, GET /by-language
     │       │   ├── audio.service.ts
     │       │   └── audio.repository.ts  # Prisma queries (uses src/generated/prisma)
     │       └── generated/prisma/        # Custom Prisma output (committed type stubs only)

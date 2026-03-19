@@ -1,12 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 
+export interface WordDetail {
+  word: string;
+  accuracyScore: number;
+  errorType: 'None' | 'Omission' | 'Insertion' | 'Mispronunciation';
+  phonemes: { phoneme: string; accuracyScore: number }[];
+}
+
+export interface WordAlignment {
+  expected: string;
+  spoken: string | null;
+  type: 'correct' | 'missing' | 'extra' | 'mispronounced';
+  wordDetail?: WordDetail;
+}
+
 export interface AudioAnalysisResult {
   transcript: string;
   pronunciationScore: number;  // 0..1 — FROM AZURE via orchestrator
   feedback: string;            // FROM GPT via orchestrator
   phonemeHints: string[];      // FROM GPT via orchestrator
   confidence: number;          // 0..1
+  words: WordDetail[];
+  alignment: WordAlignment[];
 }
 
 @Injectable()
@@ -46,6 +62,8 @@ export class AiOrchestratorService {
               ? d.phonemeHints.map((h: unknown) => String(h))
               : [],
             confidence: Number(d.accuracyScore ?? d.pronunciationScore ?? 0),
+            words: Array.isArray(d.words) ? d.words : [],
+            alignment: Array.isArray(d.alignment) ? d.alignment : [],
           };
         }
       } catch (error) {
@@ -67,6 +85,8 @@ export class AiOrchestratorService {
       feedback: 'Pronunciation analysis unavailable. Please try again later.',
       phonemeHints: this.phonemeHints(language),
       confidence: score,
+      words: [],
+      alignment: [],
     };
   }
 

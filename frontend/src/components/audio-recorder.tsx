@@ -24,7 +24,8 @@ export function AudioRecorder({ onRecordingComplete, onSendToReview, disabled }:
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       chunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
@@ -34,7 +35,7 @@ export function AudioRecorder({ onRecordingComplete, onSendToReview, disabled }:
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(chunksRef.current, { type: mimeType });
         setAudioBlob(blob);
         stream.getTracks().forEach((track) => track.stop());
         onRecordingComplete?.(blob);

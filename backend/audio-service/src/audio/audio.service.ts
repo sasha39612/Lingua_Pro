@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AudioRepository } from './audio.repository';
-import { AiOrchestratorService } from '../ai-orchestrator/ai-orchestrator.service';
+import { AiOrchestratorService, AudioAnalysisResult } from '../ai-orchestrator/ai-orchestrator.service';
 import axios from 'axios';
 
 interface AudioProcessingResult {
@@ -141,6 +141,29 @@ export class AudioService {
       answerOptions: task.answerOptions,
       correctAnswer: task.correctAnswer
     };
+  }
+
+  async analyzeBase64(
+    audioBase64: string,
+    mimeType: string,
+    language: string,
+    userId: string,
+    expectedText?: string,
+  ): Promise<AudioAnalysisResult & { id: number; createdAt: Date }> {
+    language = language.toLowerCase();
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
+    const result = await this.aiOrchestrator.analyzeAudio(audioBuffer, mimeType, language, expectedText);
+
+    const audioRecord = await this.audioRepository.createAudioRecord({
+      userId: parseInt(userId),
+      language,
+      transcript: result.transcript,
+      pronunciationScore: result.pronunciationScore,
+      audioUrl: '',
+      feedback: result.feedback,
+    });
+
+    return { ...result, id: audioRecord.id, createdAt: audioRecord.createdAt };
   }
 
   private async downloadAudio(audioUrl: string): Promise<Buffer> {
