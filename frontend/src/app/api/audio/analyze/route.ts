@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+// Pronunciation analysis can take up to ~30s; raise the function timeout
+export const maxDuration = 60;
+
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
