@@ -97,6 +97,7 @@ export function SpeakingPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [feedbackResult, setFeedbackResult] = useState<FeedbackResult | null>(null);
 
   const handleGenerateText = async () => {
@@ -123,6 +124,7 @@ export function SpeakingPage() {
   const handleAnalyze = async () => {
     if (!recordedBlob || !generatedText || !user) return;
     setIsAnalyzing(true);
+    setAnalyzeError(null);
     try {
       const formData = new FormData();
       formData.append('audio', recordedBlob, 'recording.webm');
@@ -150,8 +152,8 @@ export function SpeakingPage() {
         ipaSentence: '',
         mistakes,
       });
-    } catch {
-      // analysis failed silently — user can retry
+    } catch (err) {
+      setAnalyzeError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -246,7 +248,8 @@ export function SpeakingPage() {
           <AudioRecorder
             onRecordingComplete={(blob) => setRecordedBlob(blob)}
             onSendToReview={handleAnalyze}
-            disabled={!generatedText}
+            disabled={!generatedText || !user}
+            isAnalyzing={isAnalyzing}
           />
         </section>
 
@@ -291,6 +294,9 @@ export function SpeakingPage() {
           >
             {isAnalyzing ? 'Analyzing…' : 'Analyze pronunciation'}
           </button>
+          {analyzeError ? (
+            <p className="mt-2 text-sm text-red-600">{analyzeError}</p>
+          ) : null}
           {!canAnalyze && !feedbackResult ? (
             <p className="mt-2 text-xs text-slate-400">
               Generate a text and record yourself to enable analysis.
