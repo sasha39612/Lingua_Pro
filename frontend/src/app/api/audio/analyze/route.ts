@@ -30,7 +30,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (!response.ok) {
-      return NextResponse.json({ error: 'Audio analysis failed' }, { status: response.status });
+      let detail = '';
+      try { detail = await response.text(); } catch { /* ignore */ }
+      return NextResponse.json(
+        { error: 'Audio analysis failed', detail, status: response.status },
+        { status: response.status },
+      );
     }
 
     const data = await response.json();

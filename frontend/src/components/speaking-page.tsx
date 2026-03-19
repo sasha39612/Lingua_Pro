@@ -133,8 +133,10 @@ export function SpeakingPage() {
       formData.append('referenceText', generatedText);
 
       const res = await fetch('/api/audio/analyze', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error('Analysis failed');
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || data.error || 'Analysis failed');
+      }
 
       const mistakes: SpeakingMistake[] = (data.alignment ?? [])
         .filter((a: { type: string }) => a.type === 'mispronounced')
