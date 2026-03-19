@@ -12,7 +12,7 @@ Unlike basic speech-to-text systems, it:
 - provides actionable, human-readable feedback for each error
 
 ## Supported Languages
-- English, German, Albanian, Polish (extensible)
+- English, German, Albanian, Polish, Ukrainian (extensible)
 
 ## Core Features
 - User registration/login with JWT (student/admin roles)
@@ -311,9 +311,11 @@ bash scripts/deploy.sh
 ### Pronunciation Analysis Pipeline
 
 1. Browser `audio/webm` converted via FFmpeg to 16 kHz mono PCM WAV
-2. Azure Speech SDK performs transcription + phoneme-level scoring (accuracy, fluency, completeness)
-3. Token-level Levenshtein alignment produces `WordAlignment[]` — each word tagged as `correct`, `missing`, `extra`, or `mispronounced`
-4. GPT generates a human-readable feedback string per mistake — no numeric scores, Azure owns all scoring
+2. Azure Speech SDK performs transcription + phoneme-level scoring (accuracy, fluency, completeness, **prosody**)
+   - Languages not supported by Azure Pronunciation Assessment (e.g. Polish, Ukrainian) fall back to Whisper transcription + per-word character-level edit distance scoring
+3. Token-level Levenshtein alignment produces `WordAlignment[]` — each word tagged as `correct`, `missing`, `extra`, or `mispronounced`; Unicode-aware so Cyrillic/Arabic scripts work correctly
+4. Worst-scoring phonemes enriched via `PHONEME_MAP` (IPA symbol + articulation guidance) before GPT call
+5. GPT generates a human-readable feedback string with IPA references and physical articulation tips — no numeric scores, Azure owns all scoring
 
 ### AI Cost Overview (Approximate)
 

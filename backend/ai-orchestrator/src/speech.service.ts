@@ -14,7 +14,7 @@ import {
   withRetry,
   withTimeout,
   computeWordAlignment,
-  tokenSimilarity,
+  normalizedEditDistance,
 } from './util';
 
 // Azure Speech SDK — imported dynamically to allow the service to run
@@ -411,36 +411,65 @@ export class SpeechService {
     language: string,
     transcript = '',
   ): PronunciationAnalysisRaw {
-    const sim = transcript
-      ? Math.max(0.4, Math.min(0.98, tokenSimilarity(transcript, referenceText)))
+    if (!transcript) {
+      return {
+        scores: { pronunciationScore: 0.5, accuracyScore: 0.5, fluencyScore: 0.5, completenessScore: 0.5, prosodyScore: null },
+        transcript: referenceText,
+        words: [],
+        alignment: computeWordAlignment(referenceText, []),
+        source: 'fallback',
+      };
+    }
+
+    // Build spoken WordDetail[] with placeholder scores — updated below after alignment.
+    const spokenWords: import('./types').WordDetail[] = transcript
+      .replace(/[^\p{L}\p{N}'\s]/gu, '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w) => ({
+        word: w,
+        accuracyScore: 0,        // filled in after alignment
+        errorType: 'None' as const,
+        phonemes: [],
+      }));
+
+    // Align reference vs spoken — uses Levenshtein at word level.
+    const alignment = computeWordAlignment(referenceText, spokenWords);
+
+    // Per-word scoring via character-level edit distance on aligned pairs.
+    // Each entry.wordDetail is a live reference into spokenWords[], so mutating it
+    // updates the array too. Missing words (spoken = null) are skipped.
+    for (const entry of alignment) {
+      if (entry.wordDetail && entry.spoken !== null) {
+        entry.wordDetail.accuracyScore = normalizedEditDistance(entry.expected, entry.spoken);
+      }
+    }
+
+    // Aggregate scores: mean of individual word accuracies.
+    const wordScores = spokenWords.map((w) => w.accuracyScore);
+    const meanAccuracy = wordScores.length
+      ? wordScores.reduce((s, v) => s + v, 0) / wordScores.length
       : 0.5;
 
-    // Build pseudo WordDetail[] from the Whisper transcript so alignment
-    // reflects what was actually spoken instead of marking everything missing.
-    const spokenWords: import('./types').WordDetail[] = transcript
-      ? transcript
-          .replace(/[.,!?;:]/g, '')
-          .split(/\s+/)
-          .filter(Boolean)
-          .map((w) => ({
-            word: w,
-            accuracyScore: sim,
-            errorType: 'None' as const,
-            phonemes: [],
-          }))
-      : [];
+    // Completeness = fraction of reference words that were spoken (not missing).
+    const refWordCount = referenceText.replace(/[^\p{L}\p{N}'\s]/gu, '').split(/\s+/).filter(Boolean).length;
+    const missingCount = alignment.filter((e) => e.type === 'missing').length;
+    const completeness = refWordCount > 0 ? Math.max(0, (refWordCount - missingCount) / refWordCount) : 0.5;
+
+    // Overall pronunciation score: weighted blend of accuracy + completeness.
+    const pronunciationScore = Math.max(0.1, Math.min(0.98, 0.7 * meanAccuracy + 0.3 * completeness));
 
     return {
       scores: {
-        pronunciationScore: sim,
-        accuracyScore: sim,
-        fluencyScore: sim,
-        completenessScore: sim,
+        pronunciationScore,
+        accuracyScore: meanAccuracy,
+        fluencyScore: meanAccuracy,       // no timing data in Whisper fallback
+        completenessScore: completeness,
         prosodyScore: null,
       },
-      transcript: transcript || referenceText,
+      transcript,
       words: spokenWords,
-      alignment: computeWordAlignment(referenceText, spokenWords),
+      alignment,
       source: 'fallback',
     };
   }

@@ -140,8 +140,9 @@ Then aggregates scores, builds daily history, and categorises mistake types in-p
 | `TtsService` | Text-to-speech audio generation → base64 MP3 | `OPENAI_TTS_MODEL` (default `gpt-4o-mini-tts`) |
 
 **Hard scoring boundary** — never cross it:
-- **Azure** = all numeric scores (`pronunciationScore`, `accuracyScore`, `fluencyScore`, `completenessScore`)
+- **Azure** = all numeric scores (`pronunciationScore`, `accuracyScore`, `fluencyScore`, `completenessScore`, `prosodyScore`)
 - **GPT** = human-readable `feedback` string and `phonemeHints[]` only — GPT never produces scores
+- **Fallback** (languages Azure Pronunciation Assessment doesn't support, e.g. Polish, Ukrainian) = Whisper transcription + per-word `normalizedEditDistance` scoring; no phoneme data
 
 **Word alignment** — `SpeechService` computes `WordAlignment[]` via token-level Levenshtein after Azure responds:
 ```
@@ -252,7 +253,7 @@ Lingua_Pro/
     └── ai-orchestrator/             # NestJS, :4005
         └── src/
             ├── types.ts                     # Shared types: PhonemeDetail, WordDetail, WordAlignment, PronunciationAnalysisResult, TtsResult, …
-            ├── util.ts                      # Pure helpers: withRetry, withTimeout, safeJsonParse, decodeBase64, …
+            ├── util.ts                      # Pure helpers: withRetry, withTimeout, safeJsonParse, decodeBase64, normalizedEditDistance, enrichPhonemeContext, PHONEME_MAP, …
             ├── orchestrator.controller.ts   # HTTP layer — 6 endpoints
             ├── orchestrator.service.ts      # Thin facade — composes the 5 providers below
             ├── speech.service.ts            # Azure transcription + phoneme extraction + word alignment; Whisper fallback
@@ -303,4 +304,4 @@ Service-level env (with defaults):
 - **No cross-DB foreign keys** — each service stores `userId` as a plain `Int`; user identity is trusted from headers
 - Stats-service uses Node 20 native `fetch()` — no `@nestjs/axios` or Prisma dependency
 - CEFR levels: A0, A1, A2, B1, B2, C1, C2
-- Supported languages: English, German, Albanian, Polish
+- Supported languages: English, German, Albanian, Polish, Ukrainian

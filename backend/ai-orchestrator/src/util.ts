@@ -248,25 +248,39 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// ── Text similarity (used by local fallbacks) ─────────────────────────────────
+// ── Edit distance (used by per-word fallback scoring) ─────────────────────────
+// Unicode-aware character-level Levenshtein distance.
 
-export function tokenSimilarity(source: string, target: string): number {
-  const src = toTokens(source);
-  const tgt = toTokens(target);
-  if (src.length === 0 || tgt.length === 0) return 0.4;
-  const srcSet = new Set(src);
-  const tgtSet = new Set(tgt);
-  let overlap = 0;
-  for (const token of srcSet) {
-    if (tgtSet.has(token)) overlap++;
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
   }
-  return overlap / Math.max(srcSet.size, tgtSet.size);
+  return dp[m][n];
+}
+
+// Returns 0..1 where 1 = identical, 0 = completely different.
+// Works correctly with non-Latin scripts (Cyrillic, Arabic, etc.).
+export function normalizedEditDistance(a: string, b: string): number {
+  if (a === b) return 1;
+  if (!a || !b) return 0;
+  const dist = levenshteinDistance(a, b);
+  return Math.max(0, 1 - dist / Math.max(a.length, b.length));
 }
 
 function toTokens(text: string): string[] {
   return (text || '')
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ') // Unicode-aware: keeps Cyrillic, Arabic, CJK, etc.
     .split(/\s+/)
     .filter(Boolean);
 }
@@ -364,5 +378,5 @@ export function computeWordAlignment(
 }
 
 function stripPunctuation(text: string): string {
-  return text.replace(/[^\w\s]/g, '');
+  return text.replace(/[^\p{L}\p{N}\s]/gu, ''); // Unicode-aware: preserves non-Latin scripts
 }
