@@ -149,21 +149,25 @@ export class AudioService {
     language: string,
     userId: string,
     expectedText?: string,
-  ): Promise<AudioAnalysisResult & { id: number; createdAt: Date }> {
+  ): Promise<AudioAnalysisResult & { id?: number; createdAt?: Date }> {
     language = language.toLowerCase();
     const audioBuffer = Buffer.from(audioBase64, 'base64');
     const result = await this.aiOrchestrator.analyzeAudio(audioBuffer, mimeType, language, expectedText);
 
-    const audioRecord = await this.audioRepository.createAudioRecord({
-      userId: parseInt(userId),
-      language,
-      transcript: result.transcript,
-      pronunciationScore: result.pronunciationScore,
-      audioUrl: '',
-      feedback: result.feedback,
-    });
-
-    return { ...result, id: audioRecord.id, createdAt: audioRecord.createdAt };
+    try {
+      const audioRecord = await this.audioRepository.createAudioRecord({
+        userId: parseInt(userId),
+        language,
+        transcript: result.transcript,
+        pronunciationScore: result.pronunciationScore,
+        audioUrl: '',
+        feedback: result.feedback,
+      });
+      return { ...result, id: audioRecord.id, createdAt: audioRecord.createdAt };
+    } catch (err) {
+      console.error('Failed to persist audio record, returning result without saving:', err);
+      return result;
+    }
   }
 
   private async downloadAudio(audioUrl: string): Promise<Buffer> {

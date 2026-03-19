@@ -84,7 +84,7 @@ export function LoginPage() {
               onClick={() =>
                 loginTemporarily(
                   {
-                    id: 'demo-student',
+                    id: '0',
                     email: 'demo.student@lingua.pro',
                     role: 'student',
                     language: 'English',
@@ -101,7 +101,7 @@ export function LoginPage() {
               onClick={() =>
                 loginTemporarily(
                   {
-                    id: 'demo-admin',
+                    id: '-1',
                     email: 'demo.admin@lingua.pro',
                     role: 'admin',
                     language: 'English',
