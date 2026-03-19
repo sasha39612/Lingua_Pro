@@ -15,6 +15,7 @@ const mockScores = {
   accuracyScore: 0.78,
   fluencyScore: 0.72,
   completenessScore: 0.8,
+  prosodyScore: null,
 };
 
 async function makeService() {

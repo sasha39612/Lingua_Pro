@@ -42,14 +42,15 @@ export type TranscriptionResult = {
 
 export type PronunciationAnalysisResult = {
   transcript: string;
-  pronunciationScore: number;   // 0..1  FROM AZURE ONLY
-  accuracyScore: number;        // 0..1  FROM AZURE ONLY
-  fluencyScore: number;         // 0..1  FROM AZURE ONLY
-  completenessScore: number;    // 0..1  FROM AZURE ONLY
-  feedback: string;             // FROM GPT ONLY
-  phonemeHints: string[];       // FROM GPT ONLY (kept for FE compatibility)
-  words: WordDetail[];          // FROM AZURE (empty on fallback)
-  alignment: WordAlignment[];   // computed in SpeechService post-Azure
+  pronunciationScore: number;      // 0..1  FROM AZURE ONLY
+  accuracyScore: number;           // 0..1  FROM AZURE ONLY
+  fluencyScore: number;            // 0..1  FROM AZURE ONLY
+  completenessScore: number;       // 0..1  FROM AZURE ONLY
+  prosodyScore: number | null;     // 0..1  FROM AZURE ONLY; null when region/tier doesn't support it
+  feedback: string;                // FROM GPT ONLY
+  phonemeHints: string[];          // FROM GPT ONLY (kept for FE compatibility)
+  words: WordDetail[];             // FROM AZURE (empty on fallback)
+  alignment: WordAlignment[];      // computed in SpeechService post-Azure
   source: 'azure+gpt' | 'azure-only' | 'fallback';
   jobId?: string;
 };

@@ -2,6 +2,7 @@
 
 import { LabFrame } from '@/components/lab-frame';
 import { useAppStore } from '@/store/app-store';
+import type { AppLanguage } from '@/lib/types';
 
 export function SettingsPage() {
   const user = useAppStore((s) => s.user);
@@ -53,13 +54,14 @@ export function SettingsPage() {
             <span className="mb-1 block text-slate-600">Language</span>
             <select
               value={language}
-              onChange={(e) => setLanguage(e.target.value as 'English' | 'German' | 'Albanian' | 'Polish')}
+              onChange={(e) => setLanguage(e.target.value as AppLanguage)}
               className="w-full rounded-xl border px-3 py-2"
             >
               <option>English</option>
               <option>German</option>
               <option>Albanian</option>
               <option>Polish</option>
+              <option>Ukrainian</option>
             </select>
           </label>
         </div>

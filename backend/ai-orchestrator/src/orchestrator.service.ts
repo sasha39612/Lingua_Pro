@@ -98,6 +98,7 @@ export class OrchestratorService {
       accuracyScore: raw.scores.accuracyScore,
       fluencyScore: raw.scores.fluencyScore,
       completenessScore: raw.scores.completenessScore,
+      prosodyScore: raw.scores.prosodyScore,
       feedback,
       phonemeHints,
       words: raw.words,

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import type { WordDetail } from './types';
 import type { AzurePronunciationScores } from './speech.service';
-import { safeJsonParse, withRetry, withTimeout, phonemeHintsByLanguage } from './util';
+import { safeJsonParse, withRetry, withTimeout, phonemeHintsByLanguage, enrichPhonemeContext } from './util';
 
 export type PronunciationFeedback = {
   feedback: string;
@@ -38,6 +38,9 @@ export class PronunciationAiService {
 
     try {
       const wordContext = this.buildWordContext(words);
+      const prosodyLine = azureScores.prosodyScore != null
+        ? `prosodyScore=${azureScores.prosodyScore.toFixed(2)} (rhythm, stress, intonation)`
+        : null;
 
       const response = await withRetry(
         () =>
@@ -50,23 +53,29 @@ export class PronunciationAiService {
                 {
                   role: 'system',
                   content:
-                    'You are a language pronunciation coach. ' +
-                    'You receive Azure Speech Assessment scores and word-level phoneme data. ' +
-                    'Write a concise, actionable feedback paragraph (2-4 sentences) and list up to 4 phoneme hints. ' +
-                    'Return strict JSON: { "feedback": string, "phonemeHints": string[] }. ' +
-                    'Do NOT produce any numeric scores.',
+                    'You are a professional pronunciation coach for language learners.\n' +
+                    'You receive Azure Speech Assessment data including per-phoneme accuracy with IPA symbols and articulation guidance.\n' +
+                    'Your task:\n' +
+                    '1. Write a concise coaching paragraph (2–4 sentences) focused on the worst mistakes.\n' +
+                    '2. For each mistake mention the IPA phoneme, what the student should do physically (lips, tongue, airflow).\n' +
+                    '3. Use plain language appropriate for A1–B2 learners — no jargon.\n' +
+                    '4. If prosody data is provided and the score is below 0.75, add one sentence about rhythm or intonation.\n' +
+                    '5. List up to 4 short phoneme hints (one actionable tip each).\n' +
+                    'Return strict JSON: { "feedback": string, "phonemeHints": string[] }.\n' +
+                    'Do NOT output any numeric scores.',
                 },
                 {
                   role: 'user',
                   content: [
                     `Language: ${language}`,
                     `Reference text: "${referenceText}"`,
-                    `Student transcript: "${transcript}"`,
+                    `Student said: "${transcript}"`,
                     `Azure scores: pronunciationScore=${azureScores.pronunciationScore.toFixed(2)}, ` +
                       `accuracyScore=${azureScores.accuracyScore.toFixed(2)}, ` +
                       `fluencyScore=${azureScores.fluencyScore.toFixed(2)}, ` +
                       `completenessScore=${azureScores.completenessScore.toFixed(2)}`,
-                    wordContext ? `Word detail (worst words):\n${wordContext}` : '',
+                    prosodyLine,
+                    wordContext ? `Worst phonemes (IPA + articulation):\n${wordContext}` : '',
                   ]
                     .filter(Boolean)
                     .join('\n'),
@@ -114,20 +123,26 @@ export class PronunciationAiService {
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   private buildWordContext(words: WordDetail[]): string {
-    const problematic = words
-      .filter((w) => w.errorType !== 'None' || w.accuracyScore < 70)
-      .slice(0, 10); // limit to 10 worst words to stay within context budget
+    // Collect the 5 worst-scoring phonemes across all problematic words.
+    // Each entry becomes a rich coaching line via enrichPhonemeContext().
+    type PhonemeEntry = { word: string; phoneme: string; score: number; errorType: WordDetail['errorType'] };
+    const entries: PhonemeEntry[] = [];
 
-    if (problematic.length === 0) return '';
+    for (const w of words) {
+      if (w.errorType === 'None' && w.accuracyScore >= 70) continue;
+      for (const p of w.phonemes) {
+        if (p.accuracyScore < 70) {
+          entries.push({ word: w.word, phoneme: p.phoneme, score: Math.round(p.accuracyScore), errorType: w.errorType });
+        }
+      }
+    }
 
-    return problematic
-      .map((w) => {
-        const phonemeList = w.phonemes
-          .filter((p) => p.accuracyScore < 70)
-          .map((p) => `${p.phoneme}(${p.accuracyScore})`)
-          .join(', ');
-        return `"${w.word}": errorType=${w.errorType}, accuracy=${w.accuracyScore}${phonemeList ? `, phonemes=[${phonemeList}]` : ''}`;
-      })
+    // Sort by accuracy ascending (worst first) and cap at 5 to keep context focused
+    const worst = entries.sort((a, b) => a.score - b.score).slice(0, 5);
+    if (worst.length === 0) return '';
+
+    return worst
+      .map((e) => `In "${e.word}" (${e.errorType}): ${enrichPhonemeContext(e.phoneme, e.score)}`)
       .join('\n');
   }
 }

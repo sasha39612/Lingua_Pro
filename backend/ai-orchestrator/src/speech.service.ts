@@ -26,6 +26,7 @@ export type AzurePronunciationScores = {
   accuracyScore: number;      // 0..1
   fluencyScore: number;       // 0..1
   completenessScore: number;  // 0..1
+  prosodyScore: number | null; // 0..1; null when prosody unavailable in this region
 };
 
 export type PronunciationAnalysisRaw = {
@@ -254,6 +255,7 @@ export class SpeechService {
         sdk.PronunciationAssessmentGranularity.Phoneme,
         true, // enableMiscue
       );
+      pronunciationConfig.enableProsodyAssessment = true;
 
       const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
       pronunciationConfig.applyTo(recognizer);
@@ -271,6 +273,7 @@ export class SpeechService {
                 accuracyScore: this.normalizeAzureScore(pa?.AccuracyScore),
                 fluencyScore: this.normalizeAzureScore(pa?.FluencyScore),
                 completenessScore: this.normalizeAzureScore(pa?.CompletenessScore),
+                prosodyScore: pa?.ProsodyScore != null ? this.normalizeAzureScore(pa.ProsodyScore) : null,
               };
 
               const words = this.parseWords(json?.NBest?.[0]?.Words ?? []);
@@ -412,16 +415,32 @@ export class SpeechService {
       ? Math.max(0.4, Math.min(0.98, tokenSimilarity(transcript, referenceText)))
       : 0.5;
 
+    // Build pseudo WordDetail[] from the Whisper transcript so alignment
+    // reflects what was actually spoken instead of marking everything missing.
+    const spokenWords: import('./types').WordDetail[] = transcript
+      ? transcript
+          .replace(/[.,!?;:]/g, '')
+          .split(/\s+/)
+          .filter(Boolean)
+          .map((w) => ({
+            word: w,
+            accuracyScore: sim,
+            errorType: 'None' as const,
+            phonemes: [],
+          }))
+      : [];
+
     return {
       scores: {
         pronunciationScore: sim,
         accuracyScore: sim,
         fluencyScore: sim,
         completenessScore: sim,
+        prosodyScore: null,
       },
       transcript: transcript || referenceText,
-      words: [],
-      alignment: computeWordAlignment(referenceText, []),
+      words: spokenWords,
+      alignment: computeWordAlignment(referenceText, spokenWords),
       source: 'fallback',
     };
   }

@@ -1,4 +1,4 @@
-export type AppLanguage = 'English' | 'German' | 'Albanian' | 'Polish';
+export type AppLanguage = 'English' | 'German' | 'Albanian' | 'Polish' | 'Ukrainian';
 
 export type UserRole = 'student' | 'admin';
 

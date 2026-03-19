@@ -19,7 +19,7 @@ import {
 import { graphqlRequest } from '@/lib/graphql-client';
 import { TextsData, TextsVariables } from '@/lib/graphql-types';
 
-const LANGUAGES: AppLanguage[] = ['English', 'German', 'Albanian', 'Polish'];
+const LANGUAGES: AppLanguage[] = ['English', 'German', 'Albanian', 'Polish', 'Ukrainian'];
 
 const authSchema = z.object({
   email: z.string().email(),
