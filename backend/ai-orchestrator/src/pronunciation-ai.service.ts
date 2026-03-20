@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
-import type { WordDetail } from './types';
+import type { WordDetail, WordAlignment } from './types';
 import type { AzurePronunciationScores } from './speech.service';
 import { safeJsonParse, withRetry, withTimeout, phonemeHintsByLanguage, enrichPhonemeContext } from './util';
 
@@ -31,13 +31,14 @@ export class PronunciationAiService {
     language: string,
     azureScores: AzurePronunciationScores,
     words: WordDetail[],
+    alignment: WordAlignment[],
   ): Promise<PronunciationFeedback> {
     if (!this.openai) {
       return this.localFeedback(azureScores.pronunciationScore, language);
     }
 
     try {
-      const wordContext = this.buildWordContext(words);
+      const wordContext = this.buildWordContext(words, alignment);
       const prosodyLine = azureScores.prosodyScore != null
         ? `prosodyScore=${azureScores.prosodyScore.toFixed(2)} (rhythm, stress, intonation)`
         : null;
@@ -122,27 +123,44 @@ export class PronunciationAiService {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  private buildWordContext(words: WordDetail[]): string {
-    // Collect the 5 worst-scoring phonemes across all problematic words.
-    // Each entry becomes a rich coaching line via enrichPhonemeContext().
-    type PhonemeEntry = { word: string; phoneme: string; score: number; errorType: WordDetail['errorType'] };
-    const entries: PhonemeEntry[] = [];
+  private buildWordContext(words: WordDetail[], alignment: WordAlignment[]): string {
+    const lines: string[] = [];
 
+    // ── Azure acoustic phonemes (source === 'acoustic') ───────────────────────
+    type PhonemeEntry = { word: string; phoneme: string; score: number; errorType: WordDetail['errorType'] };
+    const acousticEntries: PhonemeEntry[] = [];
     for (const w of words) {
       if (w.errorType === 'None' && w.accuracyScore >= 70) continue;
       for (const p of w.phonemes) {
         if (p.accuracyScore < 70) {
-          entries.push({ word: w.word, phoneme: p.phoneme, score: Math.round(p.accuracyScore), errorType: w.errorType });
+          acousticEntries.push({ word: w.word, phoneme: p.phoneme, score: Math.round(p.accuracyScore), errorType: w.errorType });
         }
       }
     }
+    const worstAcoustic = acousticEntries.sort((a, b) => a.score - b.score).slice(0, 5);
+    for (const e of worstAcoustic) {
+      lines.push(`In "${e.word}" (${e.errorType}): ${enrichPhonemeContext(e.phoneme, e.score)}`);
+    }
 
-    // Sort by accuracy ascending (worst first) and cap at 5 to keep context focused
-    const worst = entries.sort((a, b) => a.score - b.score).slice(0, 5);
-    if (worst.length === 0) return '';
+    // ── G2P text-based hints (source === 'g2p') ───────────────────────────────
+    // Only included when acoustic phonemes are absent (fallback path).
+    if (worstAcoustic.length === 0) {
+      for (const entry of alignment) {
+        if (!entry.g2pHints || entry.g2pHints.errorPhonemes.length === 0) continue;
+        const expectedStr = entry.g2pHints.expectedIpa.join(' ');
+        const spokenStr   = entry.g2pHints.spokenIpa.join(' ') || '(unclear)';
+        const hints = entry.g2pHints.errorPhonemes.slice(0, 3)
+          .map((p) => enrichPhonemeContext(p, 0))
+          .join('; ');
+        lines.push(
+          `"${entry.expected}" → you said "${entry.spoken ?? '?'}": ` +
+          `expected /${expectedStr}/, heard /${spokenStr}/. ` +
+          `Missing phonemes: ${hints} [source: G2P text-based, not acoustic]`,
+        );
+        if (lines.length >= 5) break;
+      }
+    }
 
-    return worst
-      .map((e) => `In "${e.word}" (${e.errorType}): ${enrichPhonemeContext(e.phoneme, e.score)}`)
-      .join('\n');
+    return lines.join('\n');
   }
 }

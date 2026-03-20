@@ -89,6 +89,7 @@ export class G2pService {
   // Handles:
   //   - Combining diacritics: ɔ̃, kʲ — stay with their base via Intl.Segmenter
   //   - Common affricates: tʃ, dʒ, ts, dz, tɕ, dʑ, tʂ, dʐ — merged into one token
+  //   - Length marker ː — attached to the preceding token (e.g. uː, iː)
   splitIpa(ipa: string): string[] {
     const clusters = [...this.segmenter.segment(ipa)].map((s) => s.segment);
     const tokens: string[] = [];
@@ -98,6 +99,8 @@ export class G2pService {
       if (AFFRICATES.has(pair)) {
         tokens.push(pair);
         i++; // consume next cluster too
+      } else if (clusters[i] === 'ː' && tokens.length > 0) {
+        tokens[tokens.length - 1] += 'ː'; // attach length marker to preceding phoneme
       } else {
         tokens.push(clusters[i]);
       }

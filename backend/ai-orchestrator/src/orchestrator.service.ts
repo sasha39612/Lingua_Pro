@@ -78,6 +78,7 @@ export class OrchestratorService {
         safeLanguage,
         raw.scores,
         raw.words,
+        raw.alignment,
       );
       feedback = gpt.feedback;
       phonemeHints = gpt.phonemeHints;
@@ -103,6 +104,7 @@ export class OrchestratorService {
       phonemeHints,
       words: raw.words,
       alignment: raw.alignment,
+      phonemeSource: raw.phonemeSource,
       source,
     };
   }

@@ -31,7 +31,7 @@ async function makeService() {
 describe('PronunciationAiService — local fallbacks (no AI_API_KEY)', () => {
   it('returns feedback string and non-empty phonemeHints', async () => {
     const svc = await makeService();
-    const result = await svc.generateFeedback('Hello world', 'Hello world', 'English', mockScores, []);
+    const result = await svc.generateFeedback('Hello world', 'Hello world', 'English', mockScores, [], []);
     expect(typeof result.feedback).toBe('string');
     expect(result.feedback.length).toBeGreaterThan(0);
     expect(Array.isArray(result.phonemeHints)).toBe(true);
@@ -41,26 +41,26 @@ describe('PronunciationAiService — local fallbacks (no AI_API_KEY)', () => {
   it('returns "Strong pronunciation" feedback for high score', async () => {
     const svc = await makeService();
     const highScores = { ...mockScores, pronunciationScore: 0.9 };
-    const result = await svc.generateFeedback('Hello', 'Hello', 'English', highScores, []);
+    const result = await svc.generateFeedback('Hello', 'Hello', 'English', highScores, [], []);
     expect(result.feedback).toContain('Strong pronunciation');
   });
 
   it('returns improvement feedback for low score', async () => {
     const svc = await makeService();
     const lowScores = { ...mockScores, pronunciationScore: 0.5 };
-    const result = await svc.generateFeedback('Hello', 'xyz', 'English', lowScores, []);
+    const result = await svc.generateFeedback('Hello', 'xyz', 'English', lowScores, [], []);
     expect(result.feedback).toContain('Pronunciation differs');
   });
 
   it('returns language-specific hints for German', async () => {
     const svc = await makeService();
-    const result = await svc.generateFeedback('Hallo', 'Hallo', 'German', mockScores, []);
+    const result = await svc.generateFeedback('Hallo', 'Hallo', 'German', mockScores, [], []);
     expect(result.phonemeHints.join(' ')).toContain('ich');
   });
 
   it('does not return any numeric score fields', async () => {
     const svc = await makeService();
-    const result = await svc.generateFeedback('Hello', 'Hello', 'English', mockScores, []);
+    const result = await svc.generateFeedback('Hello', 'Hello', 'English', mockScores, [], []);
     expect((result as any).pronunciationScore).toBeUndefined();
     expect((result as any).accuracyScore).toBeUndefined();
     expect((result as any).score).toBeUndefined();
@@ -69,7 +69,7 @@ describe('PronunciationAiService — local fallbacks (no AI_API_KEY)', () => {
   it('does not throw for empty words array', async () => {
     const svc = await makeService();
     await expect(
-      svc.generateFeedback('Hello world', '', 'English', mockScores, []),
+      svc.generateFeedback('Hello world', '', 'English', mockScores, [], []),
     ).resolves.toBeDefined();
   });
 });
@@ -108,7 +108,7 @@ describe('PronunciationAiService — GPT mock', () => {
 
     const { PronunciationAiService: Fresh } = await import('./pronunciation-ai.service');
     const svc = new Fresh();
-    const result = await svc.generateFeedback('Hello', 'Hello', 'English', mockScores, []);
+    const result = await svc.generateFeedback('Hello', 'Hello', 'English', mockScores, [], []);
 
     expect(result.feedback).toBe('Great job!');
     expect(result.phonemeHints).toEqual(['/th/ in "think"']);
@@ -130,7 +130,7 @@ describe('PronunciationAiService — GPT mock', () => {
 
     const { PronunciationAiService: Fresh } = await import('./pronunciation-ai.service');
     const svc = new Fresh();
-    const result = await svc.generateFeedback('Hello', 'Hello', 'English', mockScores, []);
+    const result = await svc.generateFeedback('Hello', 'Hello', 'English', mockScores, [], []);
 
     expect(typeof result.feedback).toBe('string');
     expect(result.phonemeHints.length).toBeGreaterThan(0);

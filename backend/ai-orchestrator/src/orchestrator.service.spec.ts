@@ -98,11 +98,12 @@ describe('OrchestratorService — facade delegation', () => {
       const { svc, mockSpeech, mockPronunciationAi } = makeService();
 
       mockSpeech.analyzePronunciation.mockResolvedValue({
-        scores: { pronunciationScore: 0.85, accuracyScore: 0.88, fluencyScore: 0.82, completenessScore: 0.9 },
+        scores: { pronunciationScore: 0.85, accuracyScore: 0.88, fluencyScore: 0.82, completenessScore: 0.9, prosodyScore: null },
         transcript: 'Hello world',
         words: [],
         alignment: [],
         source: 'azure',
+        phonemeSource: 'acoustic',
       });
       mockPronunciationAi.generateFeedback.mockResolvedValue({
         feedback: 'Great job!',
@@ -118,6 +119,7 @@ describe('OrchestratorService — facade delegation', () => {
         'English',
         expect.objectContaining({ pronunciationScore: 0.85 }),
         [],
+        [],
       );
       expect(result.pronunciationScore).toBe(0.85);
       expect(result.feedback).toBe('Great job!');
@@ -128,11 +130,12 @@ describe('OrchestratorService — facade delegation', () => {
       const { svc, mockSpeech, mockPronunciationAi } = makeService();
 
       mockSpeech.analyzePronunciation.mockResolvedValue({
-        scores: { pronunciationScore: 0.7, accuracyScore: 0.7, fluencyScore: 0.7, completenessScore: 0.7 },
+        scores: { pronunciationScore: 0.7, accuracyScore: 0.7, fluencyScore: 0.7, completenessScore: 0.7, prosodyScore: null },
         transcript: 'Hello',
         words: [],
         alignment: [],
         source: 'azure',
+        phonemeSource: 'acoustic',
       });
       mockPronunciationAi.generateFeedback.mockRejectedValue(new Error('GPT down'));
 
@@ -147,11 +150,12 @@ describe('OrchestratorService — facade delegation', () => {
       const { svc, mockSpeech, mockPronunciationAi } = makeService();
 
       mockSpeech.analyzePronunciation.mockResolvedValue({
-        scores: { pronunciationScore: 0.5, accuracyScore: 0.5, fluencyScore: 0.5, completenessScore: 0.5 },
+        scores: { pronunciationScore: 0.5, accuracyScore: 0.5, fluencyScore: 0.5, completenessScore: 0.5, prosodyScore: null },
         transcript: 'Hello world',
         words: [],
         alignment: [],
         source: 'fallback',
+        phonemeSource: 'none',
       });
       mockPronunciationAi.generateFeedback.mockResolvedValue({
         feedback: 'Some feedback',

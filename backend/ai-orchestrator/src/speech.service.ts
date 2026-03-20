@@ -36,6 +36,7 @@ export type PronunciationAnalysisRaw = {
   words: WordDetail[];
   alignment: WordAlignment[];
   source: 'azure' | 'fallback';
+  phonemeSource: 'acoustic' | 'g2p' | 'none';
 };
 
 @Injectable()
@@ -286,6 +287,7 @@ export class SpeechService {
                 words,
                 alignment,
                 source: 'azure',
+                phonemeSource: 'acoustic',
               });
             },
             (err) => {
@@ -419,6 +421,7 @@ export class SpeechService {
         words: [],
         alignment: computeWordAlignment(referenceText, []),
         source: 'fallback',
+        phonemeSource: 'none',
       };
     }
 
@@ -438,30 +441,31 @@ export class SpeechService {
     const alignment = computeWordAlignment(referenceText, spokenWords);
 
     // Per-word scoring. Scores are stored as 0..100 to match Azure's WordDetail scale.
-    // Each entry.wordDetail is a live reference into spokenWords[], so mutating it
-    // updates the array too. Missing words (spoken = null) are skipped.
+    // wordDetail.phonemes stays [] — we never attach fake acoustic scores.
+    // G2P data goes into entry.g2pHints (text-based IPA, clearly not acoustic).
+    let usedG2p = false;
     for (const entry of alignment) {
       if (!entry.wordDetail || entry.spoken === null) continue;
 
       if (this.g2p.isAvailable() && entry.type === 'mispronounced') {
-        // Phoneme-level scoring via espeak-ng G2P — more accurate than character edit distance
         const diff = this.g2p.diffWords(entry.expected, entry.spoken, language);
         entry.wordDetail.accuracyScore = Math.round(diff.score * 100);
-        // Populate phonemes[] with IPA error phonemes for GPT context
-        entry.wordDetail.phonemes = diff.errorPhonemes.map((p) => ({
-          phoneme: p,
-          accuracyScore: 0,   // 0 = absent or substituted
-          offset: 0,
-          duration: 0,
-        }));
+        // Store IPA data as text-based hints — source clearly labeled, no fake scores
+        entry.g2pHints = {
+          expectedIpa: this.g2p.splitIpa(this.g2p.wordToIpa(entry.expected, language)),
+          spokenIpa:   this.g2p.splitIpa(this.g2p.wordToIpa(entry.spoken,   language)),
+          errorPhonemes: diff.errorPhonemes,
+        };
+        usedG2p = true;
       } else {
         // Character-level edit distance fallback (0..1 → scale to 0..100)
         entry.wordDetail.accuracyScore = Math.round(normalizedEditDistance(entry.expected, entry.spoken) * 100);
       }
     }
+    const phonemeSource = usedG2p ? 'g2p' as const : 'none' as const;
 
-    // Aggregate scores: mean of individual word accuracies.
-    const wordScores = spokenWords.map((w) => w.accuracyScore);
+    // Aggregate scores. Word accuracyScores are 0..100 — normalise to 0..1 for the formula.
+    const wordScores = spokenWords.map((w) => w.accuracyScore / 100);
     const meanAccuracy = wordScores.length
       ? wordScores.reduce((s, v) => s + v, 0) / wordScores.length
       : 0.5;
@@ -471,8 +475,12 @@ export class SpeechService {
     const missingCount = alignment.filter((e) => e.type === 'missing').length;
     const completeness = refWordCount > 0 ? Math.max(0, (refWordCount - missingCount) / refWordCount) : 0.5;
 
-    // Overall pronunciation score: weighted blend of accuracy + completeness.
-    const pronunciationScore = Math.max(0.1, Math.min(0.98, 0.7 * meanAccuracy + 0.3 * completeness));
+    // Word correctness rate penalises wrong words (mispronounced) beyond just their accuracy score.
+    const mispronounced = alignment.filter((e) => e.type === 'mispronounced').length;
+    const wordCorrectRate = refWordCount > 0 ? Math.max(0, (refWordCount - missingCount - mispronounced) / refWordCount) : 0.5;
+
+    // Overall pronunciation score: accuracy + completeness + word correctness.
+    const pronunciationScore = Math.max(0.1, Math.min(0.98, 0.5 * meanAccuracy + 0.25 * completeness + 0.25 * wordCorrectRate));
 
     return {
       scores: {
@@ -486,6 +494,7 @@ export class SpeechService {
       words: spokenWords,
       alignment,
       source: 'fallback',
+      phonemeSource,
     };
   }
 

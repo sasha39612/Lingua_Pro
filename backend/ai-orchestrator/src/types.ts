@@ -17,11 +17,18 @@ export type WordDetail = {
 // ── Word alignment (computed post-Azure via token-level Levenshtein) ───────────
 // This is what drives the FE speaking UI: correct/missing/extra/mispronounced
 
+export type G2pHints = {
+  expectedIpa: string[];  // IPA phoneme sequence of the reference word (from espeak-ng)
+  spokenIpa: string[];    // IPA phoneme sequence of the spoken word (from espeak-ng)
+  errorPhonemes: string[]; // reference phonemes absent or substituted in the spoken form
+};
+
 export type WordAlignment = {
-  expected: string;       // word from referenceText (stripped of punctuation)
-  spoken: string | null;  // null when word was missing
+  expected: string;        // word from referenceText (stripped of punctuation)
+  spoken: string | null;   // null when word was missing
   type: 'correct' | 'missing' | 'extra' | 'mispronounced';
-  wordDetail?: WordDetail; // Azure phoneme data when available
+  wordDetail?: WordDetail; // Azure phoneme data when phonemeSource === 'acoustic'
+  g2pHints?: G2pHints;    // text-based IPA hints when phonemeSource === 'g2p'; never fake acoustic scores
 };
 
 // ── Transcription ─────────────────────────────────────────────────────────────
@@ -51,6 +58,7 @@ export type PronunciationAnalysisResult = {
   phonemeHints: string[];          // FROM GPT ONLY (kept for FE compatibility)
   words: WordDetail[];             // FROM AZURE (empty on fallback)
   alignment: WordAlignment[];      // computed in SpeechService post-Azure
+  phonemeSource: 'acoustic' | 'g2p' | 'none'; // acoustic = Azure SDK; g2p = espeak-ng text-based; none = no phoneme data
   source: 'azure+gpt' | 'azure-only' | 'fallback';
   jobId?: string;
 };
