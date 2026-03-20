@@ -79,6 +79,7 @@ export class OrchestratorService {
         raw.scores,
         raw.words,
         raw.alignment,
+        raw.phonemeSource,
       );
       feedback = gpt.feedback;
       phonemeHints = gpt.phonemeHints;

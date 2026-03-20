@@ -120,6 +120,7 @@ describe('OrchestratorService — facade delegation', () => {
         expect.objectContaining({ pronunciationScore: 0.85 }),
         [],
         [],
+        'acoustic',
       );
       expect(result.pronunciationScore).toBe(0.85);
       expect(result.feedback).toBe('Great job!');
