@@ -16,6 +16,7 @@ import {
   computeWordAlignment,
   normalizedEditDistance,
 } from './util';
+import { G2pService } from './g2p.service';
 
 // Azure Speech SDK — imported dynamically to allow the service to run
 // without the SDK installed (e.g. in test environments)
@@ -48,7 +49,7 @@ export class SpeechService {
   private ffmpegAvailable = false;
   private sdk: SpeechSDK | null = null;
 
-  constructor() {
+  constructor(private readonly g2p: G2pService) {
     this.azureKey = process.env.AZURE_SPEECH_KEY || null;
     this.azureRegion = process.env.AZURE_SPEECH_REGION || null;
     const apiKey = process.env.AI_API_KEY;
@@ -436,12 +437,26 @@ export class SpeechService {
     // Align reference vs spoken — uses Levenshtein at word level.
     const alignment = computeWordAlignment(referenceText, spokenWords);
 
-    // Per-word scoring via character-level edit distance on aligned pairs.
+    // Per-word scoring. Scores are stored as 0..100 to match Azure's WordDetail scale.
     // Each entry.wordDetail is a live reference into spokenWords[], so mutating it
     // updates the array too. Missing words (spoken = null) are skipped.
     for (const entry of alignment) {
-      if (entry.wordDetail && entry.spoken !== null) {
-        entry.wordDetail.accuracyScore = normalizedEditDistance(entry.expected, entry.spoken);
+      if (!entry.wordDetail || entry.spoken === null) continue;
+
+      if (this.g2p.isAvailable() && entry.type === 'mispronounced') {
+        // Phoneme-level scoring via espeak-ng G2P — more accurate than character edit distance
+        const diff = this.g2p.diffWords(entry.expected, entry.spoken, language);
+        entry.wordDetail.accuracyScore = Math.round(diff.score * 100);
+        // Populate phonemes[] with IPA error phonemes for GPT context
+        entry.wordDetail.phonemes = diff.errorPhonemes.map((p) => ({
+          phoneme: p,
+          accuracyScore: 0,   // 0 = absent or substituted
+          offset: 0,
+          duration: 0,
+        }));
+      } else {
+        // Character-level edit distance fallback (0..1 → scale to 0..100)
+        entry.wordDetail.accuracyScore = Math.round(normalizedEditDistance(entry.expected, entry.spoken) * 100);
       }
     }
 

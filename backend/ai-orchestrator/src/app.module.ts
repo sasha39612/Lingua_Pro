@@ -7,11 +7,13 @@ import { TextAiService } from './text-ai.service';
 import { TaskService } from './task.service';
 import { PronunciationAiService } from './pronunciation-ai.service';
 import { TtsService } from './tts.service';
+import { G2pService } from './g2p.service';
 
 @Module({
   controllers: [HealthController, OrchestratorController],
   providers: [
     OrchestratorService,
+    G2pService,
     SpeechService,
     TextAiService,
     TaskService,

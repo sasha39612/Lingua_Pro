@@ -27,7 +27,7 @@ RUN pnpm run build
 FROM node:20-alpine AS runner
 WORKDIR /app/backend/ai-orchestrator
 
-RUN apk add --no-cache curl ffmpeg gcompat
+RUN apk add --no-cache curl ffmpeg gcompat espeak-ng
 
 ENV NODE_ENV=production
 ENV PORT=4005
