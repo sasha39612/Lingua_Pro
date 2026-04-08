@@ -100,6 +100,17 @@ jobs:
           scp docker-compose.yml docker-compose.prod.yml "$DEST:/opt/lingua-pro/"
           scp scripts/deploy.sh "$DEST:/opt/lingua-pro/scripts/"
 
+      - name: Free disk space on server
+        env:
+          DEST: "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}"
+        run: |
+          ssh "$DEST" bash << 'EOF'
+            docker image prune -af
+            docker container prune -f
+            docker volume prune -f
+            docker builder prune -af
+          EOF
+
       - name: Deploy on server
         env:
           DEST: "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}"
