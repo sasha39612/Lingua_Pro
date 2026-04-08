@@ -62,7 +62,7 @@ describe('TextController', () => {
 
       const result = await controller.tasks('English', 'B1');
 
-      expect(mockService.getTasks).toHaveBeenCalledWith('English', 'B1', undefined);
+      expect(mockService.getTasks).toHaveBeenCalledWith('English', 'B1', undefined, null);
       expect(result).toEqual(tasks);
     });
 
@@ -72,7 +72,7 @@ describe('TextController', () => {
 
       await controller.tasks('German', 'A2', 'writing');
 
-      expect(mockService.getTasks).toHaveBeenCalledWith('German', 'A2', 'writing');
+      expect(mockService.getTasks).toHaveBeenCalledWith('German', 'A2', 'writing', null);
     });
 
     it('propagates service errors', async () => {
