@@ -12,7 +12,7 @@ const MockPool = vi.hoisted(() =>
   }),
 );
 
-vi.mock('@prisma/client', () => ({
+vi.mock('../../src/generated/prisma', () => ({
   PrismaClient: vi.fn(function (this: any) {
     this.$connect = mockConnect;
     this.$disconnect = mockDisconnect;

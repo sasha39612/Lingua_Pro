@@ -4,9 +4,9 @@ import { buildSubgraphSchema } from '@apollo/subgraph';
 // @ts-ignore
 import { gql } from 'graphql-tag';
 // @ts-ignore - Prisma v7 types export resolution
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/prisma';
 // @ts-ignore - Prisma v7 types export resolution
-import type { User as PrismaUser } from '@prisma/client';
+import type { User as PrismaUser } from '../generated/prisma';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import * as argon2 from 'argon2';

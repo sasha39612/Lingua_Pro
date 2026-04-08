@@ -25,7 +25,7 @@ const capturedSchema = vi.hoisted(() => ({ resolvers: null as any }));
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
-vi.mock('@prisma/client', () => ({ PrismaClient: vi.fn(function () { return mockPrismaInstance; }) }));
+vi.mock('../generated/prisma', () => ({ PrismaClient: vi.fn(function () { return mockPrismaInstance; }) }));
 vi.mock('@prisma/adapter-pg', () => ({ PrismaPg: vi.fn(function () {}) }));
 vi.mock('pg', () => ({ Pool: vi.fn(function () {}) }));
 vi.mock('@apollo/subgraph', () => ({

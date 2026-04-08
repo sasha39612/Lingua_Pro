@@ -1,0 +1,65 @@
+// Prisma schema for Text Service
+// Owns: texts, tasks (writing/reading)
+// Database: text_db
+// userId is stored as a plain integer — no cross-DB FK to auth_db.users
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+model Text {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  language      String
+  originalText  String   @map("original_text")
+  correctedText String?  @map("corrected_text")
+  textScore     Float?   @map("text_score")
+  feedback      String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([language])
+  @@index([createdAt])
+  @@map("texts")
+}
+
+model Task {
+  id            Int      @id @default(autoincrement())
+  language      String
+  level         String
+  skill         String
+  prompt        String
+  audioUrl      String?  @map("audio_url")
+  referenceText String?  @map("reference_text")
+  answerOptions String[] @map("answer_options")
+  correctAnswer String?  @map("correct_answer")
+  focusPhonemes String[] @map("focus_phonemes")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([language])
+  @@index([level])
+  @@index([skill])
+  @@map("tasks")
+}
+
+model UserTaskSet {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  language  String
+  level     String
+  skill     String
+  taskIds   Int[]    @map("task_ids")
+  score     Float?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, language, level, skill])
+  @@index([userId])
+  @@map("user_task_sets")
+}
