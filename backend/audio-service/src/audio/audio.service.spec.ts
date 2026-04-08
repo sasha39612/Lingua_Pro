@@ -459,7 +459,7 @@ describe('AudioService', () => {
     it('throws when task is not found', async () => {
       mockAudioRepository.getTaskById.mockResolvedValue(null);
 
-      await expect(service.submitListeningAnswers('42', 999, [0, 1, 2, 3, 0])).rejects.toThrow('Task not found');
+      await expect(service.submitListeningAnswers('42', 999, [0, 1, 2, 3, 0])).rejects.toThrow('999');
     });
 
     it('throws when task has no questionsJson', async () => {
