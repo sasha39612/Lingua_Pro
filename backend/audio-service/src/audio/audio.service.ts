@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { AudioRepository } from './audio.repository';
 import { AiOrchestratorService, AudioAnalysisResult } from '../ai-orchestrator/ai-orchestrator.service';
 import axios from 'axios';
@@ -49,6 +49,8 @@ export interface ListeningAnswersResult {
 
 @Injectable()
 export class AudioService {
+  private readonly logger = new Logger(AudioService.name);
+
   constructor(
     private audioRepository: AudioRepository,
     private aiOrchestrator: AiOrchestratorService
@@ -262,6 +264,7 @@ export class AudioService {
     }
 
     // 2. No suitable task — generate a fresh passage with 5 questions via AI
+    this.logger.log(`getListeningTask: generating new passage for userId=${userId} lang=${normalizedLanguage} level=${level}`);
     const passage = await this.aiOrchestrator.generateListeningPassage(language, level);
 
     // 3. Synthesize TTS audio for the passage text
@@ -298,16 +301,24 @@ export class AudioService {
     taskId: number,
     userAnswers: number[],
   ): Promise<ListeningAnswersResult> {
+    this.logger.log(`submitListeningAnswers: userId=${userId} taskId=${taskId} answers=${JSON.stringify(userAnswers)}`);
+
     const task = await this.audioRepository.getTaskById(taskId);
     if (!task) {
-      throw new Error('Task not found');
+      throw new NotFoundException(`Task ${taskId} not found`);
     }
     if (!task.questionsJson) {
-      throw new Error('Task has no questions');
+      this.logger.warn(`Task ${taskId} has no questionsJson — may be an old-format task`);
+      throw new NotFoundException('Task has no questions. Press "Next Task" to load a new one.');
     }
 
-    const questions: { question: string; options: string[]; correctAnswer: number }[] =
-      JSON.parse(task.questionsJson);
+    let questions: { question: string; options: string[]; correctAnswer: number }[];
+    try {
+      questions = JSON.parse(task.questionsJson);
+    } catch (err) {
+      this.logger.error(`Failed to parse questionsJson for task ${taskId}: ${err}`);
+      throw new InternalServerErrorException('Task question data is corrupted');
+    }
 
     const total = questions.length;
     let correct = 0;
