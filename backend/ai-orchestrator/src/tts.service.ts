@@ -23,11 +23,15 @@ export class TtsService {
     }
 
     try {
+      // Listening passages are ~400 words — TTS can take 50-70s for long input
+      const textLength = text.trim().length;
+      const ttsTimeout = textLength > 500 ? 90_000 : 30_000;
+
       const audioBase64 = await withRetry(
         () =>
           withTimeout(
             this.generateAudio(text, language),
-            20_000,
+            ttsTimeout,
             'TTS request timed out',
           ),
         'synthesizeSpeech',

@@ -155,11 +155,13 @@ export class AiOrchestratorService {
     if (!this.orchestratorBaseUrl) {
       return { audioBase64: null, mimeType: null, durationEstimateMs: null };
     }
+    // Long passages (listening ~400 words) need up to 90s for TTS generation
+    const timeout = (text?.trim().length ?? 0) > 500 ? 100_000 : 35_000;
     try {
       const response = await axios.post(
         `${this.orchestratorBaseUrl.replace(/\/$/, '')}/audio/tts`,
         { text, language },
-        { timeout: 30_000 },
+        { timeout },
       );
       const d = response?.data;
       if (d?.audioBase64) {

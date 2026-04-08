@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       {
         headers: { 'x-user-id': userId },
         // TTS generation for a 400-word passage can take up to 45 s
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(110_000),
       },
     );
 
