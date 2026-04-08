@@ -1,8 +1,32 @@
 'use client';
 
 import { LabFrame } from '@/components/lab-frame';
+import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
 import type { AppLanguage } from '@/lib/types';
+
+const LEVEL_OPTIONS = [
+  { value: 'A1', label: 'A1' },
+  { value: 'A2', label: 'A2' },
+  { value: 'B1', label: 'B1' },
+  { value: 'B2', label: 'B2' },
+  { value: 'C1', label: 'C1' },
+  { value: 'C2', label: 'C2' },
+];
+
+const THEME_OPTIONS = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
+];
+
+const LANGUAGE_OPTIONS = [
+  { value: 'English', label: 'English' },
+  { value: 'German', label: 'German' },
+  { value: 'Albanian', label: 'Albanian' },
+  { value: 'Polish', label: 'Polish' },
+  { value: 'Ukrainian', label: 'Ukrainian' },
+];
 
 export function SettingsPage() {
   const user = useAppStore((s) => s.user);
@@ -25,45 +49,24 @@ export function SettingsPage() {
       <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
         <h2 className="text-lg font-semibold">Learning Settings</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <label className="text-sm">
-            <span className="mb-1 block text-slate-600">Level</span>
-            <select value={level} onChange={(e) => setLevel(e.target.value)} className="w-full rounded-xl border px-3 py-2">
-              <option>A1</option>
-              <option>A2</option>
-              <option>B1</option>
-              <option>B2</option>
-              <option>C1</option>
-              <option>C2</option>
-            </select>
-          </label>
-
-          <label className="text-sm">
-            <span className="mb-1 block text-slate-600">Theme</span>
-            <select
-              value={theme}
-              onChange={(e) => setTheme(e.target.value as 'light' | 'dark' | 'system')}
-              className="w-full rounded-xl border px-3 py-2"
-            >
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="system">System</option>
-            </select>
-          </label>
-
-          <label className="text-sm">
-            <span className="mb-1 block text-slate-600">Language</span>
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as AppLanguage)}
-              className="w-full rounded-xl border px-3 py-2"
-            >
-              <option>English</option>
-              <option>German</option>
-              <option>Albanian</option>
-              <option>Polish</option>
-              <option>Ukrainian</option>
-            </select>
-          </label>
+          <SelectDropdown
+            label="Level"
+            value={level}
+            options={LEVEL_OPTIONS}
+            onChange={setLevel}
+          />
+          <SelectDropdown
+            label="Theme"
+            value={theme}
+            options={THEME_OPTIONS}
+            onChange={(v) => setTheme(v as 'light' | 'dark' | 'system')}
+          />
+          <SelectDropdown
+            label="Language"
+            value={language}
+            options={LANGUAGE_OPTIONS}
+            onChange={(v) => setLanguage(v as AppLanguage)}
+          />
         </div>
       </section>
 
