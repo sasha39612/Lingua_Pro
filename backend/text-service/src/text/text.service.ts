@@ -90,29 +90,58 @@ export class TextService {
     }
   }
 
-  async getTasks(language: string, level: string, skill?: string) {
+  async getTasks(language: string, level: string, skill?: string, userId?: number | null) {
     language = language.toLowerCase();
-    const where: any = { language, level };
-    if (skill) {
-      where.skill = skill;
+    const effectiveSkill = skill || 'reading';
+    const db = this.prisma as any;
+
+    // ── Per-user path ────────────────────────────────────────────────────────
+    if (userId) {
+      let existingSet: any = null;
+      try {
+        existingSet = await db.userTaskSet.findUnique({
+          where: { userId_language_level_skill: { userId, language, level, skill: effectiveSkill } },
+        });
+      } catch (err: any) {
+        this.logger.error('failed to query user task set', err?.message || err);
+      }
+
+      if (existingSet) {
+        const completed = existingSet.score !== null && existingSet.score >= 0.95;
+        if (!completed && existingSet.taskIds?.length > 0) {
+          try {
+            const tasks = await this.prisma.task.findMany({
+              where: { id: { in: existingSet.taskIds } },
+            });
+            if (tasks.length > 0) return tasks;
+          } catch (err: any) {
+            this.logger.error('failed to fetch tasks by ids', err?.message || err);
+          }
+        }
+        // completed or ids missing — fall through to generate fresh tasks below
+      }
     }
+
+    // ── Shared pool / generate ───────────────────────────────────────────────
     let tasks: any[] = [];
     try {
-      tasks = await this.prisma.task.findMany({ where });
+      tasks = await this.prisma.task.findMany({ where: { language, level, skill: effectiveSkill } });
     } catch (err: any) {
       this.logger.error('failed to query cached tasks', err?.message || err);
-      tasks = [];
     }
+
     if (tasks.length === 0) {
       try {
         const resp = await lastValueFrom(
-          this.http.post(`${this.orchestratorUrl}/tasks/generate`, { language, level, skill })
+          this.http.post(`${this.orchestratorUrl}/tasks/generate`, { language, level, skill: effectiveSkill })
         );
         if (resp.data?.tasks) {
           const created: any[] = [];
           for (const t of resp.data.tasks) {
             try {
-              const record = await this.prisma.task.create({ data: { ...t, language: t.language?.toLowerCase() ?? t.language } });
+              const record = await this.prisma.task.create({
+                data: { ...t, language: t.language?.toLowerCase() ?? language },
+              });
               created.push(record);
             } catch (err: any) {
               this.logger.warn('failed to persist generated task', err?.message || err);
@@ -122,9 +151,25 @@ export class TextService {
         }
       } catch (err: any) {
         this.logger.error('failed to generate tasks from orchestrator', err?.message || err);
-        tasks = [];
       }
     }
+
+    // Assign tasks to user if authenticated
+    if (userId && tasks.length > 0) {
+      const db = this.prisma as any;
+      const assignedIds = tasks.slice(0, 3).map((t: any) => t.id);
+      try {
+        await db.userTaskSet.upsert({
+          where: { userId_language_level_skill: { userId, language, level, skill: effectiveSkill } },
+          create: { userId, language, level, skill: effectiveSkill, taskIds: assignedIds },
+          update: { taskIds: assignedIds, score: null },
+        });
+      } catch (err: any) {
+        this.logger.error('failed to save user task set', err?.message || err);
+      }
+      return tasks.slice(0, 3);
+    }
+
     return tasks;
   }
 }

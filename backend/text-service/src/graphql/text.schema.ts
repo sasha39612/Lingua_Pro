@@ -74,6 +74,7 @@ export const textTypeDefs = gql`
   type Mutation {
     submitText(userId: ID!, language: String!, text: String!): Text!
     checkText(input: CheckTextInput!): Text!
+    updateTaskSetScore(language: String!, level: String!, skill: String!, score: Float!): Boolean!
   }
 `;
 
@@ -173,47 +174,160 @@ export async function analyzeAndSave(
 }
 
 /**
+ * Generate tasks via the AI orchestrator and persist them to the shared pool.
+ */
+async function generateAndPersistTasks(language: string, level: string, skill: string): Promise<any[]> {
+  try {
+    const resp = await orchestrator.post('/tasks/generate', { language, level, skill });
+    if (!resp.data?.tasks) return [];
+    const created: any[] = [];
+    for (const t of resp.data.tasks) {
+      try {
+        const record = await prisma.task.create({
+          data: { ...t, language: t.language?.toLowerCase() ?? language },
+        });
+        created.push(record);
+      } catch (e: any) {
+        console.warn('failed to persist generated task', e?.message || e);
+      }
+    }
+    return created;
+  } catch (e: any) {
+    console.error('failed to generate tasks from orchestrator', e?.message || e);
+    return [];
+  }
+}
+
+/**
  * Query the database for tasks matching language/level/skill. If none exist
  * then attempt to generate them via the AI orchestrator and persist the new
  * items so the next request can hit the cache.
+ *
+ * When userId is provided the function tracks per-user task assignment:
+ *  - First request  → generate/fetch tasks, save a UserTaskSet record.
+ *  - Subsequent requests, score < 0.95 → return the same tasks from the DB.
+ *  - Subsequent requests, score >= 0.95 → generate fresh tasks, reset the set.
  */
 export async function fetchTasks(
   language: string,
   level: string,
-  skill?: string
+  skill?: string,
+  userId?: number | null,
 ) {
   language = language.toLowerCase();
-  const where: any = { language, level };
-  if (skill) where.skill = skill;
+  const effectiveSkill = skill || 'reading';
 
-  let tasks: any[] = [];
-  try {
-    tasks = await prisma.task.findMany({ where });
-  } catch (e: any) {
-    console.error('failed to query cached tasks', e?.message || e);
-    tasks = [];
-  }
-  if (tasks.length === 0) {
+  // ── Shared-cache path (no authenticated user) ──────────────────────────────
+  if (!userId) {
+    const where: any = { language, level, skill: effectiveSkill };
+    let tasks: any[] = [];
     try {
-      const resp = await orchestrator.post('/tasks/generate', { language, level, skill });
-      if (resp.data?.tasks) {
-        const created: any[] = [];
-        for (const t of resp.data.tasks) {
-          try {
-            const record = await prisma.task.create({ data: { ...t, language: t.language?.toLowerCase() ?? language } });
-            created.push(record);
-          } catch (e: any) {
-            console.warn('failed to persist generated task', e?.message || e);
-          }
-        }
-        tasks = created;
-      }
+      tasks = await prisma.task.findMany({ where });
     } catch (e: any) {
-      console.error('failed to generate tasks from orchestrator', e?.message || e);
-      tasks = [];
+      console.error('failed to query cached tasks', e?.message || e);
+    }
+    if (tasks.length === 0) {
+      tasks = await generateAndPersistTasks(language, level, effectiveSkill);
+    }
+    return tasks;
+  }
+
+  // ── Per-user path ──────────────────────────────────────────────────────────
+  const db = prisma as any;
+
+  let existingSet: any = null;
+  try {
+    existingSet = await db.userTaskSet.findUnique({
+      where: { userId_language_level_skill: { userId, language, level, skill: effectiveSkill } },
+    });
+  } catch (e: any) {
+    console.error('failed to query user task set', e?.message || e);
+  }
+
+  if (existingSet) {
+    const completed = existingSet.score !== null && existingSet.score >= 0.95;
+
+    if (completed) {
+      // User finished with ≥ 95% — generate a fresh set of tasks
+      const newTasks = await generateAndPersistTasks(language, level, effectiveSkill);
+      if (newTasks.length > 0) {
+        try {
+          await db.userTaskSet.update({
+            where: { id: existingSet.id },
+            data: { taskIds: newTasks.map((t: any) => t.id), score: null },
+          });
+        } catch (e: any) {
+          console.error('failed to update user task set', e?.message || e);
+        }
+        return newTasks;
+      }
+    }
+
+    // Return the tasks previously assigned to this user
+    if (existingSet.taskIds && existingSet.taskIds.length > 0) {
+      try {
+        const tasks = await prisma.task.findMany({
+          where: { id: { in: existingSet.taskIds } },
+        });
+        if (tasks.length > 0) return tasks;
+      } catch (e: any) {
+        console.error('failed to fetch tasks by ids', e?.message || e);
+      }
     }
   }
-  return tasks;
+
+  // No set yet (or tasks were deleted) — fetch from shared pool or generate
+  let tasks: any[] = [];
+  try {
+    tasks = await prisma.task.findMany({ where: { language, level, skill: effectiveSkill } });
+  } catch (e: any) {
+    console.error('failed to query task pool', e?.message || e);
+  }
+  if (tasks.length === 0) {
+    tasks = await generateAndPersistTasks(language, level, effectiveSkill);
+  }
+
+  const assignedIds = tasks.slice(0, 3).map((t: any) => t.id);
+  try {
+    if (existingSet) {
+      await db.userTaskSet.update({
+        where: { id: existingSet.id },
+        data: { taskIds: assignedIds, score: null },
+      });
+    } else {
+      await db.userTaskSet.create({
+        data: { userId, language, level, skill: effectiveSkill, taskIds: assignedIds },
+      });
+    }
+  } catch (e: any) {
+    console.error('failed to save user task set', e?.message || e);
+  }
+
+  return tasks.slice(0, 3);
+}
+
+/**
+ * Update the score for a user's task set after they complete tasks.
+ * Score should be 0–1 (e.g. 1.0 = 100%, 0.95 = 95%).
+ */
+export async function updateTaskSetScore(
+  userId: number,
+  language: string,
+  level: string,
+  skill: string,
+  score: number,
+): Promise<boolean> {
+  const db = prisma as any;
+  try {
+    await db.userTaskSet.updateMany({
+      where: { userId, language: language.toLowerCase(), level, skill },
+      data: { score },
+    });
+    return true;
+  } catch (e: any) {
+    console.error('failed to update task set score', e?.message || e);
+    return false;
+  }
 }
 
 export const textSchema = buildSubgraphSchema([
@@ -225,14 +339,19 @@ export const textSchema = buildSubgraphSchema([
           prisma.text.findMany({ where: { userId: parseInt(userId, 10) } }),
         text: (_: any, { id }: any) =>
           prisma.text.findUnique({ where: { id: parseInt(id, 10) } }),
-        tasks: (_: any, { language, level, skill }: any) =>
-          fetchTasks(language, level, skill)
+        tasks: (_: any, { language, level, skill }: any, context: any) =>
+          fetchTasks(language, level, skill, context?.userId ?? null),
       },
       Mutation: {
         submitText: (_: any, { userId, language, text }: any) =>
           analyzeAndSave(userId, language, text),
         checkText: (_: any, { input }: any) =>
           analyzeAndSave(input.userId, input.language, input.text),
+        updateTaskSetScore: (_: any, { language, level, skill, score }: any, context: any) => {
+          const userId = context?.userId;
+          if (!userId) return false;
+          return updateTaskSetScore(userId, language, level, skill, score);
+        },
       },
       Text: {
         __resolveReference: (text: any) => text

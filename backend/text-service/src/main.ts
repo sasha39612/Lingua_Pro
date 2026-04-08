@@ -21,7 +21,11 @@ async function bootstrap() {
     '/graphql',
     json(),
     expressMiddleware(apolloServer, {
-      context: async ({ req }: any) => ({ req }),
+      context: async ({ req }: any) => {
+        const rawUserId = req.headers['x-user-id'];
+        const userId = rawUserId ? parseInt(String(rawUserId), 10) : null;
+        return { req, userId };
+      },
     }),
   );
 

@@ -46,3 +46,19 @@ model Task {
   @@index([skill])
   @@map("tasks")
 }
+
+model UserTaskSet {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  language  String
+  level     String
+  skill     String
+  taskIds   Int[]    @map("task_ids")
+  score     Float?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, language, level, skill])
+  @@index([userId])
+  @@map("user_task_sets")
+}

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Headers } from '@nestjs/common';
 import { TextService } from './text.service';
 
 @Controller('text')
@@ -19,9 +19,11 @@ export class TextController {
   async tasks(
     @Query('language') language: string,
     @Query('level') level: string,
-    @Query('skill') skill?: string
+    @Query('skill') skill?: string,
+    @Headers('x-user-id') rawUserId?: string,
   ) {
-    return this.textService.getTasks(language, level, skill);
+    const userId = rawUserId ? parseInt(rawUserId, 10) : null;
+    return this.textService.getTasks(language, level, skill, userId);
   }
 
   @Get('by-language')
