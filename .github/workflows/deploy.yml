@@ -87,8 +87,11 @@ jobs:
 
       - name: Copy compose files to server
         run: |
-          scp docker-compose.yml docker-compose.prod.yml scripts/deploy.sh \
+          ssh "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}" "mkdir -p /opt/lingua-pro/scripts"
+          scp docker-compose.yml docker-compose.prod.yml \
             "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}:/opt/lingua-pro/"
+          scp scripts/deploy.sh \
+            "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}:/opt/lingua-pro/scripts/"
 
       - name: Set lowercase repo name
         id: repo
