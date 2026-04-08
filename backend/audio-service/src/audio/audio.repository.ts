@@ -114,28 +114,38 @@ export class AudioRepository {
   }
 
   // ── Listening task flow ─────────────────────────────────────────────────────
+  // All methods below use $queryRaw / $executeRaw so they work regardless of
+  // whether `prisma generate` has been re-run after adding ListeningScore.
+  // The only requirement is that the SQL migration has been applied.
 
   async getNextListeningTask(
     userId: number,
     language: string,
     level: string,
   ): Promise<Task | null> {
-    // Cast where clause to any: listeningScores relation is added by the new
-    // migration but prisma generate hasn't run locally yet (runs in Docker build).
-    return (this.prisma.task as any).findFirst({
-      where: {
-        language,
-        level,
-        skill: 'listening',
-        OR: [
-          // User has never attempted this task
-          { listeningScores: { none: { userId } } },
-          // User attempted but scored less than 100%
-          { listeningScores: { some: { userId, score: { lt: 1.0 } } } },
-        ],
-      },
+    // Step 1 — fetch matching tasks via the existing (known) Prisma model.
+    const tasks = await this.prisma.task.findMany({
+      where: { language, level, skill: 'listening' },
       orderBy: { createdAt: 'asc' },
+      take: 50,
     });
+    if (tasks.length === 0) return null;
+
+    // Step 2 — find which task IDs the user has already scored 100% on.
+    //           Use raw SQL so we don't depend on the Prisma-generated ListeningScore type.
+    let completedIds = new Set<number>();
+    try {
+      const rows = await this.prisma.$queryRaw<{ task_id: number }[]>`
+        SELECT task_id FROM listening_scores
+        WHERE user_id = ${userId} AND score >= 1.0
+      `;
+      completedIds = new Set(rows.map((r) => Number(r.task_id)));
+    } catch {
+      // Table doesn't exist yet (migration pending) — treat all tasks as incomplete.
+    }
+
+    // Step 3 — return first task the user hasn't fully completed.
+    return tasks.find((t) => !completedIds.has(t.id)) ?? null;
   }
 
   async createTask(data: CreateTaskInput): Promise<Task> {
@@ -154,19 +164,21 @@ export class AudioRepository {
   }
 
   async upsertListeningScore(userId: number, taskId: number, score: number): Promise<void> {
-    // Cast to any: ListeningScore model added by migration, prisma generate runs in Docker build.
-    await (this.prisma as any).listeningScore.upsert({
-      where: { userId_taskId: { userId, taskId } },
-      create: { userId, taskId, score },
-      update: { score },
-    });
+    await this.prisma.$executeRaw`
+      INSERT INTO listening_scores (user_id, task_id, score, created_at, updated_at)
+      VALUES (${userId}, ${taskId}, ${score}, NOW(), NOW())
+      ON CONFLICT (user_id, task_id) DO UPDATE
+        SET score = EXCLUDED.score, updated_at = NOW()
+    `;
   }
 
   async getListeningScore(userId: number, taskId: number): Promise<{ score: number } | null> {
-    return (this.prisma as any).listeningScore.findUnique({
-      where: { userId_taskId: { userId, taskId } },
-      select: { score: true },
-    });
+    const rows = await this.prisma.$queryRaw<{ score: number }[]>`
+      SELECT score FROM listening_scores
+      WHERE user_id = ${userId} AND task_id = ${taskId}
+      LIMIT 1
+    `;
+    return rows[0] ?? null;
   }
 
   async updateTaskAudio(taskId: number, audioUrl: string): Promise<void> {

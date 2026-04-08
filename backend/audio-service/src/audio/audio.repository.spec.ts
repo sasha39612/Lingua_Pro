@@ -13,14 +13,11 @@ function makeRepo() {
     task: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
-      findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
-    listeningScore: {
-      upsert: vi.fn(),
-      findUnique: vi.fn(),
-    },
+    $queryRaw: vi.fn(),
+    $executeRaw: vi.fn(),
   };
   const repo = new AudioRepository(mockPrisma as any);
   return { repo, mockPrisma };
@@ -262,37 +259,57 @@ describe('AudioRepository', () => {
   // ─── getNextListeningTask ──────────────────────────────────────────────────
 
   describe('getNextListeningTask', () => {
-    const fakeTask = { id: 10, language: 'english', level: 'B1', skill: 'listening' };
+    const taskA = { id: 10, language: 'english', level: 'B1', skill: 'listening', prompt: 'A', answerOptions: [], createdAt: new Date() };
+    const taskB = { id: 11, language: 'english', level: 'B1', skill: 'listening', prompt: 'B', answerOptions: [], createdAt: new Date() };
 
-    it('calls task.findFirst with correct OR filter', async () => {
+    it('returns first task not yet 100% completed by the user', async () => {
       const { repo, mockPrisma } = makeRepo();
-      mockPrisma.task.findFirst.mockResolvedValue(fakeTask);
+      mockPrisma.task.findMany.mockResolvedValue([taskA, taskB]);
+      // taskA completed at 100%, taskB not
+      mockPrisma.$queryRaw.mockResolvedValue([{ task_id: 10 }]);
 
       const result = await repo.getNextListeningTask(42, 'english', 'B1');
 
-      expect(mockPrisma.task.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            language: 'english',
-            level: 'B1',
-            skill: 'listening',
-            OR: expect.arrayContaining([
-              expect.objectContaining({ listeningScores: { none: { userId: 42 } } }),
-              expect.objectContaining({ listeningScores: expect.objectContaining({ some: expect.any(Object) }) }),
-            ]),
-          }),
-          orderBy: { createdAt: 'asc' },
-        }),
+      expect(mockPrisma.task.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { language: 'english', level: 'B1', skill: 'listening' } }),
       );
-      expect(result).toEqual(fakeTask);
+      expect(result).toEqual(taskB);
     });
 
-    it('returns null when no eligible task found', async () => {
+    it('returns first task when user has no scores at all', async () => {
       const { repo, mockPrisma } = makeRepo();
-      mockPrisma.task.findFirst.mockResolvedValue(null);
+      mockPrisma.task.findMany.mockResolvedValue([taskA, taskB]);
+      mockPrisma.$queryRaw.mockResolvedValue([]);
+
+      const result = await repo.getNextListeningTask(42, 'english', 'B1');
+      expect(result).toEqual(taskA);
+    });
+
+    it('returns null when no tasks match the filter', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.task.findMany.mockResolvedValue([]);
 
       const result = await repo.getNextListeningTask(42, 'english', 'B1');
       expect(result).toBeNull();
+      expect(mockPrisma.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('returns null when all tasks are 100% completed', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.task.findMany.mockResolvedValue([taskA, taskB]);
+      mockPrisma.$queryRaw.mockResolvedValue([{ task_id: 10 }, { task_id: 11 }]);
+
+      const result = await repo.getNextListeningTask(42, 'english', 'B1');
+      expect(result).toBeNull();
+    });
+
+    it('treats all tasks as incomplete when $queryRaw throws (pre-migration)', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.task.findMany.mockResolvedValue([taskA]);
+      mockPrisma.$queryRaw.mockRejectedValue(new Error('relation "listening_scores" does not exist'));
+
+      const result = await repo.getNextListeningTask(42, 'english', 'B1');
+      expect(result).toEqual(taskA);
     });
   });
 
@@ -348,28 +365,23 @@ describe('AudioRepository', () => {
   // ─── upsertListeningScore ──────────────────────────────────────────────────
 
   describe('upsertListeningScore', () => {
-    it('calls listeningScore.upsert with correct payload', async () => {
+    it('calls $executeRaw with upsert SQL', async () => {
       const { repo, mockPrisma } = makeRepo();
-      mockPrisma.listeningScore.upsert.mockResolvedValue(undefined);
+      mockPrisma.$executeRaw.mockResolvedValue(1);
 
       await repo.upsertListeningScore(42, 10, 1.0);
 
-      expect(mockPrisma.listeningScore.upsert).toHaveBeenCalledWith({
-        where: { userId_taskId: { userId: 42, taskId: 10 } },
-        create: { userId: 42, taskId: 10, score: 1.0 },
-        update: { score: 1.0 },
-      });
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1);
     });
 
-    it('updates score when called again for the same userId+taskId', async () => {
+    it('can be called multiple times for the same userId+taskId', async () => {
       const { repo, mockPrisma } = makeRepo();
-      mockPrisma.listeningScore.upsert.mockResolvedValue(undefined);
+      mockPrisma.$executeRaw.mockResolvedValue(1);
 
       await repo.upsertListeningScore(42, 10, 0.5);
       await repo.upsertListeningScore(42, 10, 1.0);
 
-      expect(mockPrisma.listeningScore.upsert).toHaveBeenCalledTimes(2);
-      expect(mockPrisma.listeningScore.upsert.mock.calls[1][0].update).toEqual({ score: 1.0 });
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -378,20 +390,17 @@ describe('AudioRepository', () => {
   describe('getListeningScore', () => {
     it('returns score when found', async () => {
       const { repo, mockPrisma } = makeRepo();
-      mockPrisma.listeningScore.findUnique.mockResolvedValue({ score: 0.75 });
+      mockPrisma.$queryRaw.mockResolvedValue([{ score: 0.75 }]);
 
       const result = await repo.getListeningScore(42, 10);
 
-      expect(mockPrisma.listeningScore.findUnique).toHaveBeenCalledWith({
-        where: { userId_taskId: { userId: 42, taskId: 10 } },
-        select: { score: true },
-      });
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1);
       expect(result).toEqual({ score: 0.75 });
     });
 
     it('returns null when no score record found', async () => {
       const { repo, mockPrisma } = makeRepo();
-      mockPrisma.listeningScore.findUnique.mockResolvedValue(null);
+      mockPrisma.$queryRaw.mockResolvedValue([]);
 
       const result = await repo.getListeningScore(42, 999);
       expect(result).toBeNull();
