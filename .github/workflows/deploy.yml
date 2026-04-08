@@ -80,18 +80,11 @@ jobs:
 
       - name: Set up SSH
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_rsa
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: Copy compose files to server
-        run: |
-          ssh "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}" "mkdir -p /opt/lingua-pro/scripts"
-          scp docker-compose.yml docker-compose.prod.yml \
-            "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}:/opt/lingua-pro/"
-          scp scripts/deploy.sh \
-            "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}:/opt/lingua-pro/scripts/"
+          printf '%s\n' "${{ secrets.SERVER_HOST_KEY }}" >> ~/.ssh/known_hosts
+          printf 'Host *\n  ServerAliveInterval 60\n' > ~/.ssh/config
 
       - name: Set lowercase repo name
         id: repo
@@ -99,12 +92,27 @@ jobs:
           REPO: ${{ github.repository }}
         run: echo "name=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy on server
+      - name: Copy compose files to server
+        env:
+          DEST: "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}"
         run: |
-          ssh "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}" bash << 'EOF'
-            export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
-            export GHCR_USER="${{ github.actor }}"
-            export GITHUB_REPOSITORY="${{ steps.repo.outputs.name }}"
-            cd /opt/lingua-pro
-            bash scripts/deploy.sh "${{ github.sha }}"
-          EOF
+          ssh "$DEST" "mkdir -p /opt/lingua-pro/scripts"
+          scp docker-compose.yml docker-compose.prod.yml "$DEST:/opt/lingua-pro/"
+          scp scripts/deploy.sh "$DEST:/opt/lingua-pro/scripts/"
+
+      - name: Deploy on server
+        env:
+          DEST: "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}"
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          GH_REPO: ${{ steps.repo.outputs.name }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          {
+            printf 'export GHCR_TOKEN=%q\n'          "$GHCR_TOKEN"
+            printf 'export GHCR_USER=%q\n'           "$GHCR_USER"
+            printf 'export GITHUB_REPOSITORY=%q\n'   "$GH_REPO"
+            printf 'export PATH=$PATH:/usr/local/bin\n'
+            printf 'cd /opt/lingua-pro\n'
+            printf 'bash scripts/deploy.sh %q\n'     "$GIT_SHA"
+          } | ssh "$DEST" bash
