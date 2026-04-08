@@ -8,6 +8,7 @@ import { TtsService } from './tts.service';
 import type {
   AnalyzeResult,
   GeneratedTask,
+  ListeningPassage,
   PronunciationAnalysisResult,
   TranscriptionResult,
   TtsResult,
@@ -37,6 +38,10 @@ export class OrchestratorService {
 
   generateTasks(language: string, level: string, skill?: string): Promise<GeneratedTask[]> {
     return this.tasks.generateTasks(language, level, skill);
+  }
+
+  generateListeningPassage(language: string, level: string): Promise<ListeningPassage> {
+    return this.tasks.generateListeningPassage(language, level);
   }
 
   // ── Audio transcription ────────────────────────────────────────────────────

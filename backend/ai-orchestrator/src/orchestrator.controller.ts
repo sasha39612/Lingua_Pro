@@ -23,6 +23,14 @@ class GenerateTasksDto {
   skill?: string;
 }
 
+class GenerateListeningDto {
+  @IsString()
+  language!: string;
+
+  @IsString()
+  level!: string;
+}
+
 class TranscribeAudioDto {
   @IsString()
   audioBase64!: string;
@@ -74,6 +82,11 @@ export class OrchestratorController {
     return {
       tasks: await this.orchestratorService.generateTasks(body.language, body.level, body.skill),
     };
+  }
+
+  @Post('tasks/generate-listening')
+  async generateListeningPassage(@Body() body: GenerateListeningDto) {
+    return this.orchestratorService.generateListeningPassage(body.language, body.level);
   }
 
   @Post('audio/transcribe')

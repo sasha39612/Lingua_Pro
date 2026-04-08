@@ -18,6 +18,7 @@ const mockAudioRepository = {
 const mockAiOrchestrator = {
   analyzeAudio: vi.fn(),
   generateTask: vi.fn(),
+  generateListeningPassage: vi.fn(),
   synthesizeSpeech: vi.fn(),
 };
 
@@ -226,16 +227,26 @@ describe('AudioService', () => {
   // ─── getListeningTask ────────────────────────────────────────────────────────
 
   describe('getListeningTask', () => {
+    const fakeQuestions = [
+      { question: 'Q1?', options: ['A', 'B', 'C', 'D'], correctAnswer: 0 },
+      { question: 'Q2?', options: ['A', 'B', 'C', 'D'], correctAnswer: 1 },
+      { question: 'Q3?', options: ['A', 'B', 'C', 'D'], correctAnswer: 2 },
+      { question: 'Q4?', options: ['A', 'B', 'C', 'D'], correctAnswer: 3 },
+      { question: 'Q5?', options: ['A', 'B', 'C', 'D'], correctAnswer: 0 },
+    ];
+    const fakeQuestionsJson = JSON.stringify(fakeQuestions);
+
     const fakeTaskWithAudio = {
       id: 10,
       language: 'english',
       level: 'B1',
       skill: 'listening',
-      prompt: 'Listen and answer',
+      prompt: 'Listen to the audio and answer the comprehension questions.',
       audioUrl: 'data:audio/mpeg;base64,AAAA',
       referenceText: 'The speaker talks about travel.',
-      answerOptions: ['Option A', 'Option B', 'Option C', 'Option D'],
-      correctAnswer: 'A',
+      answerOptions: [] as string[],
+      correctAnswer: null,
+      questionsJson: fakeQuestionsJson,
       createdAt: new Date(),
     };
 
@@ -243,35 +254,41 @@ describe('AudioService', () => {
 
     const fakeTts = { audioBase64: 'BASE64DATA', mimeType: 'audio/mpeg', durationEstimateMs: 3000 };
 
+    const fakePassage = {
+      passageText: 'The speaker talks about travel.',
+      questions: fakeQuestions,
+    };
+
     beforeEach(() => {
       mockAudioRepository.getNextListeningTask.mockResolvedValue(null);
       mockAudioRepository.createTask.mockResolvedValue(fakeTaskWithAudio);
       mockAudioRepository.updateTaskAudio.mockResolvedValue(undefined);
-      mockAiOrchestrator.generateTask.mockResolvedValue({
-        language: 'english',
-        level: 'B1',
-        skill: 'listening',
-        prompt: 'Listen and answer',
-        referenceText: 'The speaker talks about travel.',
-        answerOptions: ['Option A', 'Option B', 'Option C', 'Option D'],
-        correctAnswer: 'A',
-        audioUrl: null,
-        focusPhonemes: null,
-      });
+      mockAiOrchestrator.generateListeningPassage.mockResolvedValue(fakePassage);
       mockAiOrchestrator.synthesizeSpeech.mockResolvedValue(fakeTts);
     });
 
-    it('returns existing task directly when it has audioUrl', async () => {
+    it('returns existing task directly when it has audioUrl and questionsJson', async () => {
       mockAudioRepository.getNextListeningTask.mockResolvedValue(fakeTaskWithAudio);
 
       const result = await service.getListeningTask('42', 'english', 'B1');
 
       expect(mockAudioRepository.getNextListeningTask).toHaveBeenCalledWith(42, 'english', 'B1');
-      expect(mockAiOrchestrator.generateTask).not.toHaveBeenCalled();
+      expect(mockAiOrchestrator.generateListeningPassage).not.toHaveBeenCalled();
       expect(result.taskId).toBe(10);
       expect(result.audioUrl).toBe('data:audio/mpeg;base64,AAAA');
       expect(result.audioBase64).toBe('AAAA');
-      expect(result.answerOptions).toEqual(fakeTaskWithAudio.answerOptions);
+      expect(result.questions).toHaveLength(5);
+      expect(result.questions[0]).toMatchObject({ index: 0, question: 'Q1?' });
+    });
+
+    it('strips correctAnswer from questions returned to client', async () => {
+      mockAudioRepository.getNextListeningTask.mockResolvedValue(fakeTaskWithAudio);
+
+      const result = await service.getListeningTask('42', 'english', 'B1');
+
+      result.questions.forEach((q) => {
+        expect(q).not.toHaveProperty('correctAnswer');
+      });
     });
 
     it('synthesizes audio and backfills when existing task has no audioUrl', async () => {
@@ -303,14 +320,23 @@ describe('AudioService', () => {
       expect(result.audioUrl).toBeNull();
     });
 
-    it('generates new task + TTS and saves when no existing task found', async () => {
+    it('falls through to generation when existing task has no questionsJson', async () => {
+      const taskWithoutQuestions = { ...fakeTaskWithAudio, questionsJson: null };
+      mockAudioRepository.getNextListeningTask.mockResolvedValue(taskWithoutQuestions);
+
+      await service.getListeningTask('42', 'english', 'B1');
+
+      expect(mockAiOrchestrator.generateListeningPassage).toHaveBeenCalledWith('english', 'B1');
+    });
+
+    it('generates new passage + TTS and saves when no existing task found', async () => {
       mockAudioRepository.getNextListeningTask.mockResolvedValue(null);
 
       const result = await service.getListeningTask('42', 'english', 'B1');
 
-      expect(mockAiOrchestrator.generateTask).toHaveBeenCalledWith('english', 'B1', 'listening');
+      expect(mockAiOrchestrator.generateListeningPassage).toHaveBeenCalledWith('english', 'B1');
       expect(mockAiOrchestrator.synthesizeSpeech).toHaveBeenCalledWith(
-        'The speaker talks about travel.',
+        fakePassage.passageText,
         'english',
       );
       expect(mockAudioRepository.createTask).toHaveBeenCalledWith(
@@ -319,10 +345,12 @@ describe('AudioService', () => {
           level: 'B1',
           skill: 'listening',
           audioUrl: 'data:audio/mpeg;base64,BASE64DATA',
+          questionsJson: fakeQuestionsJson,
         }),
       );
       expect(result.taskId).toBe(fakeTaskWithAudio.id);
       expect(result.audioBase64).toBe('BASE64DATA');
+      expect(result.questions).toHaveLength(5);
     });
 
     it('normalizes language to lowercase before querying', async () => {
@@ -333,7 +361,7 @@ describe('AudioService', () => {
       expect(mockAudioRepository.getNextListeningTask).toHaveBeenCalledWith(42, 'english', 'B1');
     });
 
-    it('generates new task with null audio when TTS fails on generation', async () => {
+    it('returns null audio when TTS fails during generation', async () => {
       mockAudioRepository.getNextListeningTask.mockResolvedValue(null);
       mockAiOrchestrator.synthesizeSpeech.mockResolvedValue({ audioBase64: null, mimeType: null, durationEstimateMs: null });
 
@@ -344,14 +372,23 @@ describe('AudioService', () => {
     });
   });
 
-  // ─── submitListeningScore ────────────────────────────────────────────────────
+  // ─── submitListeningAnswers ──────────────────────────────────────────────────
 
-  describe('submitListeningScore', () => {
+  describe('submitListeningAnswers', () => {
+    const fakeQuestions = [
+      { question: 'Q1?', options: ['A', 'B', 'C', 'D'], correctAnswer: 0 },
+      { question: 'Q2?', options: ['A', 'B', 'C', 'D'], correctAnswer: 1 },
+      { question: 'Q3?', options: ['A', 'B', 'C', 'D'], correctAnswer: 2 },
+      { question: 'Q4?', options: ['A', 'B', 'C', 'D'], correctAnswer: 3 },
+      { question: 'Q5?', options: ['A', 'B', 'C', 'D'], correctAnswer: 0 },
+    ];
+
     const fakeTask = {
       id: 10,
-      prompt: 'Listen and answer',
-      answerOptions: ['Option A', 'Option B', 'Option C', 'Option D'],
-      correctAnswer: 'A',
+      prompt: 'Listen to the audio and answer the comprehension questions.',
+      answerOptions: [] as string[],
+      correctAnswer: null,
+      questionsJson: JSON.stringify(fakeQuestions),
       language: 'english',
       level: 'B1',
       skill: 'listening',
@@ -365,45 +402,74 @@ describe('AudioService', () => {
       mockAudioRepository.upsertListeningScore.mockResolvedValue(undefined);
     });
 
-    it('returns score=1 and correct=total when answer matches correctAnswer', async () => {
-      const result = await service.submitListeningScore('42', 10, ['A']);
+    it('returns score=1 when all answers are correct', async () => {
+      // correctAnswers: [0, 1, 2, 3, 0]
+      const result = await service.submitListeningAnswers('42', 10, [0, 1, 2, 3, 0]);
 
       expect(result.score).toBe(1);
-      expect(result.correct).toBe(4);
-      expect(result.total).toBe(4);
+      expect(result.correct).toBe(5);
+      expect(result.total).toBe(5);
       expect(mockAudioRepository.upsertListeningScore).toHaveBeenCalledWith(42, 10, 1);
     });
 
-    it('returns score=0 when answer is wrong', async () => {
-      const result = await service.submitListeningScore('42', 10, ['B']);
+    it('returns partial score when some answers are wrong', async () => {
+      // correct: [0,1,2,3,0] — user gives wrong answers for Q1 and Q5
+      const result = await service.submitListeningAnswers('42', 10, [1, 1, 2, 3, 1]);
+
+      expect(result.correct).toBe(3);
+      expect(result.total).toBe(5);
+      expect(result.score).toBeCloseTo(3 / 5);
+    });
+
+    it('returns score=0 when all answers are wrong', async () => {
+      const result = await service.submitListeningAnswers('42', 10, [3, 0, 0, 0, 3]);
 
       expect(result.score).toBe(0);
       expect(result.correct).toBe(0);
-      expect(result.total).toBe(4);
-      expect(mockAudioRepository.upsertListeningScore).toHaveBeenCalledWith(42, 10, 0);
     });
 
-    it('is case-insensitive when comparing answers', async () => {
-      const result = await service.submitListeningScore('42', 10, ['a']);
-      expect(result.score).toBe(1);
+    it('returns per-question result with correctOptionText', async () => {
+      const result = await service.submitListeningAnswers('42', 10, [0, 1, 2, 3, 0]);
+
+      expect(result.results).toHaveLength(5);
+      expect(result.results[0]).toMatchObject({
+        questionIndex: 0,
+        question: 'Q1?',
+        correct: true,
+        userAnswer: 0,
+        correctAnswer: 0,
+        correctOptionText: 'A',
+      });
+      expect(result.results[2]).toMatchObject({
+        questionIndex: 2,
+        correct: true,
+        correctAnswer: 2,
+        correctOptionText: 'C',
+      });
     });
 
-    it('returns score=0 when task has no correctAnswer', async () => {
-      mockAudioRepository.getTaskById.mockResolvedValue({ ...fakeTask, correctAnswer: null });
+    it('marks incorrect questions properly in results', async () => {
+      const result = await service.submitListeningAnswers('42', 10, [1, 1, 2, 3, 0]);
 
-      const result = await service.submitListeningScore('42', 10, ['A']);
-      expect(result.score).toBe(0);
-      expect(result.correct).toBe(0);
+      expect(result.results[0].correct).toBe(false);
+      expect(result.results[0].userAnswer).toBe(1);
+      expect(result.results[0].correctAnswer).toBe(0);
     });
 
     it('throws when task is not found', async () => {
       mockAudioRepository.getTaskById.mockResolvedValue(null);
 
-      await expect(service.submitListeningScore('42', 999, ['A'])).rejects.toThrow('Task not found');
+      await expect(service.submitListeningAnswers('42', 999, [0, 1, 2, 3, 0])).rejects.toThrow('Task not found');
+    });
+
+    it('throws when task has no questionsJson', async () => {
+      mockAudioRepository.getTaskById.mockResolvedValue({ ...fakeTask, questionsJson: null });
+
+      await expect(service.submitListeningAnswers('42', 10, [0, 1, 2, 3, 0])).rejects.toThrow('Task has no questions');
     });
 
     it('persists score with parsed integer userId', async () => {
-      await service.submitListeningScore('7', 10, ['A']);
+      await service.submitListeningAnswers('7', 10, [0, 1, 2, 3, 0]);
       expect(mockAudioRepository.upsertListeningScore).toHaveBeenCalledWith(7, 10, expect.any(Number));
     });
   });

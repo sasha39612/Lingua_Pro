@@ -20,6 +20,7 @@ interface CreateTaskInput {
   referenceText?: string | null;
   answerOptions: string[];
   correctAnswer?: string | null;
+  questionsJson?: string | null;
 }
 
 @Injectable()
@@ -159,6 +160,7 @@ export class AudioRepository {
         referenceText: data.referenceText ?? null,
         answerOptions: data.answerOptions,
         correctAnswer: data.correctAnswer ?? null,
+        questionsJson: data.questionsJson ?? null,
       },
     });
   }

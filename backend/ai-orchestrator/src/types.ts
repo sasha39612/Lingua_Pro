@@ -86,6 +86,19 @@ export type GeneratedTask = {
   correctAnswer: string | null;   // "A" | "B" | "C" | "D"; null for speaking
 };
 
+// ── Listening passage ─────────────────────────────────────────────────────────
+
+export type ListeningQuestion = {
+  question: string;
+  options: [string, string, string, string]; // always exactly 4
+  correctAnswer: number; // 0-based index into options
+};
+
+export type ListeningPassage = {
+  passageText: string;         // ~400 word spoken text for TTS
+  questions: ListeningQuestion[]; // always 5
+};
+
 // ── TTS ───────────────────────────────────────────────────────────────────────
 
 export type TtsResult = {

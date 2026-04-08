@@ -3,7 +3,7 @@
  * Client
 **/
 
-import * as runtime from './runtime/library.js';
+import * as runtime from './runtime/client.js';
 import $Types = runtime.Types // general types
 import $Public = runtime.Types.Public
 import $Utils = runtime.Types.Utils
@@ -23,6 +23,11 @@ export type AudioRecord = $Result.DefaultSelection<Prisma.$AudioRecordPayload>
  * 
  */
 export type Task = $Result.DefaultSelection<Prisma.$TaskPayload>
+/**
+ * Model ListeningScore
+ * 
+ */
+export type ListeningScore = $Result.DefaultSelection<Prisma.$ListeningScorePayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -30,13 +35,15 @@ export type Task = $Result.DefaultSelection<Prisma.$TaskPayload>
  * Type-safe database client for TypeScript & Node.js
  * @example
  * ```
- * const prisma = new PrismaClient()
+ * const prisma = new PrismaClient({
+ *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
+ * })
  * // Fetch zero or more AudioRecords
  * const audioRecords = await prisma.audioRecord.findMany()
  * ```
  *
  *
- * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client).
+ * Read more in our [docs](https://pris.ly/d/client).
  */
 export class PrismaClient<
   ClientOptions extends Prisma.PrismaClientOptions = Prisma.PrismaClientOptions,
@@ -51,13 +58,15 @@ export class PrismaClient<
    * Type-safe database client for TypeScript & Node.js
    * @example
    * ```
-   * const prisma = new PrismaClient()
+   * const prisma = new PrismaClient({
+   *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
+   * })
    * // Fetch zero or more AudioRecords
    * const audioRecords = await prisma.audioRecord.findMany()
    * ```
    *
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client).
+   * Read more in our [docs](https://pris.ly/d/client).
    */
 
   constructor(optionsArg ?: Prisma.Subset<ClientOptions, Prisma.PrismaClientOptions>);
@@ -80,7 +89,7 @@ export class PrismaClient<
    * const result = await prisma.$executeRaw`UPDATE User SET cool = ${true} WHERE email = ${'user@email.com'};`
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $executeRaw<T = unknown>(query: TemplateStringsArray | Prisma.Sql, ...values: any[]): Prisma.PrismaPromise<number>;
 
@@ -92,7 +101,7 @@ export class PrismaClient<
    * const result = await prisma.$executeRawUnsafe('UPDATE User SET cool = $1 WHERE email = $2 ;', true, 'user@email.com')
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $executeRawUnsafe<T = unknown>(query: string, ...values: any[]): Prisma.PrismaPromise<number>;
 
@@ -103,7 +112,7 @@ export class PrismaClient<
    * const result = await prisma.$queryRaw`SELECT * FROM User WHERE id = ${1} OR email = ${'user@email.com'};`
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $queryRaw<T = unknown>(query: TemplateStringsArray | Prisma.Sql, ...values: any[]): Prisma.PrismaPromise<T>;
 
@@ -115,7 +124,7 @@ export class PrismaClient<
    * const result = await prisma.$queryRawUnsafe('SELECT * FROM User WHERE id = $1 OR email = $2;', 1, 'user@email.com')
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $queryRawUnsafe<T = unknown>(query: string, ...values: any[]): Prisma.PrismaPromise<T>;
 
@@ -131,12 +140,11 @@ export class PrismaClient<
    * ])
    * ```
    * 
-   * Read more in our [docs](https://www.prisma.io/docs/concepts/components/prisma-client/transactions).
+   * Read more in our [docs](https://www.prisma.io/docs/orm/prisma-client/queries/transactions).
    */
   $transaction<P extends Prisma.PrismaPromise<any>[]>(arg: [...P], options?: { isolationLevel?: Prisma.TransactionIsolationLevel }): $Utils.JsPromise<runtime.Types.Utils.UnwrapTuple<P>>
 
   $transaction<R>(fn: (prisma: Omit<PrismaClient, runtime.ITXClientDenyList>) => $Utils.JsPromise<R>, options?: { maxWait?: number, timeout?: number, isolationLevel?: Prisma.TransactionIsolationLevel }): $Utils.JsPromise<R>
-
 
   $extends: $Extensions.ExtendsHook<"extends", Prisma.TypeMapCb<ClientOptions>, ExtArgs, $Utils.Call<Prisma.TypeMapCb<ClientOptions>, {
     extArgs: ExtArgs
@@ -161,6 +169,16 @@ export class PrismaClient<
     * ```
     */
   get task(): Prisma.TaskDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.listeningScore`: Exposes CRUD operations for the **ListeningScore** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ListeningScores
+    * const listeningScores = await prisma.listeningScore.findMany()
+    * ```
+    */
+  get listeningScore(): Prisma.ListeningScoreDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -201,14 +219,6 @@ export namespace Prisma {
   export type DecimalJsLike = runtime.DecimalJsLike
 
   /**
-   * Metrics
-   */
-  export type Metrics = runtime.Metrics
-  export type Metric<T> = runtime.Metric<T>
-  export type MetricHistogram = runtime.MetricHistogram
-  export type MetricHistogramBucket = runtime.MetricHistogramBucket
-
-  /**
   * Extensions
   */
   export import Extension = $Extensions.UserArgs
@@ -219,11 +229,12 @@ export namespace Prisma {
   export import Exact = $Public.Exact
 
   /**
-   * Prisma Client JS version: 6.16.3
-   * Query Engine version: bb420e667c1820a8c05a38023385f6cc7ef8e83a
+   * Prisma Client JS version: 7.4.2
+   * Query Engine version: 94a226be1cf2967af2541cca5529f0f7ba866919
    */
   export type PrismaVersion = {
     client: string
+    engine: string
   }
 
   export const prismaVersion: PrismaVersion
@@ -233,6 +244,7 @@ export namespace Prisma {
    */
 
 
+  export import Bytes = runtime.Bytes
   export import JsonObject = runtime.JsonObject
   export import JsonArray = runtime.JsonArray
   export import JsonValue = runtime.JsonValue
@@ -602,15 +614,13 @@ export namespace Prisma {
 
   export const ModelName: {
     AudioRecord: 'AudioRecord',
-    Task: 'Task'
+    Task: 'Task',
+    ListeningScore: 'ListeningScore'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
 
 
-  export type Datasources = {
-    db?: Datasource
-  }
 
   interface TypeMapCb<ClientOptions = {}> extends $Utils.Fn<{extArgs: $Extensions.InternalArgs }, $Utils.Record<string, any>> {
     returns: Prisma.TypeMap<this['params']['extArgs'], ClientOptions extends { omit: infer OmitOptions } ? OmitOptions : {}>
@@ -621,7 +631,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "audioRecord" | "task"
+      modelProps: "audioRecord" | "task" | "listeningScore"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -773,6 +783,80 @@ export namespace Prisma {
           }
         }
       }
+      ListeningScore: {
+        payload: Prisma.$ListeningScorePayload<ExtArgs>
+        fields: Prisma.ListeningScoreFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ListeningScoreFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ListeningScoreFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload>
+          }
+          findFirst: {
+            args: Prisma.ListeningScoreFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ListeningScoreFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload>
+          }
+          findMany: {
+            args: Prisma.ListeningScoreFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload>[]
+          }
+          create: {
+            args: Prisma.ListeningScoreCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload>
+          }
+          createMany: {
+            args: Prisma.ListeningScoreCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ListeningScoreCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload>[]
+          }
+          delete: {
+            args: Prisma.ListeningScoreDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload>
+          }
+          update: {
+            args: Prisma.ListeningScoreUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload>
+          }
+          deleteMany: {
+            args: Prisma.ListeningScoreDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ListeningScoreUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ListeningScoreUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload>[]
+          }
+          upsert: {
+            args: Prisma.ListeningScoreUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ListeningScorePayload>
+          }
+          aggregate: {
+            args: Prisma.ListeningScoreAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateListeningScore>
+          }
+          groupBy: {
+            args: Prisma.ListeningScoreGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ListeningScoreGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ListeningScoreCountArgs<ExtArgs>
+            result: $Utils.Optional<ListeningScoreCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -802,14 +886,6 @@ export namespace Prisma {
   export type ErrorFormat = 'pretty' | 'colorless' | 'minimal'
   export interface PrismaClientOptions {
     /**
-     * Overwrites the datasource url from your schema.prisma file
-     */
-    datasources?: Datasources
-    /**
-     * Overwrites the datasource url from your schema.prisma file
-     */
-    datasourceUrl?: string
-    /**
      * @default "colorless"
      */
     errorFormat?: ErrorFormat
@@ -835,7 +911,7 @@ export namespace Prisma {
      *  { emit: 'stdout', level: 'error' }
      * 
      * ```
-     * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/logging#the-log-option).
+     * Read more in our [docs](https://pris.ly/d/logging).
      */
     log?: (LogLevel | LogDefinition)[]
     /**
@@ -851,7 +927,11 @@ export namespace Prisma {
     /**
      * Instance of a Driver Adapter, e.g., like one provided by `@prisma/adapter-planetscale`
      */
-    adapter?: runtime.SqlDriverAdapterFactory | null
+    adapter?: runtime.SqlDriverAdapterFactory
+    /**
+     * Prisma Accelerate URL allowing the client to connect through Accelerate instead of a direct database.
+     */
+    accelerateUrl?: string
     /**
      * Global configuration for omitting model fields by default.
      * 
@@ -867,10 +947,27 @@ export namespace Prisma {
      * ```
      */
     omit?: Prisma.GlobalOmitConfig
+    /**
+     * SQL commenter plugins that add metadata to SQL queries as comments.
+     * Comments follow the sqlcommenter format: https://google.github.io/sqlcommenter/
+     * 
+     * @example
+     * ```
+     * const prisma = new PrismaClient({
+     *   adapter,
+     *   comments: [
+     *     traceContext(),
+     *     queryInsights(),
+     *   ],
+     * })
+     * ```
+     */
+    comments?: runtime.SqlCommenterPlugin[]
   }
   export type GlobalOmitConfig = {
     audioRecord?: AudioRecordOmit
     task?: TaskOmit
+    listeningScore?: ListeningScoreOmit
   }
 
   /* Types for Logging */
@@ -945,6 +1042,36 @@ export namespace Prisma {
    * Count Types
    */
 
+
+  /**
+   * Count Type TaskCountOutputType
+   */
+
+  export type TaskCountOutputType = {
+    listeningScores: number
+  }
+
+  export type TaskCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    listeningScores?: boolean | TaskCountOutputTypeCountListeningScoresArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * TaskCountOutputType without action
+   */
+  export type TaskCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TaskCountOutputType
+     */
+    select?: TaskCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * TaskCountOutputType without action
+   */
+  export type TaskCountOutputTypeCountListeningScoresArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ListeningScoreWhereInput
+  }
 
 
   /**
@@ -2069,6 +2196,7 @@ export namespace Prisma {
     audioUrl: string | null
     referenceText: string | null
     correctAnswer: string | null
+    questionsJson: string | null
     createdAt: Date | null
   }
 
@@ -2081,6 +2209,7 @@ export namespace Prisma {
     audioUrl: string | null
     referenceText: string | null
     correctAnswer: string | null
+    questionsJson: string | null
     createdAt: Date | null
   }
 
@@ -2094,6 +2223,7 @@ export namespace Prisma {
     referenceText: number
     answerOptions: number
     correctAnswer: number
+    questionsJson: number
     createdAt: number
     _all: number
   }
@@ -2116,6 +2246,7 @@ export namespace Prisma {
     audioUrl?: true
     referenceText?: true
     correctAnswer?: true
+    questionsJson?: true
     createdAt?: true
   }
 
@@ -2128,6 +2259,7 @@ export namespace Prisma {
     audioUrl?: true
     referenceText?: true
     correctAnswer?: true
+    questionsJson?: true
     createdAt?: true
   }
 
@@ -2141,6 +2273,7 @@ export namespace Prisma {
     referenceText?: true
     answerOptions?: true
     correctAnswer?: true
+    questionsJson?: true
     createdAt?: true
     _all?: true
   }
@@ -2241,6 +2374,7 @@ export namespace Prisma {
     referenceText: string | null
     answerOptions: string[]
     correctAnswer: string | null
+    questionsJson: string | null
     createdAt: Date
     _count: TaskCountAggregateOutputType | null
     _avg: TaskAvgAggregateOutputType | null
@@ -2273,7 +2407,10 @@ export namespace Prisma {
     referenceText?: boolean
     answerOptions?: boolean
     correctAnswer?: boolean
+    questionsJson?: boolean
     createdAt?: boolean
+    listeningScores?: boolean | Task$listeningScoresArgs<ExtArgs>
+    _count?: boolean | TaskCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["task"]>
 
   export type TaskSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -2286,6 +2423,7 @@ export namespace Prisma {
     referenceText?: boolean
     answerOptions?: boolean
     correctAnswer?: boolean
+    questionsJson?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["task"]>
 
@@ -2299,6 +2437,7 @@ export namespace Prisma {
     referenceText?: boolean
     answerOptions?: boolean
     correctAnswer?: boolean
+    questionsJson?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["task"]>
 
@@ -2312,14 +2451,23 @@ export namespace Prisma {
     referenceText?: boolean
     answerOptions?: boolean
     correctAnswer?: boolean
+    questionsJson?: boolean
     createdAt?: boolean
   }
 
-  export type TaskOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "language" | "level" | "skill" | "prompt" | "audioUrl" | "referenceText" | "answerOptions" | "correctAnswer" | "createdAt", ExtArgs["result"]["task"]>
+  export type TaskOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "language" | "level" | "skill" | "prompt" | "audioUrl" | "referenceText" | "answerOptions" | "correctAnswer" | "questionsJson" | "createdAt", ExtArgs["result"]["task"]>
+  export type TaskInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    listeningScores?: boolean | Task$listeningScoresArgs<ExtArgs>
+    _count?: boolean | TaskCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type TaskIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type TaskIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
 
   export type $TaskPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Task"
-    objects: {}
+    objects: {
+      listeningScores: Prisma.$ListeningScorePayload<ExtArgs>[]
+    }
     scalars: $Extensions.GetPayloadResult<{
       id: number
       language: string
@@ -2330,6 +2478,7 @@ export namespace Prisma {
       referenceText: string | null
       answerOptions: string[]
       correctAnswer: string | null
+      questionsJson: string | null
       createdAt: Date
     }, ExtArgs["result"]["task"]>
     composites: {}
@@ -2725,6 +2874,7 @@ export namespace Prisma {
    */
   export interface Prisma__TaskClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    listeningScores<T extends Task$listeningScoresArgs<ExtArgs> = {}>(args?: Subset<T, Task$listeningScoresArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2763,6 +2913,7 @@ export namespace Prisma {
     readonly referenceText: FieldRef<"Task", 'String'>
     readonly answerOptions: FieldRef<"Task", 'String[]'>
     readonly correctAnswer: FieldRef<"Task", 'String'>
+    readonly questionsJson: FieldRef<"Task", 'String'>
     readonly createdAt: FieldRef<"Task", 'DateTime'>
   }
     
@@ -2780,6 +2931,10 @@ export namespace Prisma {
      * Omit specific fields from the Task
      */
     omit?: TaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
     /**
      * Filter, which Task to fetch.
      */
@@ -2799,6 +2954,10 @@ export namespace Prisma {
      */
     omit?: TaskOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
+    /**
      * Filter, which Task to fetch.
      */
     where: TaskWhereUniqueInput
@@ -2816,6 +2975,10 @@ export namespace Prisma {
      * Omit specific fields from the Task
      */
     omit?: TaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
     /**
      * Filter, which Task to fetch.
      */
@@ -2865,6 +3028,10 @@ export namespace Prisma {
      */
     omit?: TaskOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
+    /**
      * Filter, which Task to fetch.
      */
     where?: TaskWhereInput
@@ -2913,6 +3080,10 @@ export namespace Prisma {
      */
     omit?: TaskOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
+    /**
      * Filter, which Tasks to fetch.
      */
     where?: TaskWhereInput
@@ -2955,6 +3126,10 @@ export namespace Prisma {
      * Omit specific fields from the Task
      */
     omit?: TaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
     /**
      * The data needed to create a Task.
      */
@@ -3003,6 +3178,10 @@ export namespace Prisma {
      * Omit specific fields from the Task
      */
     omit?: TaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
     /**
      * The data needed to update a Task.
      */
@@ -3070,6 +3249,10 @@ export namespace Prisma {
      */
     omit?: TaskOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
+    /**
      * The filter to search for the Task to update in case it exists.
      */
     where: TaskWhereUniqueInput
@@ -3096,6 +3279,10 @@ export namespace Prisma {
      */
     omit?: TaskOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
+    /**
      * Filter which Task to delete.
      */
     where: TaskWhereUniqueInput
@@ -3116,6 +3303,30 @@ export namespace Prisma {
   }
 
   /**
+   * Task.listeningScores
+   */
+  export type Task$listeningScoresArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
+    where?: ListeningScoreWhereInput
+    orderBy?: ListeningScoreOrderByWithRelationInput | ListeningScoreOrderByWithRelationInput[]
+    cursor?: ListeningScoreWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ListeningScoreScalarFieldEnum | ListeningScoreScalarFieldEnum[]
+  }
+
+  /**
    * Task without action
    */
   export type TaskDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -3127,6 +3338,1127 @@ export namespace Prisma {
      * Omit specific fields from the Task
      */
     omit?: TaskOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ListeningScore
+   */
+
+  export type AggregateListeningScore = {
+    _count: ListeningScoreCountAggregateOutputType | null
+    _avg: ListeningScoreAvgAggregateOutputType | null
+    _sum: ListeningScoreSumAggregateOutputType | null
+    _min: ListeningScoreMinAggregateOutputType | null
+    _max: ListeningScoreMaxAggregateOutputType | null
+  }
+
+  export type ListeningScoreAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    taskId: number | null
+    score: number | null
+  }
+
+  export type ListeningScoreSumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    taskId: number | null
+    score: number | null
+  }
+
+  export type ListeningScoreMinAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    taskId: number | null
+    score: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ListeningScoreMaxAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    taskId: number | null
+    score: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ListeningScoreCountAggregateOutputType = {
+    id: number
+    userId: number
+    taskId: number
+    score: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ListeningScoreAvgAggregateInputType = {
+    id?: true
+    userId?: true
+    taskId?: true
+    score?: true
+  }
+
+  export type ListeningScoreSumAggregateInputType = {
+    id?: true
+    userId?: true
+    taskId?: true
+    score?: true
+  }
+
+  export type ListeningScoreMinAggregateInputType = {
+    id?: true
+    userId?: true
+    taskId?: true
+    score?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ListeningScoreMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    taskId?: true
+    score?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ListeningScoreCountAggregateInputType = {
+    id?: true
+    userId?: true
+    taskId?: true
+    score?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ListeningScoreAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ListeningScore to aggregate.
+     */
+    where?: ListeningScoreWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ListeningScores to fetch.
+     */
+    orderBy?: ListeningScoreOrderByWithRelationInput | ListeningScoreOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ListeningScoreWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ListeningScores from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ListeningScores.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ListeningScores
+    **/
+    _count?: true | ListeningScoreCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ListeningScoreAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ListeningScoreSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ListeningScoreMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ListeningScoreMaxAggregateInputType
+  }
+
+  export type GetListeningScoreAggregateType<T extends ListeningScoreAggregateArgs> = {
+        [P in keyof T & keyof AggregateListeningScore]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateListeningScore[P]>
+      : GetScalarType<T[P], AggregateListeningScore[P]>
+  }
+
+
+
+
+  export type ListeningScoreGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ListeningScoreWhereInput
+    orderBy?: ListeningScoreOrderByWithAggregationInput | ListeningScoreOrderByWithAggregationInput[]
+    by: ListeningScoreScalarFieldEnum[] | ListeningScoreScalarFieldEnum
+    having?: ListeningScoreScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ListeningScoreCountAggregateInputType | true
+    _avg?: ListeningScoreAvgAggregateInputType
+    _sum?: ListeningScoreSumAggregateInputType
+    _min?: ListeningScoreMinAggregateInputType
+    _max?: ListeningScoreMaxAggregateInputType
+  }
+
+  export type ListeningScoreGroupByOutputType = {
+    id: number
+    userId: number
+    taskId: number
+    score: number
+    createdAt: Date
+    updatedAt: Date
+    _count: ListeningScoreCountAggregateOutputType | null
+    _avg: ListeningScoreAvgAggregateOutputType | null
+    _sum: ListeningScoreSumAggregateOutputType | null
+    _min: ListeningScoreMinAggregateOutputType | null
+    _max: ListeningScoreMaxAggregateOutputType | null
+  }
+
+  type GetListeningScoreGroupByPayload<T extends ListeningScoreGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ListeningScoreGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ListeningScoreGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ListeningScoreGroupByOutputType[P]>
+            : GetScalarType<T[P], ListeningScoreGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ListeningScoreSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    taskId?: boolean
+    score?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    task?: boolean | TaskDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["listeningScore"]>
+
+  export type ListeningScoreSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    taskId?: boolean
+    score?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    task?: boolean | TaskDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["listeningScore"]>
+
+  export type ListeningScoreSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    taskId?: boolean
+    score?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    task?: boolean | TaskDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["listeningScore"]>
+
+  export type ListeningScoreSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    taskId?: boolean
+    score?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type ListeningScoreOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "taskId" | "score" | "createdAt" | "updatedAt", ExtArgs["result"]["listeningScore"]>
+  export type ListeningScoreInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    task?: boolean | TaskDefaultArgs<ExtArgs>
+  }
+  export type ListeningScoreIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    task?: boolean | TaskDefaultArgs<ExtArgs>
+  }
+  export type ListeningScoreIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    task?: boolean | TaskDefaultArgs<ExtArgs>
+  }
+
+  export type $ListeningScorePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ListeningScore"
+    objects: {
+      task: Prisma.$TaskPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      userId: number
+      taskId: number
+      score: number
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["listeningScore"]>
+    composites: {}
+  }
+
+  type ListeningScoreGetPayload<S extends boolean | null | undefined | ListeningScoreDefaultArgs> = $Result.GetResult<Prisma.$ListeningScorePayload, S>
+
+  type ListeningScoreCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<ListeningScoreFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ListeningScoreCountAggregateInputType | true
+    }
+
+  export interface ListeningScoreDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ListeningScore'], meta: { name: 'ListeningScore' } }
+    /**
+     * Find zero or one ListeningScore that matches the filter.
+     * @param {ListeningScoreFindUniqueArgs} args - Arguments to find a ListeningScore
+     * @example
+     * // Get one ListeningScore
+     * const listeningScore = await prisma.listeningScore.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ListeningScoreFindUniqueArgs>(args: SelectSubset<T, ListeningScoreFindUniqueArgs<ExtArgs>>): Prisma__ListeningScoreClient<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one ListeningScore that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ListeningScoreFindUniqueOrThrowArgs} args - Arguments to find a ListeningScore
+     * @example
+     * // Get one ListeningScore
+     * const listeningScore = await prisma.listeningScore.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ListeningScoreFindUniqueOrThrowArgs>(args: SelectSubset<T, ListeningScoreFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ListeningScoreClient<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ListeningScore that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ListeningScoreFindFirstArgs} args - Arguments to find a ListeningScore
+     * @example
+     * // Get one ListeningScore
+     * const listeningScore = await prisma.listeningScore.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ListeningScoreFindFirstArgs>(args?: SelectSubset<T, ListeningScoreFindFirstArgs<ExtArgs>>): Prisma__ListeningScoreClient<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ListeningScore that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ListeningScoreFindFirstOrThrowArgs} args - Arguments to find a ListeningScore
+     * @example
+     * // Get one ListeningScore
+     * const listeningScore = await prisma.listeningScore.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ListeningScoreFindFirstOrThrowArgs>(args?: SelectSubset<T, ListeningScoreFindFirstOrThrowArgs<ExtArgs>>): Prisma__ListeningScoreClient<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more ListeningScores that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ListeningScoreFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ListeningScores
+     * const listeningScores = await prisma.listeningScore.findMany()
+     * 
+     * // Get first 10 ListeningScores
+     * const listeningScores = await prisma.listeningScore.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const listeningScoreWithIdOnly = await prisma.listeningScore.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ListeningScoreFindManyArgs>(args?: SelectSubset<T, ListeningScoreFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a ListeningScore.
+     * @param {ListeningScoreCreateArgs} args - Arguments to create a ListeningScore.
+     * @example
+     * // Create one ListeningScore
+     * const ListeningScore = await prisma.listeningScore.create({
+     *   data: {
+     *     // ... data to create a ListeningScore
+     *   }
+     * })
+     * 
+     */
+    create<T extends ListeningScoreCreateArgs>(args: SelectSubset<T, ListeningScoreCreateArgs<ExtArgs>>): Prisma__ListeningScoreClient<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many ListeningScores.
+     * @param {ListeningScoreCreateManyArgs} args - Arguments to create many ListeningScores.
+     * @example
+     * // Create many ListeningScores
+     * const listeningScore = await prisma.listeningScore.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ListeningScoreCreateManyArgs>(args?: SelectSubset<T, ListeningScoreCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ListeningScores and returns the data saved in the database.
+     * @param {ListeningScoreCreateManyAndReturnArgs} args - Arguments to create many ListeningScores.
+     * @example
+     * // Create many ListeningScores
+     * const listeningScore = await prisma.listeningScore.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ListeningScores and only return the `id`
+     * const listeningScoreWithIdOnly = await prisma.listeningScore.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ListeningScoreCreateManyAndReturnArgs>(args?: SelectSubset<T, ListeningScoreCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a ListeningScore.
+     * @param {ListeningScoreDeleteArgs} args - Arguments to delete one ListeningScore.
+     * @example
+     * // Delete one ListeningScore
+     * const ListeningScore = await prisma.listeningScore.delete({
+     *   where: {
+     *     // ... filter to delete one ListeningScore
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ListeningScoreDeleteArgs>(args: SelectSubset<T, ListeningScoreDeleteArgs<ExtArgs>>): Prisma__ListeningScoreClient<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one ListeningScore.
+     * @param {ListeningScoreUpdateArgs} args - Arguments to update one ListeningScore.
+     * @example
+     * // Update one ListeningScore
+     * const listeningScore = await prisma.listeningScore.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ListeningScoreUpdateArgs>(args: SelectSubset<T, ListeningScoreUpdateArgs<ExtArgs>>): Prisma__ListeningScoreClient<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more ListeningScores.
+     * @param {ListeningScoreDeleteManyArgs} args - Arguments to filter ListeningScores to delete.
+     * @example
+     * // Delete a few ListeningScores
+     * const { count } = await prisma.listeningScore.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ListeningScoreDeleteManyArgs>(args?: SelectSubset<T, ListeningScoreDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ListeningScores.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ListeningScoreUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ListeningScores
+     * const listeningScore = await prisma.listeningScore.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ListeningScoreUpdateManyArgs>(args: SelectSubset<T, ListeningScoreUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ListeningScores and returns the data updated in the database.
+     * @param {ListeningScoreUpdateManyAndReturnArgs} args - Arguments to update many ListeningScores.
+     * @example
+     * // Update many ListeningScores
+     * const listeningScore = await prisma.listeningScore.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more ListeningScores and only return the `id`
+     * const listeningScoreWithIdOnly = await prisma.listeningScore.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends ListeningScoreUpdateManyAndReturnArgs>(args: SelectSubset<T, ListeningScoreUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one ListeningScore.
+     * @param {ListeningScoreUpsertArgs} args - Arguments to update or create a ListeningScore.
+     * @example
+     * // Update or create a ListeningScore
+     * const listeningScore = await prisma.listeningScore.upsert({
+     *   create: {
+     *     // ... data to create a ListeningScore
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ListeningScore we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ListeningScoreUpsertArgs>(args: SelectSubset<T, ListeningScoreUpsertArgs<ExtArgs>>): Prisma__ListeningScoreClient<$Result.GetResult<Prisma.$ListeningScorePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of ListeningScores.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ListeningScoreCountArgs} args - Arguments to filter ListeningScores to count.
+     * @example
+     * // Count the number of ListeningScores
+     * const count = await prisma.listeningScore.count({
+     *   where: {
+     *     // ... the filter for the ListeningScores we want to count
+     *   }
+     * })
+    **/
+    count<T extends ListeningScoreCountArgs>(
+      args?: Subset<T, ListeningScoreCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ListeningScoreCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ListeningScore.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ListeningScoreAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ListeningScoreAggregateArgs>(args: Subset<T, ListeningScoreAggregateArgs>): Prisma.PrismaPromise<GetListeningScoreAggregateType<T>>
+
+    /**
+     * Group by ListeningScore.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ListeningScoreGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ListeningScoreGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ListeningScoreGroupByArgs['orderBy'] }
+        : { orderBy?: ListeningScoreGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ListeningScoreGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetListeningScoreGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ListeningScore model
+   */
+  readonly fields: ListeningScoreFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ListeningScore.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ListeningScoreClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    task<T extends TaskDefaultArgs<ExtArgs> = {}>(args?: Subset<T, TaskDefaultArgs<ExtArgs>>): Prisma__TaskClient<$Result.GetResult<Prisma.$TaskPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ListeningScore model
+   */
+  interface ListeningScoreFieldRefs {
+    readonly id: FieldRef<"ListeningScore", 'Int'>
+    readonly userId: FieldRef<"ListeningScore", 'Int'>
+    readonly taskId: FieldRef<"ListeningScore", 'Int'>
+    readonly score: FieldRef<"ListeningScore", 'Float'>
+    readonly createdAt: FieldRef<"ListeningScore", 'DateTime'>
+    readonly updatedAt: FieldRef<"ListeningScore", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ListeningScore findUnique
+   */
+  export type ListeningScoreFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
+    /**
+     * Filter, which ListeningScore to fetch.
+     */
+    where: ListeningScoreWhereUniqueInput
+  }
+
+  /**
+   * ListeningScore findUniqueOrThrow
+   */
+  export type ListeningScoreFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
+    /**
+     * Filter, which ListeningScore to fetch.
+     */
+    where: ListeningScoreWhereUniqueInput
+  }
+
+  /**
+   * ListeningScore findFirst
+   */
+  export type ListeningScoreFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
+    /**
+     * Filter, which ListeningScore to fetch.
+     */
+    where?: ListeningScoreWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ListeningScores to fetch.
+     */
+    orderBy?: ListeningScoreOrderByWithRelationInput | ListeningScoreOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ListeningScores.
+     */
+    cursor?: ListeningScoreWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ListeningScores from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ListeningScores.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ListeningScores.
+     */
+    distinct?: ListeningScoreScalarFieldEnum | ListeningScoreScalarFieldEnum[]
+  }
+
+  /**
+   * ListeningScore findFirstOrThrow
+   */
+  export type ListeningScoreFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
+    /**
+     * Filter, which ListeningScore to fetch.
+     */
+    where?: ListeningScoreWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ListeningScores to fetch.
+     */
+    orderBy?: ListeningScoreOrderByWithRelationInput | ListeningScoreOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ListeningScores.
+     */
+    cursor?: ListeningScoreWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ListeningScores from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ListeningScores.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ListeningScores.
+     */
+    distinct?: ListeningScoreScalarFieldEnum | ListeningScoreScalarFieldEnum[]
+  }
+
+  /**
+   * ListeningScore findMany
+   */
+  export type ListeningScoreFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
+    /**
+     * Filter, which ListeningScores to fetch.
+     */
+    where?: ListeningScoreWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ListeningScores to fetch.
+     */
+    orderBy?: ListeningScoreOrderByWithRelationInput | ListeningScoreOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ListeningScores.
+     */
+    cursor?: ListeningScoreWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ListeningScores from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ListeningScores.
+     */
+    skip?: number
+    distinct?: ListeningScoreScalarFieldEnum | ListeningScoreScalarFieldEnum[]
+  }
+
+  /**
+   * ListeningScore create
+   */
+  export type ListeningScoreCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
+    /**
+     * The data needed to create a ListeningScore.
+     */
+    data: XOR<ListeningScoreCreateInput, ListeningScoreUncheckedCreateInput>
+  }
+
+  /**
+   * ListeningScore createMany
+   */
+  export type ListeningScoreCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ListeningScores.
+     */
+    data: ListeningScoreCreateManyInput | ListeningScoreCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ListeningScore createManyAndReturn
+   */
+  export type ListeningScoreCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * The data used to create many ListeningScores.
+     */
+    data: ListeningScoreCreateManyInput | ListeningScoreCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ListeningScore update
+   */
+  export type ListeningScoreUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
+    /**
+     * The data needed to update a ListeningScore.
+     */
+    data: XOR<ListeningScoreUpdateInput, ListeningScoreUncheckedUpdateInput>
+    /**
+     * Choose, which ListeningScore to update.
+     */
+    where: ListeningScoreWhereUniqueInput
+  }
+
+  /**
+   * ListeningScore updateMany
+   */
+  export type ListeningScoreUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ListeningScores.
+     */
+    data: XOR<ListeningScoreUpdateManyMutationInput, ListeningScoreUncheckedUpdateManyInput>
+    /**
+     * Filter which ListeningScores to update
+     */
+    where?: ListeningScoreWhereInput
+    /**
+     * Limit how many ListeningScores to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ListeningScore updateManyAndReturn
+   */
+  export type ListeningScoreUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * The data used to update ListeningScores.
+     */
+    data: XOR<ListeningScoreUpdateManyMutationInput, ListeningScoreUncheckedUpdateManyInput>
+    /**
+     * Filter which ListeningScores to update
+     */
+    where?: ListeningScoreWhereInput
+    /**
+     * Limit how many ListeningScores to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ListeningScore upsert
+   */
+  export type ListeningScoreUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
+    /**
+     * The filter to search for the ListeningScore to update in case it exists.
+     */
+    where: ListeningScoreWhereUniqueInput
+    /**
+     * In case the ListeningScore found by the `where` argument doesn't exist, create a new ListeningScore with this data.
+     */
+    create: XOR<ListeningScoreCreateInput, ListeningScoreUncheckedCreateInput>
+    /**
+     * In case the ListeningScore was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ListeningScoreUpdateInput, ListeningScoreUncheckedUpdateInput>
+  }
+
+  /**
+   * ListeningScore delete
+   */
+  export type ListeningScoreDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
+    /**
+     * Filter which ListeningScore to delete.
+     */
+    where: ListeningScoreWhereUniqueInput
+  }
+
+  /**
+   * ListeningScore deleteMany
+   */
+  export type ListeningScoreDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ListeningScores to delete
+     */
+    where?: ListeningScoreWhereInput
+    /**
+     * Limit how many ListeningScores to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * ListeningScore without action
+   */
+  export type ListeningScoreDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ListeningScore
+     */
+    select?: ListeningScoreSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ListeningScore
+     */
+    omit?: ListeningScoreOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListeningScoreInclude<ExtArgs> | null
   }
 
 
@@ -3169,10 +4501,23 @@ export namespace Prisma {
     referenceText: 'referenceText',
     answerOptions: 'answerOptions',
     correctAnswer: 'correctAnswer',
+    questionsJson: 'questionsJson',
     createdAt: 'createdAt'
   };
 
   export type TaskScalarFieldEnum = (typeof TaskScalarFieldEnum)[keyof typeof TaskScalarFieldEnum]
+
+
+  export const ListeningScoreScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    taskId: 'taskId',
+    score: 'score',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ListeningScoreScalarFieldEnum = (typeof ListeningScoreScalarFieldEnum)[keyof typeof ListeningScoreScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -3350,7 +4695,9 @@ export namespace Prisma {
     referenceText?: StringNullableFilter<"Task"> | string | null
     answerOptions?: StringNullableListFilter<"Task">
     correctAnswer?: StringNullableFilter<"Task"> | string | null
+    questionsJson?: StringNullableFilter<"Task"> | string | null
     createdAt?: DateTimeFilter<"Task"> | Date | string
+    listeningScores?: ListeningScoreListRelationFilter
   }
 
   export type TaskOrderByWithRelationInput = {
@@ -3363,7 +4710,9 @@ export namespace Prisma {
     referenceText?: SortOrderInput | SortOrder
     answerOptions?: SortOrder
     correctAnswer?: SortOrderInput | SortOrder
+    questionsJson?: SortOrderInput | SortOrder
     createdAt?: SortOrder
+    listeningScores?: ListeningScoreOrderByRelationAggregateInput
   }
 
   export type TaskWhereUniqueInput = Prisma.AtLeast<{
@@ -3379,7 +4728,9 @@ export namespace Prisma {
     referenceText?: StringNullableFilter<"Task"> | string | null
     answerOptions?: StringNullableListFilter<"Task">
     correctAnswer?: StringNullableFilter<"Task"> | string | null
+    questionsJson?: StringNullableFilter<"Task"> | string | null
     createdAt?: DateTimeFilter<"Task"> | Date | string
+    listeningScores?: ListeningScoreListRelationFilter
   }, "id">
 
   export type TaskOrderByWithAggregationInput = {
@@ -3392,6 +4743,7 @@ export namespace Prisma {
     referenceText?: SortOrderInput | SortOrder
     answerOptions?: SortOrder
     correctAnswer?: SortOrderInput | SortOrder
+    questionsJson?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     _count?: TaskCountOrderByAggregateInput
     _avg?: TaskAvgOrderByAggregateInput
@@ -3413,7 +4765,71 @@ export namespace Prisma {
     referenceText?: StringNullableWithAggregatesFilter<"Task"> | string | null
     answerOptions?: StringNullableListFilter<"Task">
     correctAnswer?: StringNullableWithAggregatesFilter<"Task"> | string | null
+    questionsJson?: StringNullableWithAggregatesFilter<"Task"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Task"> | Date | string
+  }
+
+  export type ListeningScoreWhereInput = {
+    AND?: ListeningScoreWhereInput | ListeningScoreWhereInput[]
+    OR?: ListeningScoreWhereInput[]
+    NOT?: ListeningScoreWhereInput | ListeningScoreWhereInput[]
+    id?: IntFilter<"ListeningScore"> | number
+    userId?: IntFilter<"ListeningScore"> | number
+    taskId?: IntFilter<"ListeningScore"> | number
+    score?: FloatFilter<"ListeningScore"> | number
+    createdAt?: DateTimeFilter<"ListeningScore"> | Date | string
+    updatedAt?: DateTimeFilter<"ListeningScore"> | Date | string
+    task?: XOR<TaskScalarRelationFilter, TaskWhereInput>
+  }
+
+  export type ListeningScoreOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    taskId?: SortOrder
+    score?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    task?: TaskOrderByWithRelationInput
+  }
+
+  export type ListeningScoreWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    userId_taskId?: ListeningScoreUserIdTaskIdCompoundUniqueInput
+    AND?: ListeningScoreWhereInput | ListeningScoreWhereInput[]
+    OR?: ListeningScoreWhereInput[]
+    NOT?: ListeningScoreWhereInput | ListeningScoreWhereInput[]
+    userId?: IntFilter<"ListeningScore"> | number
+    taskId?: IntFilter<"ListeningScore"> | number
+    score?: FloatFilter<"ListeningScore"> | number
+    createdAt?: DateTimeFilter<"ListeningScore"> | Date | string
+    updatedAt?: DateTimeFilter<"ListeningScore"> | Date | string
+    task?: XOR<TaskScalarRelationFilter, TaskWhereInput>
+  }, "id" | "userId_taskId">
+
+  export type ListeningScoreOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    taskId?: SortOrder
+    score?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ListeningScoreCountOrderByAggregateInput
+    _avg?: ListeningScoreAvgOrderByAggregateInput
+    _max?: ListeningScoreMaxOrderByAggregateInput
+    _min?: ListeningScoreMinOrderByAggregateInput
+    _sum?: ListeningScoreSumOrderByAggregateInput
+  }
+
+  export type ListeningScoreScalarWhereWithAggregatesInput = {
+    AND?: ListeningScoreScalarWhereWithAggregatesInput | ListeningScoreScalarWhereWithAggregatesInput[]
+    OR?: ListeningScoreScalarWhereWithAggregatesInput[]
+    NOT?: ListeningScoreScalarWhereWithAggregatesInput | ListeningScoreScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"ListeningScore"> | number
+    userId?: IntWithAggregatesFilter<"ListeningScore"> | number
+    taskId?: IntWithAggregatesFilter<"ListeningScore"> | number
+    score?: FloatWithAggregatesFilter<"ListeningScore"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"ListeningScore"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"ListeningScore"> | Date | string
   }
 
   export type AudioRecordCreateInput = {
@@ -3506,7 +4922,9 @@ export namespace Prisma {
     referenceText?: string | null
     answerOptions?: TaskCreateanswerOptionsInput | string[]
     correctAnswer?: string | null
+    questionsJson?: string | null
     createdAt?: Date | string
+    listeningScores?: ListeningScoreCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateInput = {
@@ -3519,7 +4937,9 @@ export namespace Prisma {
     referenceText?: string | null
     answerOptions?: TaskCreateanswerOptionsInput | string[]
     correctAnswer?: string | null
+    questionsJson?: string | null
     createdAt?: Date | string
+    listeningScores?: ListeningScoreUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUpdateInput = {
@@ -3531,7 +4951,9 @@ export namespace Prisma {
     referenceText?: NullableStringFieldUpdateOperationsInput | string | null
     answerOptions?: TaskUpdateanswerOptionsInput | string[]
     correctAnswer?: NullableStringFieldUpdateOperationsInput | string | null
+    questionsJson?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    listeningScores?: ListeningScoreUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateInput = {
@@ -3544,7 +4966,9 @@ export namespace Prisma {
     referenceText?: NullableStringFieldUpdateOperationsInput | string | null
     answerOptions?: TaskUpdateanswerOptionsInput | string[]
     correctAnswer?: NullableStringFieldUpdateOperationsInput | string | null
+    questionsJson?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    listeningScores?: ListeningScoreUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskCreateManyInput = {
@@ -3557,6 +4981,7 @@ export namespace Prisma {
     referenceText?: string | null
     answerOptions?: TaskCreateanswerOptionsInput | string[]
     correctAnswer?: string | null
+    questionsJson?: string | null
     createdAt?: Date | string
   }
 
@@ -3569,6 +4994,7 @@ export namespace Prisma {
     referenceText?: NullableStringFieldUpdateOperationsInput | string | null
     answerOptions?: TaskUpdateanswerOptionsInput | string[]
     correctAnswer?: NullableStringFieldUpdateOperationsInput | string | null
+    questionsJson?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -3582,7 +5008,67 @@ export namespace Prisma {
     referenceText?: NullableStringFieldUpdateOperationsInput | string | null
     answerOptions?: TaskUpdateanswerOptionsInput | string[]
     correctAnswer?: NullableStringFieldUpdateOperationsInput | string | null
+    questionsJson?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ListeningScoreCreateInput = {
+    userId: number
+    score: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    task: TaskCreateNestedOneWithoutListeningScoresInput
+  }
+
+  export type ListeningScoreUncheckedCreateInput = {
+    id?: number
+    userId: number
+    taskId: number
+    score: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ListeningScoreUpdateInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    score?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    task?: TaskUpdateOneRequiredWithoutListeningScoresNestedInput
+  }
+
+  export type ListeningScoreUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    taskId?: IntFieldUpdateOperationsInput | number
+    score?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ListeningScoreCreateManyInput = {
+    id?: number
+    userId: number
+    taskId: number
+    score: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ListeningScoreUpdateManyMutationInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    score?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ListeningScoreUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    taskId?: IntFieldUpdateOperationsInput | number
+    score?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type IntFilter<$PrismaModel = never> = {
@@ -3791,6 +5277,16 @@ export namespace Prisma {
     isEmpty?: boolean
   }
 
+  export type ListeningScoreListRelationFilter = {
+    every?: ListeningScoreWhereInput
+    some?: ListeningScoreWhereInput
+    none?: ListeningScoreWhereInput
+  }
+
+  export type ListeningScoreOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type TaskCountOrderByAggregateInput = {
     id?: SortOrder
     language?: SortOrder
@@ -3801,6 +5297,7 @@ export namespace Prisma {
     referenceText?: SortOrder
     answerOptions?: SortOrder
     correctAnswer?: SortOrder
+    questionsJson?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -3817,6 +5314,7 @@ export namespace Prisma {
     audioUrl?: SortOrder
     referenceText?: SortOrder
     correctAnswer?: SortOrder
+    questionsJson?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -3829,11 +5327,90 @@ export namespace Prisma {
     audioUrl?: SortOrder
     referenceText?: SortOrder
     correctAnswer?: SortOrder
+    questionsJson?: SortOrder
     createdAt?: SortOrder
   }
 
   export type TaskSumOrderByAggregateInput = {
     id?: SortOrder
+  }
+
+  export type FloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
+  export type TaskScalarRelationFilter = {
+    is?: TaskWhereInput
+    isNot?: TaskWhereInput
+  }
+
+  export type ListeningScoreUserIdTaskIdCompoundUniqueInput = {
+    userId: number
+    taskId: number
+  }
+
+  export type ListeningScoreCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    taskId?: SortOrder
+    score?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ListeningScoreAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    taskId?: SortOrder
+    score?: SortOrder
+  }
+
+  export type ListeningScoreMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    taskId?: SortOrder
+    score?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ListeningScoreMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    taskId?: SortOrder
+    score?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ListeningScoreSumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    taskId?: SortOrder
+    score?: SortOrder
+  }
+
+  export type FloatWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedFloatFilter<$PrismaModel>
+    _min?: NestedFloatFilter<$PrismaModel>
+    _max?: NestedFloatFilter<$PrismaModel>
   }
 
   export type IntFieldUpdateOperationsInput = {
@@ -3868,9 +5445,73 @@ export namespace Prisma {
     set: string[]
   }
 
+  export type ListeningScoreCreateNestedManyWithoutTaskInput = {
+    create?: XOR<ListeningScoreCreateWithoutTaskInput, ListeningScoreUncheckedCreateWithoutTaskInput> | ListeningScoreCreateWithoutTaskInput[] | ListeningScoreUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: ListeningScoreCreateOrConnectWithoutTaskInput | ListeningScoreCreateOrConnectWithoutTaskInput[]
+    createMany?: ListeningScoreCreateManyTaskInputEnvelope
+    connect?: ListeningScoreWhereUniqueInput | ListeningScoreWhereUniqueInput[]
+  }
+
+  export type ListeningScoreUncheckedCreateNestedManyWithoutTaskInput = {
+    create?: XOR<ListeningScoreCreateWithoutTaskInput, ListeningScoreUncheckedCreateWithoutTaskInput> | ListeningScoreCreateWithoutTaskInput[] | ListeningScoreUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: ListeningScoreCreateOrConnectWithoutTaskInput | ListeningScoreCreateOrConnectWithoutTaskInput[]
+    createMany?: ListeningScoreCreateManyTaskInputEnvelope
+    connect?: ListeningScoreWhereUniqueInput | ListeningScoreWhereUniqueInput[]
+  }
+
   export type TaskUpdateanswerOptionsInput = {
     set?: string[]
     push?: string | string[]
+  }
+
+  export type ListeningScoreUpdateManyWithoutTaskNestedInput = {
+    create?: XOR<ListeningScoreCreateWithoutTaskInput, ListeningScoreUncheckedCreateWithoutTaskInput> | ListeningScoreCreateWithoutTaskInput[] | ListeningScoreUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: ListeningScoreCreateOrConnectWithoutTaskInput | ListeningScoreCreateOrConnectWithoutTaskInput[]
+    upsert?: ListeningScoreUpsertWithWhereUniqueWithoutTaskInput | ListeningScoreUpsertWithWhereUniqueWithoutTaskInput[]
+    createMany?: ListeningScoreCreateManyTaskInputEnvelope
+    set?: ListeningScoreWhereUniqueInput | ListeningScoreWhereUniqueInput[]
+    disconnect?: ListeningScoreWhereUniqueInput | ListeningScoreWhereUniqueInput[]
+    delete?: ListeningScoreWhereUniqueInput | ListeningScoreWhereUniqueInput[]
+    connect?: ListeningScoreWhereUniqueInput | ListeningScoreWhereUniqueInput[]
+    update?: ListeningScoreUpdateWithWhereUniqueWithoutTaskInput | ListeningScoreUpdateWithWhereUniqueWithoutTaskInput[]
+    updateMany?: ListeningScoreUpdateManyWithWhereWithoutTaskInput | ListeningScoreUpdateManyWithWhereWithoutTaskInput[]
+    deleteMany?: ListeningScoreScalarWhereInput | ListeningScoreScalarWhereInput[]
+  }
+
+  export type ListeningScoreUncheckedUpdateManyWithoutTaskNestedInput = {
+    create?: XOR<ListeningScoreCreateWithoutTaskInput, ListeningScoreUncheckedCreateWithoutTaskInput> | ListeningScoreCreateWithoutTaskInput[] | ListeningScoreUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: ListeningScoreCreateOrConnectWithoutTaskInput | ListeningScoreCreateOrConnectWithoutTaskInput[]
+    upsert?: ListeningScoreUpsertWithWhereUniqueWithoutTaskInput | ListeningScoreUpsertWithWhereUniqueWithoutTaskInput[]
+    createMany?: ListeningScoreCreateManyTaskInputEnvelope
+    set?: ListeningScoreWhereUniqueInput | ListeningScoreWhereUniqueInput[]
+    disconnect?: ListeningScoreWhereUniqueInput | ListeningScoreWhereUniqueInput[]
+    delete?: ListeningScoreWhereUniqueInput | ListeningScoreWhereUniqueInput[]
+    connect?: ListeningScoreWhereUniqueInput | ListeningScoreWhereUniqueInput[]
+    update?: ListeningScoreUpdateWithWhereUniqueWithoutTaskInput | ListeningScoreUpdateWithWhereUniqueWithoutTaskInput[]
+    updateMany?: ListeningScoreUpdateManyWithWhereWithoutTaskInput | ListeningScoreUpdateManyWithWhereWithoutTaskInput[]
+    deleteMany?: ListeningScoreScalarWhereInput | ListeningScoreScalarWhereInput[]
+  }
+
+  export type TaskCreateNestedOneWithoutListeningScoresInput = {
+    create?: XOR<TaskCreateWithoutListeningScoresInput, TaskUncheckedCreateWithoutListeningScoresInput>
+    connectOrCreate?: TaskCreateOrConnectWithoutListeningScoresInput
+    connect?: TaskWhereUniqueInput
+  }
+
+  export type FloatFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
+  export type TaskUpdateOneRequiredWithoutListeningScoresNestedInput = {
+    create?: XOR<TaskCreateWithoutListeningScoresInput, TaskUncheckedCreateWithoutListeningScoresInput>
+    connectOrCreate?: TaskCreateOrConnectWithoutListeningScoresInput
+    upsert?: TaskUpsertWithoutListeningScoresInput
+    connect?: TaskWhereUniqueInput
+    update?: XOR<XOR<TaskUpdateToOneWithWhereWithoutListeningScoresInput, TaskUpdateWithoutListeningScoresInput>, TaskUncheckedUpdateWithoutListeningScoresInput>
   }
 
   export type NestedIntFilter<$PrismaModel = never> = {
@@ -4034,6 +5675,176 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
+  }
+
+  export type NestedFloatWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedFloatFilter<$PrismaModel>
+    _min?: NestedFloatFilter<$PrismaModel>
+    _max?: NestedFloatFilter<$PrismaModel>
+  }
+
+  export type ListeningScoreCreateWithoutTaskInput = {
+    userId: number
+    score: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ListeningScoreUncheckedCreateWithoutTaskInput = {
+    id?: number
+    userId: number
+    score: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ListeningScoreCreateOrConnectWithoutTaskInput = {
+    where: ListeningScoreWhereUniqueInput
+    create: XOR<ListeningScoreCreateWithoutTaskInput, ListeningScoreUncheckedCreateWithoutTaskInput>
+  }
+
+  export type ListeningScoreCreateManyTaskInputEnvelope = {
+    data: ListeningScoreCreateManyTaskInput | ListeningScoreCreateManyTaskInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type ListeningScoreUpsertWithWhereUniqueWithoutTaskInput = {
+    where: ListeningScoreWhereUniqueInput
+    update: XOR<ListeningScoreUpdateWithoutTaskInput, ListeningScoreUncheckedUpdateWithoutTaskInput>
+    create: XOR<ListeningScoreCreateWithoutTaskInput, ListeningScoreUncheckedCreateWithoutTaskInput>
+  }
+
+  export type ListeningScoreUpdateWithWhereUniqueWithoutTaskInput = {
+    where: ListeningScoreWhereUniqueInput
+    data: XOR<ListeningScoreUpdateWithoutTaskInput, ListeningScoreUncheckedUpdateWithoutTaskInput>
+  }
+
+  export type ListeningScoreUpdateManyWithWhereWithoutTaskInput = {
+    where: ListeningScoreScalarWhereInput
+    data: XOR<ListeningScoreUpdateManyMutationInput, ListeningScoreUncheckedUpdateManyWithoutTaskInput>
+  }
+
+  export type ListeningScoreScalarWhereInput = {
+    AND?: ListeningScoreScalarWhereInput | ListeningScoreScalarWhereInput[]
+    OR?: ListeningScoreScalarWhereInput[]
+    NOT?: ListeningScoreScalarWhereInput | ListeningScoreScalarWhereInput[]
+    id?: IntFilter<"ListeningScore"> | number
+    userId?: IntFilter<"ListeningScore"> | number
+    taskId?: IntFilter<"ListeningScore"> | number
+    score?: FloatFilter<"ListeningScore"> | number
+    createdAt?: DateTimeFilter<"ListeningScore"> | Date | string
+    updatedAt?: DateTimeFilter<"ListeningScore"> | Date | string
+  }
+
+  export type TaskCreateWithoutListeningScoresInput = {
+    language: string
+    level: string
+    skill: string
+    prompt: string
+    audioUrl?: string | null
+    referenceText?: string | null
+    answerOptions?: TaskCreateanswerOptionsInput | string[]
+    correctAnswer?: string | null
+    questionsJson?: string | null
+    createdAt?: Date | string
+  }
+
+  export type TaskUncheckedCreateWithoutListeningScoresInput = {
+    id?: number
+    language: string
+    level: string
+    skill: string
+    prompt: string
+    audioUrl?: string | null
+    referenceText?: string | null
+    answerOptions?: TaskCreateanswerOptionsInput | string[]
+    correctAnswer?: string | null
+    questionsJson?: string | null
+    createdAt?: Date | string
+  }
+
+  export type TaskCreateOrConnectWithoutListeningScoresInput = {
+    where: TaskWhereUniqueInput
+    create: XOR<TaskCreateWithoutListeningScoresInput, TaskUncheckedCreateWithoutListeningScoresInput>
+  }
+
+  export type TaskUpsertWithoutListeningScoresInput = {
+    update: XOR<TaskUpdateWithoutListeningScoresInput, TaskUncheckedUpdateWithoutListeningScoresInput>
+    create: XOR<TaskCreateWithoutListeningScoresInput, TaskUncheckedCreateWithoutListeningScoresInput>
+    where?: TaskWhereInput
+  }
+
+  export type TaskUpdateToOneWithWhereWithoutListeningScoresInput = {
+    where?: TaskWhereInput
+    data: XOR<TaskUpdateWithoutListeningScoresInput, TaskUncheckedUpdateWithoutListeningScoresInput>
+  }
+
+  export type TaskUpdateWithoutListeningScoresInput = {
+    language?: StringFieldUpdateOperationsInput | string
+    level?: StringFieldUpdateOperationsInput | string
+    skill?: StringFieldUpdateOperationsInput | string
+    prompt?: StringFieldUpdateOperationsInput | string
+    audioUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    referenceText?: NullableStringFieldUpdateOperationsInput | string | null
+    answerOptions?: TaskUpdateanswerOptionsInput | string[]
+    correctAnswer?: NullableStringFieldUpdateOperationsInput | string | null
+    questionsJson?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type TaskUncheckedUpdateWithoutListeningScoresInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    language?: StringFieldUpdateOperationsInput | string
+    level?: StringFieldUpdateOperationsInput | string
+    skill?: StringFieldUpdateOperationsInput | string
+    prompt?: StringFieldUpdateOperationsInput | string
+    audioUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    referenceText?: NullableStringFieldUpdateOperationsInput | string | null
+    answerOptions?: TaskUpdateanswerOptionsInput | string[]
+    correctAnswer?: NullableStringFieldUpdateOperationsInput | string | null
+    questionsJson?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ListeningScoreCreateManyTaskInput = {
+    id?: number
+    userId: number
+    score: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ListeningScoreUpdateWithoutTaskInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    score?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ListeningScoreUncheckedUpdateWithoutTaskInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    score?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ListeningScoreUncheckedUpdateManyWithoutTaskInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    score?: FloatFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
 

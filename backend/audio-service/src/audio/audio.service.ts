@@ -16,20 +16,35 @@ interface AudioProcessingResult {
   createdAt: Date;
 }
 
+export interface ListeningQuestionForClient {
+  index: number;
+  question: string;
+  options: [string, string, string, string];
+}
+
 export interface ListeningTaskResult {
   taskId: number;
-  prompt: string;
   audioUrl: string | null;
   audioBase64: string | null;
   mimeType: string | null;
-  answerOptions: string[];
+  questions: ListeningQuestionForClient[];
   durationEstimateMs: number | null;
 }
 
-export interface ListeningScoreResult {
+export interface QuestionResult {
+  questionIndex: number;
+  question: string;
+  correct: boolean;
+  userAnswer: number;
+  correctAnswer: number;
+  correctOptionText: string;
+}
+
+export interface ListeningAnswersResult {
   score: number;
   correct: number;
   total: number;
+  results: QuestionResult[];
 }
 
 @Injectable()
@@ -193,128 +208,143 @@ export class AudioService {
     const normalizedLanguage = language.toLowerCase();
     const userIdInt = parseInt(userId, 10);
 
-    // 1. Look for an existing task the user hasn't completed at 100% yet
+    // 1. Look for an existing task with questionsJson that the user hasn't scored 100%
     const existingTask = await this.audioRepository.getNextListeningTask(
       userIdInt,
       normalizedLanguage,
       level,
     );
 
-    if (existingTask) {
-      // Task already has audio stored as a data URL
-      if (existingTask.audioUrl) {
-        const isDataUrl = existingTask.audioUrl.startsWith('data:');
+    if (existingTask && existingTask.questionsJson) {
+      const questions = this.parseQuestionsForClient(existingTask.questionsJson);
+      if (questions.length === 5) {
+        // Task already has audio stored as a data URL
+        if (existingTask.audioUrl) {
+          const isDataUrl = existingTask.audioUrl.startsWith('data:');
+          const audioBase64 = isDataUrl ? (existingTask.audioUrl.split(',')[1] ?? null) : null;
+          return {
+            taskId: existingTask.id,
+            audioUrl: isDataUrl ? existingTask.audioUrl : null,
+            audioBase64,
+            mimeType: isDataUrl ? 'audio/mpeg' : null,
+            questions,
+            durationEstimateMs: null,
+          };
+        }
+
+        // Task exists but has no audio yet — synthesize and cache it
+        const tts = await this.aiOrchestrator.synthesizeSpeech(
+          existingTask.referenceText || existingTask.prompt,
+          language,
+        );
+        if (tts.audioBase64) {
+          const dataUrl = `data:audio/mpeg;base64,${tts.audioBase64}`;
+          await this.audioRepository.updateTaskAudio(existingTask.id, dataUrl);
+          return {
+            taskId: existingTask.id,
+            audioUrl: dataUrl,
+            audioBase64: tts.audioBase64,
+            mimeType: 'audio/mpeg',
+            questions,
+            durationEstimateMs: tts.durationEstimateMs,
+          };
+        }
+
         return {
           taskId: existingTask.id,
-          prompt: existingTask.prompt,
-          audioUrl: isDataUrl ? existingTask.audioUrl : null,
-          audioBase64: isDataUrl
-            ? existingTask.audioUrl.split(',')[1] ?? null
-            : null,
-          mimeType: isDataUrl ? 'audio/mpeg' : null,
-          answerOptions: existingTask.answerOptions,
+          audioUrl: null,
+          audioBase64: null,
+          mimeType: null,
+          questions,
           durationEstimateMs: null,
         };
       }
-
-      // Task exists but has no audio — synthesize it and update
-      const tts = await this.aiOrchestrator.synthesizeSpeech(
-        existingTask.referenceText || existingTask.prompt,
-        language,
-      );
-
-      if (tts.audioBase64) {
-        const dataUrl = `data:audio/mpeg;base64,${tts.audioBase64}`;
-        // Save audio back to the task for future requests
-        await this.audioRepository.updateTaskAudio(existingTask.id, dataUrl);
-        return {
-          taskId: existingTask.id,
-          prompt: existingTask.prompt,
-          audioUrl: dataUrl,
-          audioBase64: tts.audioBase64,
-          mimeType: 'audio/mpeg',
-          answerOptions: existingTask.answerOptions,
-          durationEstimateMs: tts.durationEstimateMs,
-        };
-      }
-
-      // TTS failed — return task without audio
-      return {
-        taskId: existingTask.id,
-        prompt: existingTask.prompt,
-        audioUrl: null,
-        audioBase64: null,
-        mimeType: null,
-        answerOptions: existingTask.answerOptions,
-        durationEstimateMs: null,
-      };
     }
 
-    // 2. No suitable task found — generate a new one via AI
-    const generated = await this.aiOrchestrator.generateTask(language, level, 'listening');
-    if (!generated) {
-      throw new Error('Failed to generate listening task');
-    }
+    // 2. No suitable task — generate a fresh passage with 5 questions via AI
+    const passage = await this.aiOrchestrator.generateListeningPassage(language, level);
 
-    // 3. Synthesize audio for the new task
-    const tts = await this.aiOrchestrator.synthesizeSpeech(
-      generated.referenceText || generated.prompt,
-      language,
-    );
-
+    // 3. Synthesize TTS audio for the passage text
+    const tts = await this.aiOrchestrator.synthesizeSpeech(passage.passageText, language);
     const audioDataUrl = tts.audioBase64 ? `data:audio/mpeg;base64,${tts.audioBase64}` : null;
 
-    // 4. Persist task with audio
+    // 4. Persist task — store passage text as referenceText, questions as questionsJson
     const savedTask = await this.audioRepository.createTask({
       language: normalizedLanguage,
       level,
       skill: 'listening',
-      prompt: generated.prompt,
+      prompt: 'Listen to the audio and answer the comprehension questions.',
       audioUrl: audioDataUrl,
-      referenceText: generated.referenceText,
-      answerOptions: generated.answerOptions,
-      correctAnswer: generated.correctAnswer,
+      referenceText: passage.passageText,
+      answerOptions: [],
+      correctAnswer: null,
+      questionsJson: JSON.stringify(passage.questions),
     });
+
+    const questions = this.parseQuestionsForClient(savedTask.questionsJson!);
 
     return {
       taskId: savedTask.id,
-      prompt: savedTask.prompt,
       audioUrl: audioDataUrl,
       audioBase64: tts.audioBase64,
       mimeType: tts.audioBase64 ? 'audio/mpeg' : null,
-      answerOptions: savedTask.answerOptions,
+      questions,
       durationEstimateMs: tts.durationEstimateMs,
     };
   }
 
-  async submitListeningScore(
+  async submitListeningAnswers(
     userId: string,
     taskId: number,
-    userAnswers: string[],
-  ): Promise<ListeningScoreResult> {
+    userAnswers: number[],
+  ): Promise<ListeningAnswersResult> {
     const task = await this.audioRepository.getTaskById(taskId);
     if (!task) {
       throw new Error('Task not found');
     }
-
-    // Evaluate: each answer option label (A/B/C/D) is checked against correctAnswer
-    const total = task.answerOptions.length;
-    let correct = 0;
-
-    if (task.correctAnswer) {
-      // Single-answer task: first user answer is the chosen option index label
-      const chosen = (userAnswers[0] || '').trim().toUpperCase();
-      const expected = task.correctAnswer.trim().toUpperCase();
-      if (chosen === expected) correct = total;
-    } else {
-      correct = 0;
+    if (!task.questionsJson) {
+      throw new Error('Task has no questions');
     }
 
-    const score = total > 0 ? correct / total : 0;
+    const questions: { question: string; options: string[]; correctAnswer: number }[] =
+      JSON.parse(task.questionsJson);
 
+    const total = questions.length;
+    let correct = 0;
+
+    const results: QuestionResult[] = questions.map((q, i) => {
+      const userAnswer = typeof userAnswers[i] === 'number' ? userAnswers[i] : -1;
+      const isCorrect = userAnswer === q.correctAnswer;
+      if (isCorrect) correct++;
+      return {
+        questionIndex: i,
+        question: q.question,
+        correct: isCorrect,
+        userAnswer,
+        correctAnswer: q.correctAnswer,
+        correctOptionText: q.options[q.correctAnswer] ?? '',
+      };
+    });
+
+    const score = total > 0 ? correct / total : 0;
     await this.audioRepository.upsertListeningScore(parseInt(userId, 10), taskId, score);
 
-    return { score, correct, total };
+    return { score, correct, total, results };
+  }
+
+  // Strip correctAnswer before sending to client so the answer isn't exposed
+  private parseQuestionsForClient(questionsJson: string): ListeningQuestionForClient[] {
+    try {
+      const parsed: { question: string; options: [string, string, string, string]; correctAnswer: number }[] =
+        JSON.parse(questionsJson);
+      return parsed.map((q, i) => ({
+        index: i,
+        question: q.question,
+        options: q.options,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   private async downloadAudio(audioUrl: string): Promise<Buffer> {

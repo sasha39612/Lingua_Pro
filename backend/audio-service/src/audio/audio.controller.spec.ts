@@ -15,7 +15,7 @@ function makeController() {
     evaluateComprehension: vi.fn(),
     generateComprehension: vi.fn(),
     getListeningTask: vi.fn(),
-    submitListeningScore: vi.fn(),
+    submitListeningAnswers: vi.fn(),
   };
   const controller = new AudioController(mockService as any);
   return { controller, mockService };
@@ -281,39 +281,46 @@ describe('AudioController', () => {
     });
   });
 
-  // ─── POST /audio/listening-score ───────────────────────────────────────────
+  // ─── POST /audio/listening-answers ────────────────────────────────────────
 
-  describe('submitListeningScore', () => {
-    const fakeScoreResult = { score: 1, correct: 4, total: 4 };
+  describe('submitListeningAnswers', () => {
+    const fakeResult = {
+      score: 0.8,
+      correct: 4,
+      total: 5,
+      results: [
+        { questionIndex: 0, question: 'Q1?', correct: true, userAnswer: 1, correctAnswer: 1, correctOptionText: 'Option B' },
+      ],
+    };
 
-    it('delegates to service and returns score', async () => {
+    it('delegates to service and returns result', async () => {
       const { controller, mockService } = makeController();
-      mockService.submitListeningScore.mockResolvedValue(fakeScoreResult);
+      mockService.submitListeningAnswers.mockResolvedValue(fakeResult);
 
-      const result = await controller.submitListeningScore({ taskId: 10, answers: ['A'] }, '42');
+      const result = await controller.submitListeningAnswers({ taskId: 10, answers: [1, 2, 3, 0, 1] }, '42');
 
-      expect(mockService.submitListeningScore).toHaveBeenCalledWith('42', 10, ['A']);
-      expect(result).toEqual(fakeScoreResult);
+      expect(mockService.submitListeningAnswers).toHaveBeenCalledWith('42', 10, [1, 2, 3, 0, 1]);
+      expect(result).toEqual(fakeResult);
     });
 
     it('throws BadRequestException when taskId is missing', async () => {
       const { controller } = makeController();
       await expect(
-        controller.submitListeningScore({ taskId: 0, answers: ['A'] }, '42'),
+        controller.submitListeningAnswers({ taskId: 0, answers: [0, 1, 2, 3, 0] }, '42'),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when answers is not an array', async () => {
       const { controller } = makeController();
       await expect(
-        controller.submitListeningScore({ taskId: 10, answers: 'A' as any }, '42'),
+        controller.submitListeningAnswers({ taskId: 10, answers: 0 as any }, '42'),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when x-user-id header is missing', async () => {
       const { controller } = makeController();
       await expect(
-        controller.submitListeningScore({ taskId: 10, answers: ['A'] }, ''),
+        controller.submitListeningAnswers({ taskId: 10, answers: [0, 1, 2, 3, 0] }, ''),
       ).rejects.toThrow(BadRequestException);
     });
   });

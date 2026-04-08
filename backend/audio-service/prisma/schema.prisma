@@ -39,6 +39,7 @@ model Task {
   referenceText   String?          @map("reference_text")
   answerOptions   String[]         @map("answer_options")
   correctAnswer   String?          @map("correct_answer")
+  questionsJson   String?          @map("questions_json")
   createdAt       DateTime         @default(now()) @map("created_at")
   listeningScores ListeningScore[]
 

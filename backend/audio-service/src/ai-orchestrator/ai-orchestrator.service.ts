@@ -37,6 +37,17 @@ export interface GeneratedTask {
   correctAnswer: string | null;
 }
 
+export interface ListeningQuestion {
+  question: string;
+  options: [string, string, string, string];
+  correctAnswer: number; // 0-based index
+}
+
+export interface ListeningPassage {
+  passageText: string;
+  questions: ListeningQuestion[];
+}
+
 export interface TtsResult {
   audioBase64: string | null;
   mimeType: 'audio/mpeg' | null;
@@ -112,6 +123,32 @@ export class AiOrchestratorService {
     return this.localTaskFallback(language, level, skill);
   }
 
+  // ── Listening passage generation ───────────────────────────────────────────
+
+  async generateListeningPassage(language: string, level: string): Promise<ListeningPassage> {
+    if (!this.orchestratorBaseUrl) {
+      return this.localListeningPassageFallback(language, level);
+    }
+    try {
+      const response = await axios.post(
+        `${this.orchestratorBaseUrl.replace(/\/$/, '')}/tasks/generate-listening`,
+        { language, level },
+        { timeout: 30_000 },
+      );
+      const d = response?.data;
+      if (
+        typeof d?.passageText === 'string' &&
+        Array.isArray(d?.questions) &&
+        d.questions.length === 5
+      ) {
+        return d as ListeningPassage;
+      }
+    } catch {
+      console.warn('AI orchestrator listening passage generation failed, using fallback');
+    }
+    return this.localListeningPassageFallback(language, level);
+  }
+
   // ── Text-to-speech ─────────────────────────────────────────────────────────
 
   async synthesizeSpeech(text: string, language: string): Promise<TtsResult> {
@@ -150,6 +187,48 @@ export class AiOrchestratorService {
       confidence: score,
       words: [],
       alignment: [],
+    };
+  }
+
+  private localListeningPassageFallback(language: string, level: string): ListeningPassage {
+    return {
+      passageText:
+        `Welcome to this ${level} level ${language} listening exercise. ` +
+        'Today we are going to talk about the importance of daily habits. Many successful people around the world share one thing in common: they follow a consistent daily routine. ' +
+        'In the morning, they wake up early and spend time planning their day. They often exercise for at least thirty minutes to keep their body and mind healthy. ' +
+        'Breakfast is considered the most important meal of the day. A good breakfast gives you energy and helps you concentrate better at work or school. ' +
+        'During the day, successful people focus on their most important tasks first. They avoid distractions like social media and try to work in blocks of time. ' +
+        'Taking short breaks is also very important. Research shows that our brains work better when we rest for five to ten minutes every hour. ' +
+        'In the evening, people who sleep well tend to be more productive. Experts recommend sleeping for seven to eight hours each night. ' +
+        'Before going to bed, many people read a book or listen to calm music instead of looking at screens. This helps the brain relax and prepare for sleep. ' +
+        'Building good habits takes time and effort, but the results are worth it. Small changes in your daily routine can lead to big improvements in your health, happiness, and success.',
+      questions: [
+        {
+          question: 'What do many successful people have in common?',
+          options: ['They sleep very little', 'They follow a consistent daily routine', 'They never use social media', 'They work without breaks'],
+          correctAnswer: 1,
+        },
+        {
+          question: 'How long do the people in the passage typically exercise each morning?',
+          options: ['Ten minutes', 'One hour', 'At least thirty minutes', 'Two hours'],
+          correctAnswer: 2,
+        },
+        {
+          question: 'Why is breakfast considered important according to the passage?',
+          options: ['It saves money', 'It gives energy and helps concentration', 'It is the largest meal', 'It improves sleep'],
+          correctAnswer: 1,
+        },
+        {
+          question: 'How often does research suggest the brain needs a short rest?',
+          options: ['Every thirty minutes', 'Every two hours', 'Every hour', 'Every three hours'],
+          correctAnswer: 2,
+        },
+        {
+          question: 'What do experts recommend instead of looking at screens before bed?',
+          options: ['Exercising heavily', 'Eating a large meal', 'Reading a book or listening to calm music', 'Planning the next day in detail'],
+          correctAnswer: 2,
+        },
+      ],
     };
   }
 

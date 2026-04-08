@@ -38,9 +38,9 @@ interface GenerateComprehensionRequest {
   taskId: string;
 }
 
-interface SubmitListeningScoreRequest {
+interface SubmitListeningAnswersRequest {
   taskId: number;
-  answers: string[];
+  answers: number[];
 }
 
 @Controller('audio')
@@ -142,9 +142,9 @@ export class AudioController {
     return this.audioService.getListeningTask(userId, language, level);
   }
 
-  @Post('listening-score')
-  async submitListeningScore(
-    @Body() body: SubmitListeningScoreRequest,
+  @Post('listening-answers')
+  async submitListeningAnswers(
+    @Body() body: SubmitListeningAnswersRequest,
     @Headers('x-user-id') userId: string,
   ) {
     const { taskId, answers } = body;
@@ -154,6 +154,6 @@ export class AudioController {
     if (!userId) {
       throw new BadRequestException('x-user-id header is required');
     }
-    return this.audioService.submitListeningScore(userId, taskId, answers);
+    return this.audioService.submitListeningAnswers(userId, taskId, answers);
   }
 }

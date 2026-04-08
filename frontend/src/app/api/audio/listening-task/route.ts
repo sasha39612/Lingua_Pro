@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
       `${audioServiceUrl}/audio/listening-task?language=${encodeURIComponent(language)}&level=${encodeURIComponent(level)}`,
       {
         headers: { 'x-user-id': userId },
+        // TTS generation for a 400-word passage can take up to 45 s
+        signal: AbortSignal.timeout(60_000),
       },
     );
 
