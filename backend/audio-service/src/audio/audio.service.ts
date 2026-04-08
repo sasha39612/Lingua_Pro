@@ -338,7 +338,13 @@ export class AudioService {
     });
 
     const score = total > 0 ? correct / total : 0;
-    await this.audioRepository.upsertListeningScore(parseInt(userId, 10), taskId, score);
+
+    try {
+      await this.audioRepository.upsertListeningScore(parseInt(userId, 10), taskId, score);
+    } catch (err: any) {
+      // Non-fatal: log the DB error but still return the results to the user
+      this.logger.error(`Failed to persist listening score: ${err?.message ?? err}`);
+    }
 
     return { score, correct, total, results };
   }

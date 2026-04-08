@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "listening_scores" (
+CREATE TABLE IF NOT EXISTS "listening_scores" (
     "id" SERIAL NOT NULL,
     "user_id" INTEGER NOT NULL,
     "task_id" INTEGER NOT NULL,
@@ -11,11 +11,18 @@ CREATE TABLE "listening_scores" (
 );
 
 -- CreateIndex
-CREATE INDEX "listening_scores_user_id_idx" ON "listening_scores"("user_id");
+CREATE INDEX IF NOT EXISTS "listening_scores_user_id_idx" ON "listening_scores"("user_id");
 
 -- CreateUniqueIndex
-CREATE UNIQUE INDEX "listening_scores_user_id_task_id_key" ON "listening_scores"("user_id", "task_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "listening_scores_user_id_task_id_key" ON "listening_scores"("user_id", "task_id");
 
--- AddForeignKey
-ALTER TABLE "listening_scores" ADD CONSTRAINT "listening_scores_task_id_fkey"
-    FOREIGN KEY ("task_id") REFERENCES "tasks"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- AddForeignKey (idempotent via DO block)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'listening_scores_task_id_fkey'
+  ) THEN
+    ALTER TABLE "listening_scores" ADD CONSTRAINT "listening_scores_task_id_fkey"
+      FOREIGN KEY ("task_id") REFERENCES "tasks"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
