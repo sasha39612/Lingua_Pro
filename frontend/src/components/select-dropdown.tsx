@@ -12,9 +12,10 @@ interface SelectDropdownProps {
   options: Option[];
   onChange: (value: string) => void;
   label?: string;
+  testId?: string;
 }
 
-export function SelectDropdown({ value, options, onChange, label }: SelectDropdownProps) {
+export function SelectDropdown({ value, options, onChange, label, testId }: SelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -31,7 +32,7 @@ export function SelectDropdown({ value, options, onChange, label }: SelectDropdo
   }, []);
 
   return (
-    <div className="text-sm">
+    <div className="text-sm" data-testid={testId}>
       {label && <span className="mb-1 block text-slate-600">{label}</span>}
       <div ref={ref} className="relative">
         {/* Trigger */}

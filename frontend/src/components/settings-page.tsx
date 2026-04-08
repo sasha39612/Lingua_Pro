@@ -54,18 +54,21 @@ export function SettingsPage() {
             value={level}
             options={LEVEL_OPTIONS}
             onChange={setLevel}
+            testId="select-level"
           />
           <SelectDropdown
             label="Theme"
             value={theme}
             options={THEME_OPTIONS}
             onChange={(v) => setTheme(v as 'light' | 'dark' | 'system')}
+            testId="select-theme"
           />
           <SelectDropdown
             label="Language"
             value={language}
             options={LANGUAGE_OPTIONS}
             onChange={(v) => setLanguage(v as AppLanguage)}
+            testId="select-language"
           />
         </div>
       </section>
