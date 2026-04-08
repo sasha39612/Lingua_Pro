@@ -9,10 +9,16 @@ const mockAudioRepository = {
   getListeningTasks: vi.fn(),
   getRecordsByLanguage: vi.fn(),
   getTaskById: vi.fn(),
+  getNextListeningTask: vi.fn(),
+  createTask: vi.fn(),
+  upsertListeningScore: vi.fn(),
+  updateTaskAudio: vi.fn(),
 };
 
 const mockAiOrchestrator = {
   analyzeAudio: vi.fn(),
+  generateTask: vi.fn(),
+  synthesizeSpeech: vi.fn(),
 };
 
 vi.mock('axios');
@@ -214,6 +220,191 @@ describe('AudioService', () => {
       await expect(service.generateComprehension('999')).rejects.toThrow('Listening task not found');
 
       process.env.DATABASE_URL = origEnv;
+    });
+  });
+
+  // ─── getListeningTask ────────────────────────────────────────────────────────
+
+  describe('getListeningTask', () => {
+    const fakeTaskWithAudio = {
+      id: 10,
+      language: 'english',
+      level: 'B1',
+      skill: 'listening',
+      prompt: 'Listen and answer',
+      audioUrl: 'data:audio/mpeg;base64,AAAA',
+      referenceText: 'The speaker talks about travel.',
+      answerOptions: ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctAnswer: 'A',
+      createdAt: new Date(),
+    };
+
+    const fakeTaskNoAudio = { ...fakeTaskWithAudio, id: 11, audioUrl: null };
+
+    const fakeTts = { audioBase64: 'BASE64DATA', mimeType: 'audio/mpeg', durationEstimateMs: 3000 };
+
+    beforeEach(() => {
+      mockAudioRepository.getNextListeningTask.mockResolvedValue(null);
+      mockAudioRepository.createTask.mockResolvedValue(fakeTaskWithAudio);
+      mockAudioRepository.updateTaskAudio.mockResolvedValue(undefined);
+      mockAiOrchestrator.generateTask.mockResolvedValue({
+        language: 'english',
+        level: 'B1',
+        skill: 'listening',
+        prompt: 'Listen and answer',
+        referenceText: 'The speaker talks about travel.',
+        answerOptions: ['Option A', 'Option B', 'Option C', 'Option D'],
+        correctAnswer: 'A',
+        audioUrl: null,
+        focusPhonemes: null,
+      });
+      mockAiOrchestrator.synthesizeSpeech.mockResolvedValue(fakeTts);
+    });
+
+    it('returns existing task directly when it has audioUrl', async () => {
+      mockAudioRepository.getNextListeningTask.mockResolvedValue(fakeTaskWithAudio);
+
+      const result = await service.getListeningTask('42', 'english', 'B1');
+
+      expect(mockAudioRepository.getNextListeningTask).toHaveBeenCalledWith(42, 'english', 'B1');
+      expect(mockAiOrchestrator.generateTask).not.toHaveBeenCalled();
+      expect(result.taskId).toBe(10);
+      expect(result.audioUrl).toBe('data:audio/mpeg;base64,AAAA');
+      expect(result.audioBase64).toBe('AAAA');
+      expect(result.answerOptions).toEqual(fakeTaskWithAudio.answerOptions);
+    });
+
+    it('synthesizes audio and backfills when existing task has no audioUrl', async () => {
+      mockAudioRepository.getNextListeningTask.mockResolvedValue(fakeTaskNoAudio);
+
+      const result = await service.getListeningTask('42', 'english', 'B1');
+
+      expect(mockAiOrchestrator.synthesizeSpeech).toHaveBeenCalledWith(
+        fakeTaskNoAudio.referenceText,
+        'english',
+      );
+      expect(mockAudioRepository.updateTaskAudio).toHaveBeenCalledWith(
+        11,
+        'data:audio/mpeg;base64,BASE64DATA',
+      );
+      expect(result.taskId).toBe(11);
+      expect(result.audioBase64).toBe('BASE64DATA');
+      expect(result.durationEstimateMs).toBe(3000);
+    });
+
+    it('returns task without audio when existing task has no audioUrl and TTS fails', async () => {
+      mockAudioRepository.getNextListeningTask.mockResolvedValue(fakeTaskNoAudio);
+      mockAiOrchestrator.synthesizeSpeech.mockResolvedValue({ audioBase64: null, mimeType: null, durationEstimateMs: null });
+
+      const result = await service.getListeningTask('42', 'english', 'B1');
+
+      expect(result.taskId).toBe(11);
+      expect(result.audioBase64).toBeNull();
+      expect(result.audioUrl).toBeNull();
+    });
+
+    it('generates new task + TTS and saves when no existing task found', async () => {
+      mockAudioRepository.getNextListeningTask.mockResolvedValue(null);
+
+      const result = await service.getListeningTask('42', 'english', 'B1');
+
+      expect(mockAiOrchestrator.generateTask).toHaveBeenCalledWith('english', 'B1', 'listening');
+      expect(mockAiOrchestrator.synthesizeSpeech).toHaveBeenCalledWith(
+        'The speaker talks about travel.',
+        'english',
+      );
+      expect(mockAudioRepository.createTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          language: 'english',
+          level: 'B1',
+          skill: 'listening',
+          audioUrl: 'data:audio/mpeg;base64,BASE64DATA',
+        }),
+      );
+      expect(result.taskId).toBe(fakeTaskWithAudio.id);
+      expect(result.audioBase64).toBe('BASE64DATA');
+    });
+
+    it('normalizes language to lowercase before querying', async () => {
+      mockAudioRepository.getNextListeningTask.mockResolvedValue(null);
+
+      await service.getListeningTask('42', 'English', 'B1');
+
+      expect(mockAudioRepository.getNextListeningTask).toHaveBeenCalledWith(42, 'english', 'B1');
+    });
+
+    it('generates new task with null audio when TTS fails on generation', async () => {
+      mockAudioRepository.getNextListeningTask.mockResolvedValue(null);
+      mockAiOrchestrator.synthesizeSpeech.mockResolvedValue({ audioBase64: null, mimeType: null, durationEstimateMs: null });
+
+      const result = await service.getListeningTask('42', 'english', 'B1');
+
+      expect(result.audioBase64).toBeNull();
+      expect(result.audioUrl).toBeNull();
+    });
+  });
+
+  // ─── submitListeningScore ────────────────────────────────────────────────────
+
+  describe('submitListeningScore', () => {
+    const fakeTask = {
+      id: 10,
+      prompt: 'Listen and answer',
+      answerOptions: ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctAnswer: 'A',
+      language: 'english',
+      level: 'B1',
+      skill: 'listening',
+      audioUrl: null,
+      referenceText: null,
+      createdAt: new Date(),
+    };
+
+    beforeEach(() => {
+      mockAudioRepository.getTaskById.mockResolvedValue(fakeTask);
+      mockAudioRepository.upsertListeningScore.mockResolvedValue(undefined);
+    });
+
+    it('returns score=1 and correct=total when answer matches correctAnswer', async () => {
+      const result = await service.submitListeningScore('42', 10, ['A']);
+
+      expect(result.score).toBe(1);
+      expect(result.correct).toBe(4);
+      expect(result.total).toBe(4);
+      expect(mockAudioRepository.upsertListeningScore).toHaveBeenCalledWith(42, 10, 1);
+    });
+
+    it('returns score=0 when answer is wrong', async () => {
+      const result = await service.submitListeningScore('42', 10, ['B']);
+
+      expect(result.score).toBe(0);
+      expect(result.correct).toBe(0);
+      expect(result.total).toBe(4);
+      expect(mockAudioRepository.upsertListeningScore).toHaveBeenCalledWith(42, 10, 0);
+    });
+
+    it('is case-insensitive when comparing answers', async () => {
+      const result = await service.submitListeningScore('42', 10, ['a']);
+      expect(result.score).toBe(1);
+    });
+
+    it('returns score=0 when task has no correctAnswer', async () => {
+      mockAudioRepository.getTaskById.mockResolvedValue({ ...fakeTask, correctAnswer: null });
+
+      const result = await service.submitListeningScore('42', 10, ['A']);
+      expect(result.score).toBe(0);
+      expect(result.correct).toBe(0);
+    });
+
+    it('throws when task is not found', async () => {
+      mockAudioRepository.getTaskById.mockResolvedValue(null);
+
+      await expect(service.submitListeningScore('42', 999, ['A'])).rejects.toThrow('Task not found');
+    });
+
+    it('persists score with parsed integer userId', async () => {
+      await service.submitListeningScore('7', 10, ['A']);
+      expect(mockAudioRepository.upsertListeningScore).toHaveBeenCalledWith(7, 10, expect.any(Number));
     });
   });
 });

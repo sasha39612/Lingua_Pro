@@ -16,6 +16,22 @@ interface AudioProcessingResult {
   createdAt: Date;
 }
 
+export interface ListeningTaskResult {
+  taskId: number;
+  prompt: string;
+  audioUrl: string | null;
+  audioBase64: string | null;
+  mimeType: string | null;
+  answerOptions: string[];
+  durationEstimateMs: number | null;
+}
+
+export interface ListeningScoreResult {
+  score: number;
+  correct: number;
+  total: number;
+}
+
 @Injectable()
 export class AudioService {
   constructor(
@@ -31,14 +47,11 @@ export class AudioService {
   ): Promise<AudioProcessingResult> {
     language = language.toLowerCase();
     try {
-      // Download audio from URL
       const audioBuffer = await this.downloadAudio(audioUrl);
 
-      // Single call to orchestrator: transcription + Azure scoring + GPT feedback
       const { transcript, pronunciationScore, feedback, phonemeHints, confidence } =
         await this.aiOrchestrator.analyzeAudio(audioBuffer, 'audio/wav', language, expectedText);
 
-      // Save to PostgreSQL using repository
       const audioRecord = await this.audioRepository.createAudioRecord({
         userId: parseInt(userId),
         language,
@@ -168,6 +181,140 @@ export class AudioService {
       console.error('Failed to persist audio record, returning result without saving:', err);
       return result;
     }
+  }
+
+  // ── Listening task flow ─────────────────────────────────────────────────────
+
+  async getListeningTask(
+    userId: string,
+    language: string,
+    level: string,
+  ): Promise<ListeningTaskResult> {
+    const normalizedLanguage = language.toLowerCase();
+    const userIdInt = parseInt(userId, 10);
+
+    // 1. Look for an existing task the user hasn't completed at 100% yet
+    const existingTask = await this.audioRepository.getNextListeningTask(
+      userIdInt,
+      normalizedLanguage,
+      level,
+    );
+
+    if (existingTask) {
+      // Task already has audio stored as a data URL
+      if (existingTask.audioUrl) {
+        const isDataUrl = existingTask.audioUrl.startsWith('data:');
+        return {
+          taskId: existingTask.id,
+          prompt: existingTask.prompt,
+          audioUrl: isDataUrl ? existingTask.audioUrl : null,
+          audioBase64: isDataUrl
+            ? existingTask.audioUrl.split(',')[1] ?? null
+            : null,
+          mimeType: isDataUrl ? 'audio/mpeg' : null,
+          answerOptions: existingTask.answerOptions,
+          durationEstimateMs: null,
+        };
+      }
+
+      // Task exists but has no audio — synthesize it and update
+      const tts = await this.aiOrchestrator.synthesizeSpeech(
+        existingTask.referenceText || existingTask.prompt,
+        language,
+      );
+
+      if (tts.audioBase64) {
+        const dataUrl = `data:audio/mpeg;base64,${tts.audioBase64}`;
+        // Save audio back to the task for future requests
+        await this.audioRepository.updateTaskAudio(existingTask.id, dataUrl);
+        return {
+          taskId: existingTask.id,
+          prompt: existingTask.prompt,
+          audioUrl: dataUrl,
+          audioBase64: tts.audioBase64,
+          mimeType: 'audio/mpeg',
+          answerOptions: existingTask.answerOptions,
+          durationEstimateMs: tts.durationEstimateMs,
+        };
+      }
+
+      // TTS failed — return task without audio
+      return {
+        taskId: existingTask.id,
+        prompt: existingTask.prompt,
+        audioUrl: null,
+        audioBase64: null,
+        mimeType: null,
+        answerOptions: existingTask.answerOptions,
+        durationEstimateMs: null,
+      };
+    }
+
+    // 2. No suitable task found — generate a new one via AI
+    const generated = await this.aiOrchestrator.generateTask(language, level, 'listening');
+    if (!generated) {
+      throw new Error('Failed to generate listening task');
+    }
+
+    // 3. Synthesize audio for the new task
+    const tts = await this.aiOrchestrator.synthesizeSpeech(
+      generated.referenceText || generated.prompt,
+      language,
+    );
+
+    const audioDataUrl = tts.audioBase64 ? `data:audio/mpeg;base64,${tts.audioBase64}` : null;
+
+    // 4. Persist task with audio
+    const savedTask = await this.audioRepository.createTask({
+      language: normalizedLanguage,
+      level,
+      skill: 'listening',
+      prompt: generated.prompt,
+      audioUrl: audioDataUrl,
+      referenceText: generated.referenceText,
+      answerOptions: generated.answerOptions,
+      correctAnswer: generated.correctAnswer,
+    });
+
+    return {
+      taskId: savedTask.id,
+      prompt: savedTask.prompt,
+      audioUrl: audioDataUrl,
+      audioBase64: tts.audioBase64,
+      mimeType: tts.audioBase64 ? 'audio/mpeg' : null,
+      answerOptions: savedTask.answerOptions,
+      durationEstimateMs: tts.durationEstimateMs,
+    };
+  }
+
+  async submitListeningScore(
+    userId: string,
+    taskId: number,
+    userAnswers: string[],
+  ): Promise<ListeningScoreResult> {
+    const task = await this.audioRepository.getTaskById(taskId);
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    // Evaluate: each answer option label (A/B/C/D) is checked against correctAnswer
+    const total = task.answerOptions.length;
+    let correct = 0;
+
+    if (task.correctAnswer) {
+      // Single-answer task: first user answer is the chosen option index label
+      const chosen = (userAnswers[0] || '').trim().toUpperCase();
+      const expected = task.correctAnswer.trim().toUpperCase();
+      if (chosen === expected) correct = total;
+    } else {
+      correct = 0;
+    }
+
+    const score = total > 0 ? correct / total : 0;
+
+    await this.audioRepository.upsertListeningScore(parseInt(userId, 10), taskId, score);
+
+    return { score, correct, total };
   }
 
   private async downloadAudio(audioUrl: string): Promise<Buffer> {

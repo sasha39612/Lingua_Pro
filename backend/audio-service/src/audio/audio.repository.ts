@@ -11,6 +11,17 @@ interface CreateAudioRecordInput {
   feedback: string;
 }
 
+interface CreateTaskInput {
+  language: string;
+  level: string;
+  skill: string;
+  prompt: string;
+  audioUrl?: string | null;
+  referenceText?: string | null;
+  answerOptions: string[];
+  correctAnswer?: string | null;
+}
+
 @Injectable()
 export class AudioRepository {
   constructor(private prisma: PrismaService) {}
@@ -99,6 +110,69 @@ export class AudioRepository {
   async getTaskById(id: number): Promise<Task | null> {
     return this.prisma.task.findUnique({
       where: { id }
+    });
+  }
+
+  // ── Listening task flow ─────────────────────────────────────────────────────
+
+  async getNextListeningTask(
+    userId: number,
+    language: string,
+    level: string,
+  ): Promise<Task | null> {
+    // Cast where clause to any: listeningScores relation is added by the new
+    // migration but prisma generate hasn't run locally yet (runs in Docker build).
+    return (this.prisma.task as any).findFirst({
+      where: {
+        language,
+        level,
+        skill: 'listening',
+        OR: [
+          // User has never attempted this task
+          { listeningScores: { none: { userId } } },
+          // User attempted but scored less than 100%
+          { listeningScores: { some: { userId, score: { lt: 1.0 } } } },
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createTask(data: CreateTaskInput): Promise<Task> {
+    return this.prisma.task.create({
+      data: {
+        language: data.language,
+        level: data.level,
+        skill: data.skill,
+        prompt: data.prompt,
+        audioUrl: data.audioUrl ?? null,
+        referenceText: data.referenceText ?? null,
+        answerOptions: data.answerOptions,
+        correctAnswer: data.correctAnswer ?? null,
+      },
+    });
+  }
+
+  async upsertListeningScore(userId: number, taskId: number, score: number): Promise<void> {
+    // Cast to any: ListeningScore model added by migration, prisma generate runs in Docker build.
+    await (this.prisma as any).listeningScore.upsert({
+      where: { userId_taskId: { userId, taskId } },
+      create: { userId, taskId, score },
+      update: { score },
+    });
+  }
+
+  async getListeningScore(userId: number, taskId: number): Promise<{ score: number } | null> {
+    return (this.prisma as any).listeningScore.findUnique({
+      where: { userId_taskId: { userId, taskId } },
+      select: { score: true },
+    });
+  }
+
+  async updateTaskAudio(taskId: number, audioUrl: string): Promise<void> {
+    await this.prisma.task.update({
+      where: { id: taskId },
+      data: { audioUrl },
     });
   }
 }

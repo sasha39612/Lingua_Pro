@@ -13,6 +13,13 @@ function makeRepo() {
     task: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    listeningScore: {
+      upsert: vi.fn(),
+      findUnique: vi.fn(),
     },
   };
   const repo = new AudioRepository(mockPrisma as any);
@@ -249,6 +256,161 @@ describe('AudioRepository', () => {
 
       const result = await repo.getTaskById(999);
       expect(result).toBeNull();
+    });
+  });
+
+  // ─── getNextListeningTask ──────────────────────────────────────────────────
+
+  describe('getNextListeningTask', () => {
+    const fakeTask = { id: 10, language: 'english', level: 'B1', skill: 'listening' };
+
+    it('calls task.findFirst with correct OR filter', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.task.findFirst.mockResolvedValue(fakeTask);
+
+      const result = await repo.getNextListeningTask(42, 'english', 'B1');
+
+      expect(mockPrisma.task.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            language: 'english',
+            level: 'B1',
+            skill: 'listening',
+            OR: expect.arrayContaining([
+              expect.objectContaining({ listeningScores: { none: { userId: 42 } } }),
+              expect.objectContaining({ listeningScores: expect.objectContaining({ some: expect.any(Object) }) }),
+            ]),
+          }),
+          orderBy: { createdAt: 'asc' },
+        }),
+      );
+      expect(result).toEqual(fakeTask);
+    });
+
+    it('returns null when no eligible task found', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.task.findFirst.mockResolvedValue(null);
+
+      const result = await repo.getNextListeningTask(42, 'english', 'B1');
+      expect(result).toBeNull();
+    });
+  });
+
+  // ─── createTask ────────────────────────────────────────────────────────────
+
+  describe('createTask', () => {
+    it('persists all task fields and returns created task', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      const input = {
+        language: 'english',
+        level: 'B1',
+        skill: 'listening',
+        prompt: 'Listen and answer',
+        audioUrl: 'data:audio/mpeg;base64,AAAA',
+        referenceText: 'The speaker talks about travel.',
+        answerOptions: ['Option A', 'Option B', 'Option C', 'Option D'],
+        correctAnswer: 'A',
+      };
+      const saved = { id: 10, ...input, createdAt: new Date() };
+      mockPrisma.task.create.mockResolvedValue(saved);
+
+      const result = await repo.createTask(input);
+
+      expect(mockPrisma.task.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          language: 'english',
+          level: 'B1',
+          skill: 'listening',
+          prompt: 'Listen and answer',
+          audioUrl: 'data:audio/mpeg;base64,AAAA',
+          referenceText: 'The speaker talks about travel.',
+          answerOptions: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: 'A',
+        }),
+      });
+      expect(result).toEqual(saved);
+    });
+
+    it('stores null for optional fields when not provided', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      const saved = { id: 11, language: 'german', level: 'A2', skill: 'listening', prompt: 'p', answerOptions: [], correctAnswer: null, audioUrl: null, referenceText: null, createdAt: new Date() };
+      mockPrisma.task.create.mockResolvedValue(saved);
+
+      await repo.createTask({ language: 'german', level: 'A2', skill: 'listening', prompt: 'p', answerOptions: [] });
+
+      const call = mockPrisma.task.create.mock.calls[0][0];
+      expect(call.data.audioUrl).toBeNull();
+      expect(call.data.referenceText).toBeNull();
+      expect(call.data.correctAnswer).toBeNull();
+    });
+  });
+
+  // ─── upsertListeningScore ──────────────────────────────────────────────────
+
+  describe('upsertListeningScore', () => {
+    it('calls listeningScore.upsert with correct payload', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.listeningScore.upsert.mockResolvedValue(undefined);
+
+      await repo.upsertListeningScore(42, 10, 1.0);
+
+      expect(mockPrisma.listeningScore.upsert).toHaveBeenCalledWith({
+        where: { userId_taskId: { userId: 42, taskId: 10 } },
+        create: { userId: 42, taskId: 10, score: 1.0 },
+        update: { score: 1.0 },
+      });
+    });
+
+    it('updates score when called again for the same userId+taskId', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.listeningScore.upsert.mockResolvedValue(undefined);
+
+      await repo.upsertListeningScore(42, 10, 0.5);
+      await repo.upsertListeningScore(42, 10, 1.0);
+
+      expect(mockPrisma.listeningScore.upsert).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.listeningScore.upsert.mock.calls[1][0].update).toEqual({ score: 1.0 });
+    });
+  });
+
+  // ─── getListeningScore ─────────────────────────────────────────────────────
+
+  describe('getListeningScore', () => {
+    it('returns score when found', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.listeningScore.findUnique.mockResolvedValue({ score: 0.75 });
+
+      const result = await repo.getListeningScore(42, 10);
+
+      expect(mockPrisma.listeningScore.findUnique).toHaveBeenCalledWith({
+        where: { userId_taskId: { userId: 42, taskId: 10 } },
+        select: { score: true },
+      });
+      expect(result).toEqual({ score: 0.75 });
+    });
+
+    it('returns null when no score record found', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.listeningScore.findUnique.mockResolvedValue(null);
+
+      const result = await repo.getListeningScore(42, 999);
+      expect(result).toBeNull();
+    });
+  });
+
+  // ─── updateTaskAudio ───────────────────────────────────────────────────────
+
+  describe('updateTaskAudio', () => {
+    it('calls task.update with the new audioUrl', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.task.update.mockResolvedValue(undefined);
+
+      await repo.updateTaskAudio(10, 'data:audio/mpeg;base64,NEWDATA');
+
+      expect(mockPrisma.task.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { audioUrl: 'data:audio/mpeg;base64,NEWDATA' },
+      });
     });
   });
 });

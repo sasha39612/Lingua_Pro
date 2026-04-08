@@ -25,13 +25,29 @@ export interface AudioAnalysisResult {
   alignment: WordAlignment[];
 }
 
+export interface GeneratedTask {
+  language: string;
+  level: string;
+  skill: string;
+  prompt: string;
+  audioUrl: string | null;
+  referenceText: string | null;
+  focusPhonemes: string[] | null;
+  answerOptions: string[];
+  correctAnswer: string | null;
+}
+
+export interface TtsResult {
+  audioBase64: string | null;
+  mimeType: 'audio/mpeg' | null;
+  durationEstimateMs: number | null;
+}
+
 @Injectable()
 export class AiOrchestratorService {
   private readonly orchestratorBaseUrl = process.env.AI_ORCHESTRATOR_URL;
 
-  // ── Public API ─────────────────────────────────────────────────────────────
-  // Single call to POST /audio/pronunciation/analyze — orchestrator handles
-  // transcription (Azure/Whisper), scoring (Azure), and feedback (GPT).
+  // ── Audio pronunciation analysis ───────────────────────────────────────────
 
   async analyzeAudio(
     audioBuffer: Buffer,
@@ -71,11 +87,58 @@ export class AiOrchestratorService {
       }
     }
 
-    // Local fallback — no orchestrator available
     return this.localFallback(language);
   }
 
-  // ── Local fallback ─────────────────────────────────────────────────────────
+  // ── Task generation ────────────────────────────────────────────────────────
+
+  async generateTask(language: string, level: string, skill = 'listening'): Promise<GeneratedTask | null> {
+    if (!this.orchestratorBaseUrl) {
+      return this.localTaskFallback(language, level, skill);
+    }
+    try {
+      const response = await axios.post(
+        `${this.orchestratorBaseUrl.replace(/\/$/, '')}/tasks/generate`,
+        { language, level, skill },
+        { timeout: 30_000 },
+      );
+      const tasks: GeneratedTask[] = response?.data?.tasks;
+      if (Array.isArray(tasks) && tasks.length > 0) {
+        return tasks[0];
+      }
+    } catch (error) {
+      console.warn('AI orchestrator task generation failed, using fallback');
+    }
+    return this.localTaskFallback(language, level, skill);
+  }
+
+  // ── Text-to-speech ─────────────────────────────────────────────────────────
+
+  async synthesizeSpeech(text: string, language: string): Promise<TtsResult> {
+    if (!this.orchestratorBaseUrl) {
+      return { audioBase64: null, mimeType: null, durationEstimateMs: null };
+    }
+    try {
+      const response = await axios.post(
+        `${this.orchestratorBaseUrl.replace(/\/$/, '')}/audio/tts`,
+        { text, language },
+        { timeout: 30_000 },
+      );
+      const d = response?.data;
+      if (d?.audioBase64) {
+        return {
+          audioBase64: String(d.audioBase64),
+          mimeType: 'audio/mpeg',
+          durationEstimateMs: d.durationEstimateMs ? Number(d.durationEstimateMs) : null,
+        };
+      }
+    } catch (error) {
+      console.warn('AI orchestrator TTS call failed');
+    }
+    return { audioBase64: null, mimeType: null, durationEstimateMs: null };
+  }
+
+  // ── Local fallbacks ────────────────────────────────────────────────────────
 
   private localFallback(language: string): AudioAnalysisResult {
     const score = 0.75;
@@ -87,6 +150,20 @@ export class AiOrchestratorService {
       confidence: score,
       words: [],
       alignment: [],
+    };
+  }
+
+  private localTaskFallback(language: string, level: string, skill: string): GeneratedTask {
+    return {
+      language,
+      level,
+      skill,
+      prompt: `Listen carefully and answer the question about the ${language} audio passage.`,
+      audioUrl: null,
+      referenceText: `This is a sample ${level} level ${language} listening exercise.`,
+      focusPhonemes: null,
+      answerOptions: ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctAnswer: 'A',
     };
   }
 

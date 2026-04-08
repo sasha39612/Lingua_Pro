@@ -30,19 +30,34 @@ model AudioRecord {
 }
 
 model Task {
-  id            Int      @id @default(autoincrement())
-  language      String
-  level         String
-  skill         String
-  prompt        String
-  audioUrl      String?  @map("audio_url")
-  referenceText String?  @map("reference_text")
-  answerOptions String[] @map("answer_options")
-  correctAnswer String?  @map("correct_answer")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id              Int              @id @default(autoincrement())
+  language        String
+  level           String
+  skill           String
+  prompt          String
+  audioUrl        String?          @map("audio_url")
+  referenceText   String?          @map("reference_text")
+  answerOptions   String[]         @map("answer_options")
+  correctAnswer   String?          @map("correct_answer")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  listeningScores ListeningScore[]
 
   @@index([language])
   @@index([level])
   @@index([skill])
   @@map("tasks")
+}
+
+model ListeningScore {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  taskId    Int      @map("task_id")
+  score     Float
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taskId])
+  @@index([userId])
+  @@map("listening_scores")
 }

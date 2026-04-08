@@ -14,6 +14,8 @@ function makeController() {
     getRecordsByLanguage: vi.fn(),
     evaluateComprehension: vi.fn(),
     generateComprehension: vi.fn(),
+    getListeningTask: vi.fn(),
+    submitListeningScore: vi.fn(),
   };
   const controller = new AudioController(mockService as any);
   return { controller, mockService };
@@ -231,6 +233,88 @@ describe('AudioController', () => {
     it('throws BadRequestException when taskId is missing', async () => {
       const { controller } = makeController();
       await expect(controller.generateComprehension({ taskId: '' })).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── GET /audio/listening-task ─────────────────────────────────────────────
+
+  describe('getListeningTask', () => {
+    const fakeTaskResult = {
+      taskId: 10,
+      prompt: 'Listen and answer',
+      audioUrl: 'data:audio/mpeg;base64,AAAA',
+      audioBase64: 'AAAA',
+      mimeType: 'audio/mpeg',
+      answerOptions: ['A', 'B', 'C', 'D'],
+      durationEstimateMs: 3000,
+    };
+
+    it('delegates to service and returns task', async () => {
+      const { controller, mockService } = makeController();
+      mockService.getListeningTask.mockResolvedValue(fakeTaskResult);
+
+      const result = await controller.getListeningTask('english', 'B1', '42');
+
+      expect(mockService.getListeningTask).toHaveBeenCalledWith('42', 'english', 'B1');
+      expect(result).toEqual(fakeTaskResult);
+    });
+
+    it('throws BadRequestException when language is missing', async () => {
+      const { controller } = makeController();
+      await expect(controller.getListeningTask('', 'B1', '42')).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when level is missing', async () => {
+      const { controller } = makeController();
+      await expect(controller.getListeningTask('english', '', '42')).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when x-user-id header is missing', async () => {
+      const { controller } = makeController();
+      await expect(controller.getListeningTask('english', 'B1', '')).rejects.toThrow(BadRequestException);
+    });
+
+    it('propagates service errors', async () => {
+      const { controller, mockService } = makeController();
+      mockService.getListeningTask.mockRejectedValue(new Error('Orchestrator down'));
+      await expect(controller.getListeningTask('english', 'B1', '42')).rejects.toThrow('Orchestrator down');
+    });
+  });
+
+  // ─── POST /audio/listening-score ───────────────────────────────────────────
+
+  describe('submitListeningScore', () => {
+    const fakeScoreResult = { score: 1, correct: 4, total: 4 };
+
+    it('delegates to service and returns score', async () => {
+      const { controller, mockService } = makeController();
+      mockService.submitListeningScore.mockResolvedValue(fakeScoreResult);
+
+      const result = await controller.submitListeningScore({ taskId: 10, answers: ['A'] }, '42');
+
+      expect(mockService.submitListeningScore).toHaveBeenCalledWith('42', 10, ['A']);
+      expect(result).toEqual(fakeScoreResult);
+    });
+
+    it('throws BadRequestException when taskId is missing', async () => {
+      const { controller } = makeController();
+      await expect(
+        controller.submitListeningScore({ taskId: 0, answers: ['A'] }, '42'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when answers is not an array', async () => {
+      const { controller } = makeController();
+      await expect(
+        controller.submitListeningScore({ taskId: 10, answers: 'A' as any }, '42'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when x-user-id header is missing', async () => {
+      const { controller } = makeController();
+      await expect(
+        controller.submitListeningScore({ taskId: 10, answers: ['A'] }, ''),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
