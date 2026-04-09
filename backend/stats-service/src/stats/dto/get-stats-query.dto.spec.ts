@@ -31,8 +31,8 @@ describe('GetStatsQueryDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('passes with maximum length language (8 chars)', async () => {
-    const errors = await validateDto({ language: 'Albanian', period: 'all' });
+  it('passes with maximum length language (10 chars)', async () => {
+    const errors = await validateDto({ language: 'Ukrainian', period: 'all' });
     expect(errors).toHaveLength(0);
   });
 
@@ -48,7 +48,7 @@ describe('GetStatsQueryDto', () => {
     expect(props).toContain('language');
   });
 
-  it('fails when language is too long (>8 chars)', async () => {
+  it('fails when language is too long (>10 chars)', async () => {
     const errors = await validateDto({ language: 'TooLongLang', period: 'week' });
     const props = errors.map((e) => e.property);
     expect(props).toContain('language');
