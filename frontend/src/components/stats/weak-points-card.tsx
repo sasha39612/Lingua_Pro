@@ -1,13 +1,6 @@
 import Link from 'next/link';
 import { WeakPoint } from './types';
 
-const SKILL_HREF: Record<string, string> = {
-  speaking: '/speaking',
-  listening: '/listening',
-  reading:  '/reading',
-  writing:  '/writing',
-};
-
 interface WeakPointsCardProps {
   items: WeakPoint[];
   isLoading: boolean;
@@ -21,7 +14,9 @@ export function WeakPointsCard({ items, isLoading }: WeakPointsCardProps) {
       {isLoading ? (
         <p className="text-sm text-slate-400">Loading…</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-slate-400">No mistakes recorded for this period. Great work!</p>
+        <p className="text-sm text-slate-400">
+          Complete a few exercises to see your exam readiness
+        </p>
       ) : (
         <ul className="divide-y divide-slate-100">
           {items.map((item) => (
@@ -36,7 +31,7 @@ export function WeakPointsCard({ items, isLoading }: WeakPointsCardProps) {
                 <span className="text-sm text-slate-700">{item.label}</span>
               </div>
               <Link
-                href={SKILL_HREF[item.skill] ?? '/writing'}
+                href={item.href}
                 className="text-xs font-medium text-[#0a54c2] hover:underline"
               >
                 Practice

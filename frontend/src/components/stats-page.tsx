@@ -14,13 +14,32 @@ import { ChartsSection } from '@/components/stats/charts-section';
 import { WeakPointsCard } from '@/components/stats/weak-points-card';
 import { Achievements } from '@/components/stats/achievements';
 
-import { getNextLevel, computeStreak, buildWeakPoints } from '@/components/stats/utils';
-import { Period, ChartData, SkillScores } from '@/components/stats/types';
+import {
+  getNextLevel,
+  computeStreak,
+  buildWeakPoints,
+  computeReadiness,
+  getReadinessLabel,
+  computeDelta,
+  computePreviousReadiness,
+} from '@/components/stats/utils';
+import { Period, ChartData, ExamSkillScores, TargetLevel } from '@/components/stats/types';
 
 export function StatsPage() {
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const [period, setPeriod] = useState<Period>('week');
+  const [targetLevel, setTargetLevel] = useState<TargetLevel>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('targetLevel') as TargetLevel) ?? 'B2';
+    }
+    return 'B2';
+  });
+
+  const handleTargetLevelChange = (lvl: TargetLevel) => {
+    setTargetLevel(lvl);
+    localStorage.setItem('targetLevel', lvl);
+  };
 
   const { data, isLoading, isError } = useQuery<StatsData>({
     queryKey: ['stats', language, period],
@@ -45,19 +64,23 @@ export function StatsPage() {
   const nextLevel = getNextLevel(level);
   const textPct = data ? Math.round(data.avg_text_score * 100) : 0;
   const speakingPct = data ? Math.round(data.avg_pronunciation_score * 100) : 0;
-  const avgAccuracy = data
-    ? Math.round(((data.avg_text_score + data.avg_pronunciation_score) / 2) * 100)
+  const examReadiness = data
+    ? computeReadiness(data.avg_text_score, data.avg_pronunciation_score)
     : 0;
+  const readinessLabel = getReadinessLabel(examReadiness);
   const activeDays = data?.history.length ?? 0;
+
+  const previousReadiness = data
+    ? computePreviousReadiness(data.history, period)
+    : 0;
+  const delta = data ? computeDelta(examReadiness, previousReadiness) : null;
 
   const periodLabel =
     period === 'week' ? 'this week' : period === 'month' ? 'this month' : 'all time';
 
-  const skillScores: SkillScores = {
-    reading: textPct,
-    writing: textPct,
-    speaking: speakingPct,
-    listening: speakingPct,
+  const examSkillScores: ExamSkillScores = {
+    readingWriting: textPct,
+    speakingListening: speakingPct,
   };
 
   const charts: ChartData = {
@@ -73,10 +96,14 @@ export function StatsPage() {
           language={language}
           period={period}
           onPeriodChange={setPeriod}
+          targetLevel={targetLevel}
+          onTargetLevelChange={handleTargetLevelChange}
+          examReadiness={examReadiness}
         />
 
         <SummaryCards
-          stats={{ level, nextLevel, activeDays, accuracy: avgAccuracy, streak, periodLabel }}
+          stats={{ targetLevel, nextLevel, activeDays, examReadiness, readinessLabel, streak, periodLabel }}
+          delta={delta}
           isLoading={isLoading}
         />
 
@@ -84,17 +111,17 @@ export function StatsPage() {
           <LevelProgressCard
             currentLevel={level}
             nextLevel={nextLevel}
-            progressPct={textPct}
+            progressPct={examReadiness}
             isLoading={isLoading}
           />
-          <SkillsCard scores={skillScores} isLoading={isLoading} />
+          <SkillsCard scores={examSkillScores} isLoading={isLoading} />
         </div>
 
         <ChartsSection charts={charts} isLoading={isLoading} />
 
         <WeakPointsCard items={weakPoints} isLoading={isLoading} />
 
-        <Achievements streak={streak} accuracy={avgAccuracy} activeDays={activeDays} />
+        <Achievements streak={streak} accuracy={examReadiness} activeDays={activeDays} />
 
         {isError && (
           <p className="text-center text-sm text-red-500">

@@ -29,7 +29,7 @@ export function LevelProgressCard({
 }: LevelProgressCardProps) {
   return (
     <div className="rounded-2xl bg-white p-6 shadow-float">
-      <h3 className="font-semibold text-slate-800">Level Progress</h3>
+      <h3 className="font-semibold text-slate-800">Exam Progress</h3>
       <div className="mt-4">
         <div className="flex justify-between text-sm text-slate-600">
           <span>{currentLevel}</span>
@@ -37,7 +37,7 @@ export function LevelProgressCard({
         </div>
         <ProgressBar value={isLoading ? 0 : progressPct} color="bg-sky-500" />
         <p className="mt-2 text-xs text-slate-400">
-          Based on your text accuracy score ({isLoading ? '…' : `${progressPct}%`})
+          Based on text + speaking combined ({isLoading ? '…' : `${progressPct}%`})
         </p>
       </div>
     </div>

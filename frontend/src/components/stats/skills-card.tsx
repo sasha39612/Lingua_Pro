@@ -1,4 +1,4 @@
-import { SkillScores } from './types';
+import { ExamSkillScores } from './types';
 
 interface ProgressBarProps {
   value: number;
@@ -16,35 +16,51 @@ function ProgressBar({ value, color }: ProgressBarProps) {
   );
 }
 
-const SKILL_CONFIG: Array<{ key: keyof SkillScores; label: string; color: string }> = [
-  { key: 'reading',  label: 'Reading',  color: 'bg-sky-500' },
-  { key: 'writing',  label: 'Writing',  color: 'bg-teal-500' },
-  { key: 'speaking', label: 'Speaking', color: 'bg-violet-500' },
-  { key: 'listening',label: 'Listening',color: 'bg-amber-500' },
+interface StatusMeta {
+  label: string;
+  color: string;
+  icon: string;
+}
+
+function getStatusMeta(value: number): StatusMeta {
+  if (value > 75) return { label: 'Ready',            color: 'text-green-600',  icon: '🟢' };
+  if (value > 50) return { label: 'Needs improvement', color: 'text-yellow-600', icon: '🟡' };
+  return             { label: 'Weak',             color: 'text-red-600',    icon: '🔴' };
+}
+
+const SKILL_GROUPS: Array<{ key: keyof ExamSkillScores; label: string; color: string }> = [
+  { key: 'readingWriting',    label: 'Reading & Writing',    color: 'bg-teal-500' },
+  { key: 'speakingListening', label: 'Speaking & Listening', color: 'bg-violet-500' },
 ];
 
 interface SkillsCardProps {
-  scores: SkillScores;
+  scores: ExamSkillScores;
   isLoading: boolean;
 }
 
 export function SkillsCard({ scores, isLoading }: SkillsCardProps) {
   return (
     <div className="rounded-2xl bg-white p-6 shadow-float">
-      <h3 className="font-semibold text-slate-800">Skills</h3>
-      <div className="mt-4 space-y-4">
-        {SKILL_CONFIG.map(({ key, label, color }) => (
-          <div key={key}>
-            <div className="flex justify-between text-sm text-slate-600">
-              <span>{label}</span>
-              <span>{isLoading ? '…' : `${scores[key]}%`}</span>
+      <h3 className="font-semibold text-slate-800">Exam Sections</h3>
+      <div className="mt-4 space-y-5">
+        {SKILL_GROUPS.map(({ key, label, color }) => {
+          const pct = isLoading ? 0 : scores[key];
+          const meta = getStatusMeta(pct);
+          return (
+            <div key={key}>
+              <div className="flex items-center justify-between text-sm text-slate-600">
+                <span>{label}</span>
+                <span>{isLoading ? '…' : `${pct}%`}</span>
+              </div>
+              <ProgressBar value={pct} color={color} />
+              {!isLoading && (
+                <p className={`mt-1 text-xs font-medium ${meta.color}`}>
+                  {meta.icon} {meta.label}
+                </p>
+              )}
             </div>
-            <ProgressBar value={isLoading ? 0 : scores[key]} color={color} />
-          </div>
-        ))}
-        <p className="text-xs text-slate-400">
-          Listening shares the Speaking pronunciation score until tracked separately
-        </p>
+          );
+        })}
       </div>
     </div>
   );
