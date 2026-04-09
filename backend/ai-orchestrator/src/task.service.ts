@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
-import type { GeneratedTask, ListeningPassage, ReadingQuestion } from './types';
+import type { GeneratedTask, ListeningPassage, ReadingQuestion, WritingTask } from './types';
 import { safeJsonParse, withRetry, withTimeout } from './util';
 
 @Injectable()
@@ -25,6 +25,22 @@ export class TaskService {
     if (safeSkill === 'reading') {
       const exercise = await this.generateReadingExercise(safeLanguage, safeLevel);
       return [exercise];
+    }
+
+    if (safeSkill === 'writing') {
+      const task = await this.generateWritingTask(safeLanguage, safeLevel);
+      const promptJson = JSON.stringify(task);
+      return [{
+        language: safeLanguage,
+        level: safeLevel,
+        skill: 'writing',
+        prompt: promptJson,
+        audioUrl: null,
+        referenceText: null,
+        focusPhonemes: null,
+        answerOptions: [],
+        correctAnswer: null,
+      }];
     }
 
     if (!this.openai) {
@@ -269,6 +285,109 @@ export class TaskService {
     }
 
     return this.localReadingExercise(language, level);
+  }
+
+  // ── Writing task generation ────────────────────────────────────────────────
+
+  async generateWritingTask(language: string, level: string): Promise<WritingTask> {
+    if (!this.openai) {
+      return this.localWritingTask(language, level);
+    }
+
+    try {
+      const response = await withRetry(
+        () =>
+          withTimeout(
+            this.openai!.chat.completions.create({
+              model: this.taskModel,
+              response_format: { type: 'json_object' },
+              temperature: 0.7,
+              messages: [
+                {
+                  role: 'system',
+                  content:
+                    `You are a language-learning content creator. Generate a writing task for a ${language} learner at CEFR level ${level}.\n` +
+                    `IMPORTANT: ALL text content MUST be written in ${language}, not in English.\n` +
+                    'Return strict JSON with exactly these keys:\n' +
+                    '"situation": a 1-2 sentence real-life scenario that motivates the writing task.\n' +
+                    '"taskDescription": one sentence describing the writing format (e.g. email, essay, letter) and approximate word count.\n' +
+                    '"taskPoints": array of 3-4 short strings, each describing one bullet point the student must address.\n' +
+                    '"wordCountMin": integer (minimum words, e.g. 120).\n' +
+                    '"wordCountMax": integer (maximum words, e.g. 180).\n' +
+                    '"style": one word — the register, e.g. "informal" or "formal".\n' +
+                    '"instructions": array of 4-5 short instruction strings (word count rule, style, coverage of points, paragraph structure, greeting/ending).\n' +
+                    '"exampleStructure": array of 4-5 short strings describing the expected paragraph structure (e.g. "Greeting", "Opening sentence", "Main paragraphs", "Closing").',
+                },
+                {
+                  role: 'user',
+                  content: `language=${language}, level=${level}, skill=writing`,
+                },
+              ],
+            }),
+            20_000,
+            'writing task generation timed out',
+          ),
+        'generateWritingTask',
+        this.logger,
+      );
+
+      const content = response.choices?.[0]?.message?.content || '{}';
+      const parsed = safeJsonParse<Partial<WritingTask>>(content);
+
+      if (
+        typeof parsed.situation === 'string' &&
+        typeof parsed.taskDescription === 'string' &&
+        Array.isArray(parsed.taskPoints) &&
+        parsed.taskPoints.length >= 2
+      ) {
+        return {
+          situation: parsed.situation.trim(),
+          taskDescription: parsed.taskDescription.trim(),
+          taskPoints: parsed.taskPoints.map((p: any) => String(p)),
+          wordCountMin: typeof parsed.wordCountMin === 'number' ? parsed.wordCountMin : 120,
+          wordCountMax: typeof parsed.wordCountMax === 'number' ? parsed.wordCountMax : 180,
+          style: typeof parsed.style === 'string' ? parsed.style : 'informal',
+          instructions: Array.isArray(parsed.instructions) ? parsed.instructions.map((i: any) => String(i)) : [],
+          exampleStructure: Array.isArray(parsed.exampleStructure) ? parsed.exampleStructure.map((s: any) => String(s)) : [],
+        };
+      }
+
+      this.logger.warn('GPT returned invalid writing task structure, using fallback');
+    } catch (error: any) {
+      this.logger.warn(`GPT writing task generation failed, using fallback: ${error?.message ?? error}`);
+    }
+
+    return this.localWritingTask(language, level);
+  }
+
+  private localWritingTask(language: string, _level: string): WritingTask {
+    return {
+      situation: `You have recently moved to a new city and started a new job. Your ${language}-speaking friend wants to know how things are going.`,
+      taskDescription: `Write an email to your friend (120–180 words) covering all the points below.`,
+      taskPoints: [
+        'describe your new job',
+        'explain what you like or dislike about the city',
+        'say how your daily life has changed',
+        'invite your friend to visit you',
+      ],
+      wordCountMin: 120,
+      wordCountMax: 180,
+      style: 'informal',
+      instructions: [
+        'Write 120–180 words',
+        'Use an informal style',
+        'Answer all bullet points',
+        'Organize your text into paragraphs',
+        'Use appropriate greetings and ending',
+      ],
+      exampleStructure: [
+        'Greeting (Hi / Dear…)',
+        'Opening (why you are writing)',
+        'Main paragraphs (answer all points)',
+        'Closing + invitation',
+        'Ending (Best wishes / Take care…)',
+      ],
+    };
   }
 
   private localReadingExercise(language: string, level: string): GeneratedTask {

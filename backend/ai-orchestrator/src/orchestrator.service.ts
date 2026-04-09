@@ -12,6 +12,8 @@ import type {
   PronunciationAnalysisResult,
   TranscriptionResult,
   TtsResult,
+  WritingAnalysisResult,
+  WritingTask,
 } from './types';
 
 @Injectable()
@@ -113,6 +115,12 @@ export class OrchestratorService {
       phonemeSource: raw.phonemeSource,
       source,
     };
+  }
+
+  // ── Writing task analysis ──────────────────────────────────────────────────
+
+  analyzeWritingTask(text: string, language: string, taskContext: WritingTask): Promise<WritingAnalysisResult> {
+    return this.textAi.analyzeWritingTask(text, language, taskContext);
   }
 
   // ── TTS ────────────────────────────────────────────────────────────────────

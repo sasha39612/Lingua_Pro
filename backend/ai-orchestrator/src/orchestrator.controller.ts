@@ -68,6 +68,17 @@ class GenerateSpeechDto {
   language!: string;
 }
 
+class AnalyzeWritingDto {
+  @IsString()
+  text!: string;
+
+  @IsString()
+  language!: string;
+
+  // taskContext is the parsed WritingTask JSON object
+  taskContext!: Record<string, any>;
+}
+
 @Controller()
 export class OrchestratorController {
   constructor(private readonly orchestratorService: OrchestratorService) {}
@@ -111,6 +122,11 @@ export class OrchestratorController {
   @Post('audio/tts')
   async generateSpeech(@Body() body: GenerateSpeechDto) {
     return this.orchestratorService.synthesizeSpeech(body.text, body.language);
+  }
+
+  @Post('text/analyze-writing')
+  async analyzeWriting(@Body() body: AnalyzeWritingDto) {
+    return this.orchestratorService.analyzeWritingTask(body.text, body.language, body.taskContext as any);
   }
 
   @Sse('text/analyze/stream')

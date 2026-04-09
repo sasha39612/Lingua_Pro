@@ -112,6 +112,36 @@ export type ListeningPassage = {
   questions: ListeningQuestion[]; // always 5
 };
 
+// ── Writing task ──────────────────────────────────────────────────────────────
+
+export type WritingTask = {
+  situation: string;
+  taskDescription: string;
+  taskPoints: string[];
+  wordCountMin: number;
+  wordCountMax: number;
+  style: string;
+  instructions: string[];
+  exampleStructure: string[];
+};
+
+// ── Writing analysis ──────────────────────────────────────────────────────────
+
+export type WritingCriterion = {
+  score: number;   // 0..1
+  feedback: string;
+};
+
+export type WritingAnalysisResult = {
+  taskAchievement: WritingCriterion;
+  grammarVocabulary: WritingCriterion;
+  coherenceStructure: WritingCriterion;
+  style: WritingCriterion;
+  correctedText: string;
+  overallScore: number;   // 0..1
+  overallFeedback: string;
+};
+
 // ── TTS ───────────────────────────────────────────────────────────────────────
 
 export type TtsResult = {
