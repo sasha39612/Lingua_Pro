@@ -1,5 +1,5 @@
 import { Body, Controller, MessageEvent, Post, Query, Sse } from '@nestjs/common';
-import { IsOptional, IsString } from 'class-validator';
+import { IsObject, IsOptional, IsString } from 'class-validator';
 import { Observable } from 'rxjs';
 import { OrchestratorService } from './orchestrator.service';
 
@@ -75,7 +75,7 @@ class AnalyzeWritingDto {
   @IsString()
   language!: string;
 
-  // taskContext is the parsed WritingTask JSON object
+  @IsObject()
   taskContext!: Record<string, any>;
 }
 
