@@ -16,6 +16,7 @@ model Text {
   id            Int      @id @default(autoincrement())
   userId        Int      @map("user_id")
   language      String
+  skill         String   @default("writing")
   originalText  String   @map("original_text")
   correctedText String?  @map("corrected_text")
   textScore     Float?   @map("text_score")
@@ -25,6 +26,7 @@ model Text {
 
   @@index([userId])
   @@index([language])
+  @@index([skill])
   @@index([createdAt])
   @@map("texts")
 }

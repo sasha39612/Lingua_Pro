@@ -8,6 +8,7 @@ const mockAudioRepository = {
   getUserAudioStats: vi.fn(),
   getListeningTasks: vi.fn(),
   getRecordsByLanguage: vi.fn(),
+  getListeningScoresByLanguage: vi.fn(),
   getTaskById: vi.fn(),
   getNextListeningTask: vi.fn(),
   createTask: vi.fn(),
@@ -471,6 +472,41 @@ describe('AudioService', () => {
     it('persists score with parsed integer userId', async () => {
       await service.submitListeningAnswers('7', 10, [0, 1, 2, 3, 0]);
       expect(mockAudioRepository.upsertListeningScore).toHaveBeenCalledWith(7, 10, expect.any(Number));
+    });
+  });
+
+  // ─── getListeningScoresByLanguage ──────────────────────────────────────────
+
+  describe('getListeningScoresByLanguage', () => {
+    it('returns scores wrapped in { scores }', async () => {
+      const scores = [
+        { score: 0.8, createdAt: new Date('2026-01-01') },
+        { score: 0.9, createdAt: new Date('2026-01-02') },
+      ];
+      mockAudioRepository.getListeningScoresByLanguage.mockResolvedValue(scores);
+
+      const result = await service.getListeningScoresByLanguage('english');
+
+      expect(mockAudioRepository.getListeningScoresByLanguage).toHaveBeenCalledWith('english', undefined);
+      expect(result).toEqual({ scores });
+    });
+
+    it('passes from param when provided', async () => {
+      mockAudioRepository.getListeningScoresByLanguage.mockResolvedValue([]);
+
+      await service.getListeningScoresByLanguage('german', '2026-01-01T00:00:00.000Z');
+
+      expect(mockAudioRepository.getListeningScoresByLanguage).toHaveBeenCalledWith(
+        'german',
+        '2026-01-01T00:00:00.000Z',
+      );
+    });
+
+    it('returns empty scores array when repository returns nothing', async () => {
+      mockAudioRepository.getListeningScoresByLanguage.mockResolvedValue([]);
+
+      const result = await service.getListeningScoresByLanguage('polish');
+      expect(result).toEqual({ scores: [] });
     });
   });
 });

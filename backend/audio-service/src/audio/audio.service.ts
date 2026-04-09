@@ -119,6 +119,11 @@ export class AudioService {
     return this.audioRepository.getRecordsByLanguage(language, from);
   }
 
+  async getListeningScoresByLanguage(language: string, from?: string) {
+    const scores = await this.audioRepository.getListeningScoresByLanguage(language, from);
+    return { scores };
+  }
+
   async evaluateComprehension(
     userAnswer: string,
     correctAnswer: string

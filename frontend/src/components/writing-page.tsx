@@ -169,6 +169,15 @@ export function WritingPage() {
       if (!res.ok) throw new Error(data.detail || data.error || 'Analysis failed');
       setAnalysis(data as WritingAnalysis);
       setPhase('result');
+
+      // Persist score to text-service (fire-and-forget)
+      if (user) {
+        fetch('/api/text/score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, language, skill: 'writing', score: data.overallScore }),
+        }).catch(() => { /* best-effort */ });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
     } finally {

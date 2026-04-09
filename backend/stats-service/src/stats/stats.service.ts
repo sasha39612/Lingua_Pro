@@ -21,9 +21,10 @@ export class StatsService {
     const fromDate = this.getFromDate(period);
     const fromParam = fromDate ? fromDate.toISOString() : undefined;
 
-    const [textData, audioData] = await Promise.all([
+    const [textData, audioData, listeningData] = await Promise.all([
       this.fetchTexts(normalizedLanguage, fromParam),
       this.fetchAudioRecords(normalizedLanguage, fromParam),
+      this.fetchListeningScores(normalizedLanguage, fromParam),
     ]);
 
     const textScores = textData
@@ -34,18 +35,24 @@ export class StatsService {
       .map((a) => a.pronunciationScore)
       .filter((s): s is number => typeof s === 'number');
 
+    const listeningScores = listeningData
+      .map((l) => l.score)
+      .filter((s): s is number => typeof s === 'number');
+
     const avg_text_score =
       textScores.length > 0 ? textScores.reduce((a, b) => a + b, 0) / textScores.length : 0;
 
+    // Merge speaking + listening for avg pronunciation score
+    const allAudioScores = [...audioScores, ...listeningScores];
     const avg_pronunciation_score =
-      audioScores.length > 0
-        ? audioScores.reduce((a, b) => a + b, 0) / audioScores.length
+      allAudioScores.length > 0
+        ? allAudioScores.reduce((a, b) => a + b, 0) / allAudioScores.length
         : 0;
 
     const mistakeCountsByType = this.buildMistakeCountsByType(textData, audioData);
     const mistakesTotal = Object.values(mistakeCountsByType).reduce((sum, v) => sum + v, 0);
 
-    const progressOverTime = this.buildDailyHistory(textData, audioData);
+    const progressOverTime = this.buildDailyHistory(textData, audioData, listeningData);
     const charts = this.buildFrontendCharts(mistakeCountsByType, progressOverTime);
 
     return {
@@ -94,9 +101,27 @@ export class StatsService {
     }
   }
 
+  private async fetchListeningScores(
+    language: string,
+    from?: string,
+  ): Promise<{ score: number; createdAt: string }[]> {
+    try {
+      const url = new URL(`${this.audioServiceUrl}/audio/listening-by-language`);
+      url.searchParams.set('language', language);
+      if (from) url.searchParams.set('from', from);
+      const resp = await fetch(url.toString());
+      const data = await resp.json() as { scores?: { score: number; createdAt: string }[] };
+      return data?.scores ?? [];
+    } catch (err: any) {
+      this.logger.warn('could not fetch listening scores from audio-service', err?.message);
+      return [];
+    }
+  }
+
   private buildDailyHistory(
     texts: { textScore: number | null; createdAt: string }[],
     audioRecords: { pronunciationScore: number | null; createdAt: string }[],
+    listeningScores: { score: number; createdAt: string }[],
   ) {
     const textByDate: Record<string, number[]> = {};
     for (const t of texts) {
@@ -112,6 +137,11 @@ export class StatsService {
       if (typeof a.pronunciationScore === 'number') {
         (audioByDate[date] ??= []).push(a.pronunciationScore);
       }
+    }
+    // Merge listening into the audio bucket (both are audio/comprehension scores)
+    for (const l of listeningScores) {
+      const date = l.createdAt.slice(0, 10);
+      (audioByDate[date] ??= []).push(l.score);
     }
 
     const allDates = [...new Set([...Object.keys(textByDate), ...Object.keys(audioByDate)])].sort();

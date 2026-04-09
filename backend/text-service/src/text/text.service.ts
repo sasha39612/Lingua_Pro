@@ -15,7 +15,7 @@ export class TextService {
     this.orchestratorUrl = process.env.AI_ORCHESTRATOR_URL || 'http://ai-orchestrator:4005';
   }
 
-  async analyzeText(userId: number, language: string, text: string) {
+  async analyzeText(userId: number, language: string, text: string, skill = 'writing') {
     language = language.toLowerCase();
     let corrected = text;
     let feedback = 'Great work! No obvious errors detected.';
@@ -47,6 +47,7 @@ export class TextService {
         data: {
           userId,
           language,
+          skill,
           originalText: text,
           correctedText: corrected,
           textScore,
@@ -72,11 +73,30 @@ export class TextService {
     }
   }
 
-  async getTextsByLanguage(language: string, from?: string) {
-    const where: any = { language: language.toLowerCase() };
-    if (from) {
-      where.createdAt = { gte: new Date(from) };
+  async recordScore(userId: number, language: string, skill: string, score: number) {
+    language = language.toLowerCase();
+    try {
+      const record = await this.prisma.text.create({
+        data: {
+          userId,
+          language,
+          skill,
+          originalText: '',
+          textScore: score,
+          feedback: null,
+        },
+      });
+      return { id: record.id, skill, score, createdAt: record.createdAt };
+    } catch (err: any) {
+      this.logger.error('failed to record score', err?.message || err);
+      return { id: -1, skill, score, createdAt: new Date().toISOString() };
     }
+  }
+
+  async getTextsByLanguage(language: string, from?: string, skill?: string) {
+    const where: any = { language: language.toLowerCase() };
+    if (from) where.createdAt = { gte: new Date(from) };
+    if (skill) where.skill = skill;
     try {
       const texts = await this.prisma.text.findMany({
         where,

@@ -107,6 +107,14 @@ export class AudioController {
     return this.audioService.getRecordsByLanguage(language, from);
   }
 
+  @Get('listening-by-language')
+  async listeningByLanguage(@Query('language') language: string, @Query('from') from?: string) {
+    if (!language) {
+      throw new BadRequestException('language is required');
+    }
+    return this.audioService.getListeningScoresByLanguage(language, from);
+  }
+
   @Post('comprehension/evaluate')
   async evaluateComprehension(@Body() body: EvaluateComprehensionRequest) {
     const { userAnswer, correctAnswer } = body;

@@ -29,27 +29,28 @@ describe('StatsService', () => {
     service = new StatsService();
   });
 
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  // Mock all 3 fetch calls (texts, audio records, listening scores)
+  function mockAllFetches(
+    texts: ReturnType<typeof makeTextRow>[],
+    audioRecords: ReturnType<typeof makeAudioRow>[],
+    listeningScores: { score: number; createdAt: string }[] = [],
+  ) {
+    globalFetch
+      .mockResolvedValueOnce({ json: async () => ({ texts }) })
+      .mockResolvedValueOnce({ json: async () => ({ records: audioRecords }) })
+      .mockResolvedValueOnce({ json: async () => ({ scores: listeningScores }) });
+  }
+
   // ─── getStats: averages ────────────────────────────────────────────────────
 
   describe('getStats – score averages', () => {
     it('computes avg_text_score and avg_pronunciation_score from fetched data', async () => {
-      globalFetch
-        .mockResolvedValueOnce({
-          json: async () => ({
-            texts: [
-              makeTextRow(0.8, null, '2026-01-01'),
-              makeTextRow(0.6, null, '2026-01-02'),
-            ],
-          }),
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({
-            records: [
-              makeAudioRow(0.9, 'Excellent pronunciation', '2026-01-01'),
-              makeAudioRow(0.7, 'Good pronunciation', '2026-01-02'),
-            ],
-          }),
-        });
+      mockAllFetches(
+        [makeTextRow(0.8, null, '2026-01-01'), makeTextRow(0.6, null, '2026-01-02')],
+        [makeAudioRow(0.9, 'Excellent pronunciation', '2026-01-01'), makeAudioRow(0.7, 'Good pronunciation', '2026-01-02')],
+      );
 
       const stats = await service.getStats('English', 'all');
 
@@ -58,9 +59,7 @@ describe('StatsService', () => {
     });
 
     it('returns zeros when no data is available', async () => {
-      globalFetch
-        .mockResolvedValueOnce({ json: async () => ({ texts: [] }) })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+      mockAllFetches([], []);
 
       const stats = await service.getStats('English', 'week');
       expect(stats.avg_text_score).toBe(0);
@@ -70,19 +69,36 @@ describe('StatsService', () => {
     });
 
     it('ignores null scores in average calculation', async () => {
-      globalFetch
-        .mockResolvedValueOnce({
-          json: async () => ({
-            texts: [
-              makeTextRow(0.9, null, '2026-01-01'),
-              makeTextRow(null, null, '2026-01-02'), // null → excluded
-            ],
-          }),
-        })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+      mockAllFetches(
+        [makeTextRow(0.9, null, '2026-01-01'), makeTextRow(null, null, '2026-01-02')],
+        [],
+      );
 
       const stats = await service.getStats('German', 'all');
       expect(stats.avg_text_score).toBeCloseTo(0.9);
+    });
+
+    it('merges listening scores into avg_pronunciation_score', async () => {
+      mockAllFetches(
+        [],
+        [makeAudioRow(0.8, null, '2026-01-01')],
+        [{ score: 0.6, createdAt: '2026-01-02T10:00:00.000Z' }],
+      );
+
+      const stats = await service.getStats('English', 'all');
+      // avg of 0.8 (speaking) + 0.6 (listening) = 0.7
+      expect(stats.avg_pronunciation_score).toBeCloseTo(0.7);
+    });
+
+    it('uses listening score alone when no speaking data', async () => {
+      mockAllFetches(
+        [],
+        [],
+        [{ score: 0.75, createdAt: '2026-01-01T10:00:00.000Z' }],
+      );
+
+      const stats = await service.getStats('English', 'all');
+      expect(stats.avg_pronunciation_score).toBeCloseTo(0.75);
     });
   });
 
@@ -90,9 +106,7 @@ describe('StatsService', () => {
 
   describe('getStats – language normalisation', () => {
     it('normalises "EN" → "english" in the fetch URL', async () => {
-      globalFetch
-        .mockResolvedValueOnce({ json: async () => ({ texts: [] }) })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+      mockAllFetches([], []);
 
       await service.getStats('EN', 'all');
 
@@ -101,9 +115,7 @@ describe('StatsService', () => {
     });
 
     it('preserves the original cased language in the response', async () => {
-      globalFetch
-        .mockResolvedValueOnce({ json: async () => ({ texts: [] }) })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+      mockAllFetches([], []);
 
       const stats = await service.getStats('polish', 'all');
       expect(stats.language).toBe('POLISH');
@@ -114,13 +126,10 @@ describe('StatsService', () => {
 
   describe('getStats – mistake_counts_by_type', () => {
     it('detects grammar mistakes from feedback segments', async () => {
-      globalFetch
-        .mockResolvedValueOnce({
-          json: async () => ({
-            texts: [makeTextRow(0.5, 'Grammar: incorrect tense; Spelling: studing', '2026-01-01')],
-          }),
-        })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+      mockAllFetches(
+        [makeTextRow(0.5, 'Grammar: incorrect tense; Spelling: studing', '2026-01-01')],
+        [],
+      );
 
       const stats = await service.getStats('English', 'all');
       expect(stats.mistake_counts_by_type['grammar']).toBe(1);
@@ -129,39 +138,24 @@ describe('StatsService', () => {
     });
 
     it('skips "no errors" feedback', async () => {
-      globalFetch
-        .mockResolvedValueOnce({
-          json: async () => ({
-            texts: [makeTextRow(1.0, 'Great work! No obvious errors detected.', '2026-01-01')],
-          }),
-        })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+      mockAllFetches(
+        [makeTextRow(1.0, 'Great work! No obvious errors detected.', '2026-01-01')],
+        [],
+      );
 
       const stats = await service.getStats('English', 'all');
       expect(stats.mistakes_total).toBe(0);
     });
 
     it('counts pronunciation_major when score < 0.7', async () => {
-      globalFetch
-        .mockResolvedValueOnce({ json: async () => ({ texts: [] }) })
-        .mockResolvedValueOnce({
-          json: async () => ({
-            records: [makeAudioRow(0.5, 'pronunciation needs work', '2026-01-01')],
-          }),
-        });
+      mockAllFetches([], [makeAudioRow(0.5, 'pronunciation needs work', '2026-01-01')]);
 
       const stats = await service.getStats('English', 'all');
       expect(stats.mistake_counts_by_type['pronunciation_major']).toBeGreaterThanOrEqual(1);
     });
 
     it('counts pronunciation_minor when score between 0.7 and 0.85', async () => {
-      globalFetch
-        .mockResolvedValueOnce({ json: async () => ({ texts: [] }) })
-        .mockResolvedValueOnce({
-          json: async () => ({
-            records: [makeAudioRow(0.75, 'Good pronunciation could be better', '2026-01-01')],
-          }),
-        });
+      mockAllFetches([], [makeAudioRow(0.75, 'Good pronunciation could be better', '2026-01-01')]);
 
       const stats = await service.getStats('English', 'all');
       expect(stats.mistake_counts_by_type['pronunciation_minor']).toBeGreaterThanOrEqual(1);
@@ -172,21 +166,10 @@ describe('StatsService', () => {
 
   describe('getStats – history (daily rollup)', () => {
     it('groups scores by date and computes daily averages', async () => {
-      globalFetch
-        .mockResolvedValueOnce({
-          json: async () => ({
-            texts: [
-              makeTextRow(0.8, null, '2026-01-01'),
-              makeTextRow(0.6, null, '2026-01-01'),
-              makeTextRow(0.9, null, '2026-01-02'),
-            ],
-          }),
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({
-            records: [makeAudioRow(0.85, null, '2026-01-01')],
-          }),
-        });
+      mockAllFetches(
+        [makeTextRow(0.8, null, '2026-01-01'), makeTextRow(0.6, null, '2026-01-01'), makeTextRow(0.9, null, '2026-01-02')],
+        [makeAudioRow(0.85, null, '2026-01-01')],
+      );
 
       const stats = await service.getStats('English', 'all');
       const jan1 = stats.history.find((h: any) => h.date === '2026-01-01');
@@ -197,24 +180,47 @@ describe('StatsService', () => {
       expect(jan1!.pronunciation_score).toBeCloseTo(0.85);
       expect(jan2).toBeDefined();
       expect(jan2!.text_score).toBeCloseTo(0.9);
-      expect(jan2!.pronunciation_score).toBe(0); // no audio for jan2
+      expect(jan2!.pronunciation_score).toBe(0);
     });
 
     it('returns history sorted chronologically', async () => {
-      globalFetch
-        .mockResolvedValueOnce({
-          json: async () => ({
-            texts: [
-              makeTextRow(0.5, null, '2026-01-03'),
-              makeTextRow(0.5, null, '2026-01-01'),
-            ],
-          }),
-        })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+      mockAllFetches(
+        [makeTextRow(0.5, null, '2026-01-03'), makeTextRow(0.5, null, '2026-01-01')],
+        [],
+      );
 
       const stats = await service.getStats('English', 'all');
       const dates = stats.history.map((h: any) => h.date);
       expect(dates).toEqual([...dates].sort());
+    });
+
+    it('merges listening scores into the pronunciation_score bucket by date', async () => {
+      mockAllFetches(
+        [],
+        [makeAudioRow(0.8, null, '2026-01-01')],
+        [{ score: 0.6, createdAt: '2026-01-01T12:00:00.000Z' }],
+      );
+
+      const stats = await service.getStats('English', 'all');
+      const jan1 = stats.history.find((h: any) => h.date === '2026-01-01');
+
+      expect(jan1).toBeDefined();
+      // avg of 0.8 (speaking) and 0.6 (listening) on the same day
+      expect(jan1!.pronunciation_score).toBeCloseTo(0.7);
+    });
+
+    it('includes listening-only days in history', async () => {
+      mockAllFetches(
+        [],
+        [],
+        [{ score: 0.75, createdAt: '2026-02-10T10:00:00.000Z' }],
+      );
+
+      const stats = await service.getStats('English', 'all');
+      const feb10 = stats.history.find((h: any) => h.date === '2026-02-10');
+
+      expect(feb10).toBeDefined();
+      expect(feb10!.pronunciation_score).toBeCloseTo(0.75);
     });
   });
 
@@ -222,19 +228,13 @@ describe('StatsService', () => {
 
   describe('getStats – charts', () => {
     it('builds mistakesByType chart sorted by count descending', async () => {
-      globalFetch
-        .mockResolvedValueOnce({
-          json: async () => ({
-            texts: [
-              makeTextRow(0.5, 'grammar: bad tense; grammar: wrong verb; spelling: typo', '2026-01-01'),
-            ],
-          }),
-        })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+      mockAllFetches(
+        [makeTextRow(0.5, 'grammar: bad tense; grammar: wrong verb; spelling: typo', '2026-01-01')],
+        [],
+      );
 
       const stats = await service.getStats('English', 'all');
       const { labels, values } = stats.charts.mistakesByType;
-      // grammar should appear before spelling (2 > 1)
       expect(labels[0]).toBe('grammar');
       expect(values[0]).toBe(2);
       expect(labels[1]).toBe('spelling');
@@ -242,17 +242,10 @@ describe('StatsService', () => {
     });
 
     it('builds progressOverTime chart with labels and score arrays', async () => {
-      globalFetch
-        .mockResolvedValueOnce({
-          json: async () => ({
-            texts: [makeTextRow(0.8, null, '2026-01-01')],
-          }),
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({
-            records: [makeAudioRow(0.9, null, '2026-01-01')],
-          }),
-        });
+      mockAllFetches(
+        [makeTextRow(0.8, null, '2026-01-01')],
+        [makeAudioRow(0.9, null, '2026-01-01')],
+      );
 
       const stats = await service.getStats('English', 'all');
       const { labels, textScores, pronunciationScores } = stats.charts.progressOverTime;
@@ -268,15 +261,28 @@ describe('StatsService', () => {
     it('returns empty stats if text-service is unreachable', async () => {
       globalFetch
         .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+        .mockResolvedValueOnce({ json: async () => ({ records: [] }) })
+        .mockResolvedValueOnce({ json: async () => ({ scores: [] }) });
 
       const stats = await service.getStats('English', 'week');
       expect(stats.avg_text_score).toBe(0);
       expect(stats.avg_pronunciation_score).toBe(0);
     });
 
-    it('returns empty stats if both services are unreachable', async () => {
+    it('returns partial stats if only listening service is unreachable', async () => {
       globalFetch
+        .mockResolvedValueOnce({ json: async () => ({ texts: [makeTextRow(0.8, null, '2026-01-01')] }) })
+        .mockResolvedValueOnce({ json: async () => ({ records: [] }) })
+        .mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+      const stats = await service.getStats('English', 'week');
+      expect(stats.avg_text_score).toBeCloseTo(0.8);
+      expect(stats.avg_pronunciation_score).toBe(0);
+    });
+
+    it('returns empty stats if all services are unreachable', async () => {
+      globalFetch
+        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
         .mockRejectedValueOnce(new Error('ECONNREFUSED'))
         .mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
@@ -287,9 +293,7 @@ describe('StatsService', () => {
     });
 
     it('includes from param in fetch URLs for week period', async () => {
-      globalFetch
-        .mockResolvedValueOnce({ json: async () => ({ texts: [] }) })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+      mockAllFetches([], []);
 
       await service.getStats('English', 'week');
 
@@ -298,9 +302,7 @@ describe('StatsService', () => {
     });
 
     it('does not include from param for "all" period', async () => {
-      globalFetch
-        .mockResolvedValueOnce({ json: async () => ({ texts: [] }) })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) });
+      mockAllFetches([], []);
 
       await service.getStats('English', 'all');
 

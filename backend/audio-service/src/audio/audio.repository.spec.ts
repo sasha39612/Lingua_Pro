@@ -422,4 +422,49 @@ describe('AudioRepository', () => {
       });
     });
   });
+
+  // ─── getListeningScoresByLanguage ──────────────────────────────────────────
+
+  describe('getListeningScoresByLanguage', () => {
+    it('returns scores mapped to camelCase createdAt', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      const rawRows = [
+        { score: 0.8, created_at: new Date('2026-01-01') },
+        { score: 0.9, created_at: new Date('2026-01-02') },
+      ];
+      mockPrisma.$queryRaw.mockResolvedValue(rawRows);
+
+      const result = await repo.getListeningScoresByLanguage('english');
+
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({ score: 0.8, createdAt: rawRows[0].created_at });
+      expect(result[1]).toEqual({ score: 0.9, createdAt: rawRows[1].created_at });
+    });
+
+    it('passes from date in query when provided', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.$queryRaw.mockResolvedValue([]);
+
+      await repo.getListeningScoresByLanguage('german', '2026-01-01T00:00:00.000Z');
+
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns empty array when no scores exist', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.$queryRaw.mockResolvedValue([]);
+
+      const result = await repo.getListeningScoresByLanguage('polish');
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when $queryRaw throws', async () => {
+      const { repo, mockPrisma } = makeRepo();
+      mockPrisma.$queryRaw.mockRejectedValue(new Error('relation does not exist'));
+
+      const result = await repo.getListeningScoresByLanguage('english');
+      expect(result).toEqual([]);
+    });
+  });
 });

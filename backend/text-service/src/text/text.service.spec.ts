@@ -113,6 +113,30 @@ describe('TextService', () => {
         expect.objectContaining({ data: expect.objectContaining({ textScore: 0.75 }) }),
       );
     });
+
+    it('saves skill field to DB when provided', async () => {
+      const { service, mockPrisma, mockHttp } = makeService();
+      mockHttp.post.mockReturnValue(of({ data: { correctedText: 'ok', feedback: 'ok', textScore: 0.8 } }));
+      mockPrisma.text.create.mockResolvedValue({ id: 4 });
+
+      await service.analyzeText(5, 'English', 'Hello', 'writing');
+
+      expect(mockPrisma.text.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ skill: 'writing' }) }),
+      );
+    });
+
+    it('defaults skill to "writing" when not provided', async () => {
+      const { service, mockPrisma, mockHttp } = makeService();
+      mockHttp.post.mockReturnValue(of({ data: { correctedText: 'ok', feedback: 'ok', textScore: 0.8 } }));
+      mockPrisma.text.create.mockResolvedValue({ id: 5 });
+
+      await service.analyzeText(5, 'English', 'Hello');
+
+      expect(mockPrisma.text.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ skill: 'writing' }) }),
+      );
+    });
   });
 
   // ─── getTextsByLanguage ──────────────────────────────────────────────────
@@ -145,12 +169,78 @@ describe('TextService', () => {
       );
     });
 
+    it('applies skill filter when provided', async () => {
+      const { service, mockPrisma } = makeService();
+      mockPrisma.text.findMany.mockResolvedValue([]);
+
+      await service.getTextsByLanguage('English', undefined, 'reading');
+
+      expect(mockPrisma.text.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ skill: 'reading' }) }),
+      );
+    });
+
+    it('does not add skill filter when skill is undefined', async () => {
+      const { service, mockPrisma } = makeService();
+      mockPrisma.text.findMany.mockResolvedValue([]);
+
+      await service.getTextsByLanguage('English');
+
+      const call = mockPrisma.text.findMany.mock.calls[0][0];
+      expect(call.where).not.toHaveProperty('skill');
+    });
+
     it('returns empty texts when DB fails', async () => {
       const { service, mockPrisma } = makeService();
       mockPrisma.text.findMany.mockRejectedValue(new Error('DB error'));
 
       const result = await service.getTextsByLanguage('Polish');
       expect(result).toEqual({ texts: [] });
+    });
+  });
+
+  // ─── recordScore ─────────────────────────────────────────────────────────
+
+  describe('recordScore', () => {
+    it('creates a text record with the given score and skill', async () => {
+      const { service, mockPrisma } = makeService();
+      const saved = { id: 99, skill: 'reading', textScore: 0.85, createdAt: new Date() };
+      mockPrisma.text.create.mockResolvedValue(saved);
+
+      const result = await service.recordScore(7, 'English', 'reading', 0.85);
+
+      expect(mockPrisma.text.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 7,
+            language: 'english',
+            skill: 'reading',
+            textScore: 0.85,
+          }),
+        }),
+      );
+      expect(result).toMatchObject({ id: 99, skill: 'reading', score: 0.85 });
+    });
+
+    it('works for writing skill', async () => {
+      const { service, mockPrisma } = makeService();
+      mockPrisma.text.create.mockResolvedValue({ id: 100, createdAt: new Date() });
+
+      const result = await service.recordScore(3, 'German', 'writing', 0.72);
+
+      expect(mockPrisma.text.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ skill: 'writing', textScore: 0.72 }) }),
+      );
+      expect(result.skill).toBe('writing');
+    });
+
+    it('returns fallback object with id=-1 when DB write fails', async () => {
+      const { service, mockPrisma } = makeService();
+      mockPrisma.text.create.mockRejectedValue(new Error('DB error'));
+
+      const result = await service.recordScore(5, 'English', 'reading', 0.6);
+
+      expect(result).toMatchObject({ id: -1, skill: 'reading', score: 0.6 });
     });
   });
 

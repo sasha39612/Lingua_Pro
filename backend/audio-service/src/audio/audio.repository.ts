@@ -189,4 +189,31 @@ export class AudioRepository {
       data: { audioUrl },
     });
   }
+
+  async getListeningScoresByLanguage(
+    language: string,
+    from?: string,
+  ): Promise<{ score: number; createdAt: Date }[]> {
+    try {
+      const rows = from
+        ? await this.prisma.$queryRaw<{ score: number; created_at: Date }[]>`
+            SELECT ls.score, ls.created_at
+            FROM listening_scores ls
+            INNER JOIN tasks t ON t.id = ls.task_id
+            WHERE t.language = ${language.toLowerCase()}
+              AND ls.created_at >= ${new Date(from)}
+            ORDER BY ls.created_at ASC
+          `
+        : await this.prisma.$queryRaw<{ score: number; created_at: Date }[]>`
+            SELECT ls.score, ls.created_at
+            FROM listening_scores ls
+            INNER JOIN tasks t ON t.id = ls.task_id
+            WHERE t.language = ${language.toLowerCase()}
+            ORDER BY ls.created_at ASC
+          `;
+      return rows.map((r) => ({ score: r.score, createdAt: r.created_at }));
+    } catch {
+      return [];
+    }
+  }
 }

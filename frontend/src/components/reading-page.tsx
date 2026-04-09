@@ -118,12 +118,18 @@ export function ReadingPage() {
     });
 
     const correctCount = results.filter((r) => r.correct).length;
-    setResult({
-      score: correctCount / task.questions.length,
-      correct: correctCount,
-      total: task.questions.length,
-      results,
-    });
+    const score = correctCount / task.questions.length;
+
+    setResult({ score, correct: correctCount, total: task.questions.length, results });
+
+    // Persist score to text-service (fire-and-forget)
+    if (user) {
+      fetch('/api/text/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, language, skill: 'reading', score }),
+      }).catch(() => { /* best-effort */ });
+    }
   };
 
   const scorePercent = result ? Math.round(result.score * 100) : null;

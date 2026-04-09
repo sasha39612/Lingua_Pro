@@ -102,7 +102,7 @@ All frontend GraphQL goes through the Next.js `/api/graphql` route, which proxie
 | auth-service | 4001 | Raw Node.js `http` + `buildSubgraphSchema` | ✅ yes | `auth_db` | No NestJS, uses argon2, JWT via `jsonwebtoken` |
 | text-service | 4002 | NestJS + Apollo subgraph | ✅ yes | `text_db` | Calls ai-orchestrator for analysis |
 | audio-service | 4003 | NestJS | ❌ REST only | `audio_db` | Custom Prisma output path; frontend calls it directly |
-| stats-service | 4004 | NestJS | ❌ REST only | **none** | Aggregates via fetch to text-service + audio-service |
+| stats-service | 4004 | NestJS | ❌ REST only | **none** | Aggregates via fetch to text-service + audio-service + audio-service listening scores |
 | ai-orchestrator | 4005 | NestJS | none | Azure Speech SDK + OpenAI (GPT + Whisper + TTS); local fallbacks when keys not set |
 
 ### Database (database-per-service)
@@ -111,8 +111,8 @@ One PostgreSQL container (`postgres:5432`) with three isolated databases:
 | Database | Owner | Tables |
 |----------|-------|--------|
 | `auth_db` | auth-service | `users`, `sessions` |
-| `text_db` | text-service | `texts`, `tasks` |
-| `audio_db` | audio-service | `audio_records`, `tasks` |
+| `text_db` | text-service | `texts` (with `skill` column, default `'writing'`), `tasks` |
+| `audio_db` | audio-service | `audio_records`, `tasks`, `listening_scores` |
 
 Databases are created by `infrastructure/postgres-init/init.sql` on first Postgres startup. Prisma schemas contain only the tables each service owns — **no cross-service FK relations** (userId is a plain `Int`). Stats-service has no database: it calls `GET /text/by-language` and `GET /audio/by-language` on the respective services.
 
@@ -122,11 +122,12 @@ COPY --from=builder /app/backend/audio-service/src/generated ./src/generated
 ```
 
 ### Stats-service (no DB)
-`stats.service.ts` uses Node 20 native `fetch()` to call:
+`stats.service.ts` uses Node 20 native `fetch()` to call three sources in parallel:
 - `GET http://text-service:4002/text/by-language?language=&from=`
 - `GET http://audio-service:4003/audio/by-language?language=&from=`
+- `GET http://audio-service:4003/audio/listening-by-language?language=&from=`
 
-Then aggregates scores, builds daily history, and categorises mistake types in-process. No Prisma, no database dependency.
+Then aggregates scores (merging speaking + listening into `avg_pronunciation_score`), builds daily history, and categorises mistake types in-process. No Prisma, no database dependency. Each fetch is independently resilient — failure of one source returns partial stats from the remaining two.
 
 ### AI Orchestrator
 `OrchestratorService` is a **thin facade** that composes five focused provider services:
@@ -205,12 +206,24 @@ Lingua_Pro/
 │       │   │   ├── audio/analyze/route.ts # Multipart audio → base64 → audio-service POST /audio/analyze-base64
 │       │   │   ├── reading/task/route.ts  # GET ?language&level&userId → text-service GET /text/tasks?skill=reading
 │       │   │   ├── writing/task/route.ts  # GET ?language&level&userId → text-service GET /text/tasks?skill=writing; returns { taskId, writingTask }
-│       │   │   └── writing/analyze/route.ts # POST { text, language, taskContext } → ai-orchestrator POST /text/analyze-writing; returns WritingAnalysisResult
+│       │   │   ├── writing/analyze/route.ts # POST { text, language, taskContext } → ai-orchestrator POST /text/analyze-writing; returns WritingAnalysisResult
+│       │   │   ├── stats/route.ts         # GET ?language&period → stats-service GET /stats; proxy with auth headers
+│       │   │   └── text/score/route.ts    # POST { userId, language, skill, score } → text-service POST /text/score; fire-and-forget score persistence
 │       │   └── [writing|reading|listening|speaking|stats|dashboard|admin|settings]/
 │       ├── components/
 │       │   ├── app-shell.tsx            # Layout wrapper (nav, sidebar)
 │       │   ├── audio-recorder.tsx       # MediaRecorder wrapper
-│       │   └── streamed-feedback.tsx    # SSE feedback consumer
+│       │   ├── streamed-feedback.tsx    # SSE feedback consumer
+│       │   └── stats/                   # Stats page sub-components
+│       │       ├── types.ts             # Period, SkillKey, SummaryStats, SkillScores, ChartData, WeakPoint
+│       │       ├── utils.ts             # getNextLevel, computeStreak, buildWeakPoints, formatMistakeLabel
+│       │       ├── stats-header.tsx     # Period + skill selectors (uses SelectDropdown)
+│       │       ├── summary-cards.tsx    # 4 cards: Level, Active Days, Accuracy, Streak
+│       │       ├── level-progress-card.tsx
+│       │       ├── skills-card.tsx      # 4 skill bars: Reading/Writing/Speaking/Listening
+│       │       ├── weak-points-card.tsx # Weak points with "Practice" links → skill pages
+│       │       ├── achievements.tsx     # 6 achievements computed from real data
+│       │       └── charts-section.tsx   # SVG line chart (progress over time) + bar chart (mistakes by type)
 │       ├── lib/
 │       │   ├── graphql-client.ts        # fetch wrapper (persisted queries + fallback)
 │       │   ├── graphql-operations.ts    # All GQL query/mutation strings
@@ -235,16 +248,16 @@ Lingua_Pro/
     │   └── src/
     │       ├── graphql/text.schema.ts
     │       └── text/
-    │           ├── text.service.ts      # analyzeText, getTextsByLanguage, getTasks
-    │           └── text.controller.ts   # POST /text/check, GET /text/tasks, GET /text/by-language
+    │           ├── text.service.ts      # analyzeText, getTextsByLanguage, getTasks, recordScore
+    │           └── text.controller.ts   # POST /text/check, POST /text/score, GET /text/tasks, GET /text/by-language
     │
     ├── audio-service/               # NestJS, :4003 → audio_db
     │   ├── prisma/schema.prisma         # audio_records, tasks (no User model)
     │   └── src/
     │       ├── audio/
-    │       │   ├── audio.controller.ts  # POST /check, POST /analyze-base64, GET /records/:id, GET /by-language
+    │       │   ├── audio.controller.ts  # POST /check, POST /analyze-base64, GET /records/:id, GET /by-language, GET /listening-by-language
     │       │   ├── audio.service.ts
-    │       │   └── audio.repository.ts  # Prisma queries (uses src/generated/prisma)
+    │       │   └── audio.repository.ts  # Prisma queries (uses src/generated/prisma); getListeningScoresByLanguage via raw SQL join
     │       └── generated/prisma/        # Custom Prisma output (committed type stubs only)
     │
     ├── stats-service/               # NestJS, :4004 — NO DATABASE

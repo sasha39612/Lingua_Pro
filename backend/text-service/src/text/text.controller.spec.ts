@@ -8,6 +8,7 @@ function makeController() {
     analyzeText: vi.fn(),
     getTasks: vi.fn(),
     getTextsByLanguage: vi.fn(),
+    recordScore: vi.fn(),
   };
   const controller = new TextController(mockService as any);
   return { controller, mockService };
@@ -30,8 +31,17 @@ describe('TextController', () => {
 
       const result = await controller.check('5', 'English', 'Hello world');
 
-      expect(mockService.analyzeText).toHaveBeenCalledWith(5, 'English', 'Hello world');
+      expect(mockService.analyzeText).toHaveBeenCalledWith(5, 'English', 'Hello world', undefined);
       expect(result).toEqual(expected);
+    });
+
+    it('passes skill when provided', async () => {
+      const { controller, mockService } = makeController();
+      mockService.analyzeText.mockResolvedValue({});
+
+      await controller.check('5', 'English', 'Hello', 'writing');
+
+      expect(mockService.analyzeText).toHaveBeenCalledWith(5, 'English', 'Hello', 'writing');
     });
 
     it('passes NaN userId when userId string is non-numeric', async () => {
@@ -40,8 +50,7 @@ describe('TextController', () => {
 
       await controller.check('abc', 'English', 'text');
 
-      // parseInt('abc') === NaN — service receives NaN; validation is service's responsibility
-      expect(mockService.analyzeText).toHaveBeenCalledWith(NaN, 'English', 'text');
+      expect(mockService.analyzeText).toHaveBeenCalledWith(NaN, 'English', 'text', undefined);
     });
 
     it('propagates service errors', async () => {
@@ -49,6 +58,37 @@ describe('TextController', () => {
       mockService.analyzeText.mockRejectedValue(new Error('DB error'));
 
       await expect(controller.check('1', 'English', 'text')).rejects.toThrow('DB error');
+    });
+  });
+
+  // ─── POST /text/score ──────────────────────────────────────────────────────
+
+  describe('score', () => {
+    it('calls recordScore with parsed userId and returns result', async () => {
+      const { controller, mockService } = makeController();
+      const expected = { id: 10, skill: 'reading', score: 0.85, createdAt: new Date().toISOString() };
+      mockService.recordScore.mockResolvedValue(expected);
+
+      const result = await controller.score('7', 'English', 'reading', 0.85);
+
+      expect(mockService.recordScore).toHaveBeenCalledWith(7, 'English', 'reading', 0.85);
+      expect(result).toEqual(expected);
+    });
+
+    it('works for writing skill', async () => {
+      const { controller, mockService } = makeController();
+      mockService.recordScore.mockResolvedValue({ id: 11, skill: 'writing', score: 0.7 });
+
+      await controller.score('3', 'German', 'writing', 0.7);
+
+      expect(mockService.recordScore).toHaveBeenCalledWith(3, 'German', 'writing', 0.7);
+    });
+
+    it('propagates service errors', async () => {
+      const { controller, mockService } = makeController();
+      mockService.recordScore.mockRejectedValue(new Error('DB connection lost'));
+
+      await expect(controller.score('1', 'English', 'reading', 0.5)).rejects.toThrow('DB connection lost');
     });
   });
 
@@ -93,7 +133,7 @@ describe('TextController', () => {
 
       const result = await controller.byLanguage('Polish');
 
-      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('Polish', undefined);
+      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('Polish', undefined, undefined);
       expect(result).toEqual(data);
     });
 
@@ -103,7 +143,25 @@ describe('TextController', () => {
 
       await controller.byLanguage('English', '2026-01-01');
 
-      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('English', '2026-01-01');
+      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('English', '2026-01-01', undefined);
+    });
+
+    it('passes optional skill parameter', async () => {
+      const { controller, mockService } = makeController();
+      mockService.getTextsByLanguage.mockResolvedValue({ texts: [] });
+
+      await controller.byLanguage('English', undefined, 'reading');
+
+      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('English', undefined, 'reading');
+    });
+
+    it('passes both from and skill when provided', async () => {
+      const { controller, mockService } = makeController();
+      mockService.getTextsByLanguage.mockResolvedValue({ texts: [] });
+
+      await controller.byLanguage('German', '2026-01-01', 'writing');
+
+      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('German', '2026-01-01', 'writing');
     });
 
     it('propagates service errors', async () => {

@@ -1076,6 +1076,7 @@ export namespace Prisma {
     id: number | null
     userId: number | null
     language: string | null
+    skill: string | null
     originalText: string | null
     correctedText: string | null
     textScore: number | null
@@ -1088,6 +1089,7 @@ export namespace Prisma {
     id: number | null
     userId: number | null
     language: string | null
+    skill: string | null
     originalText: string | null
     correctedText: string | null
     textScore: number | null
@@ -1100,6 +1102,7 @@ export namespace Prisma {
     id: number
     userId: number
     language: number
+    skill: number
     originalText: number
     correctedText: number
     textScore: number
@@ -1126,6 +1129,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     language?: true
+    skill?: true
     originalText?: true
     correctedText?: true
     textScore?: true
@@ -1138,6 +1142,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     language?: true
+    skill?: true
     originalText?: true
     correctedText?: true
     textScore?: true
@@ -1150,6 +1155,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     language?: true
+    skill?: true
     originalText?: true
     correctedText?: true
     textScore?: true
@@ -1249,6 +1255,7 @@ export namespace Prisma {
     id: number
     userId: number
     language: string
+    skill: string
     originalText: string
     correctedText: string | null
     textScore: number | null
@@ -1280,6 +1287,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     language?: boolean
+    skill?: boolean
     originalText?: boolean
     correctedText?: boolean
     textScore?: boolean
@@ -1292,6 +1300,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     language?: boolean
+    skill?: boolean
     originalText?: boolean
     correctedText?: boolean
     textScore?: boolean
@@ -1304,6 +1313,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     language?: boolean
+    skill?: boolean
     originalText?: boolean
     correctedText?: boolean
     textScore?: boolean
@@ -1316,6 +1326,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     language?: boolean
+    skill?: boolean
     originalText?: boolean
     correctedText?: boolean
     textScore?: boolean
@@ -1324,7 +1335,7 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type TextOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "language" | "originalText" | "correctedText" | "textScore" | "feedback" | "createdAt" | "updatedAt", ExtArgs["result"]["text"]>
+  export type TextOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "language" | "skill" | "originalText" | "correctedText" | "textScore" | "feedback" | "createdAt" | "updatedAt", ExtArgs["result"]["text"]>
 
   export type $TextPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Text"
@@ -1333,6 +1344,7 @@ export namespace Prisma {
       id: number
       userId: number
       language: string
+      skill: string
       originalText: string
       correctedText: string | null
       textScore: number | null
@@ -1765,6 +1777,7 @@ export namespace Prisma {
     readonly id: FieldRef<"Text", 'Int'>
     readonly userId: FieldRef<"Text", 'Int'>
     readonly language: FieldRef<"Text", 'String'>
+    readonly skill: FieldRef<"Text", 'String'>
     readonly originalText: FieldRef<"Text", 'String'>
     readonly correctedText: FieldRef<"Text", 'String'>
     readonly textScore: FieldRef<"Text", 'Float'>
@@ -4352,6 +4365,7 @@ export namespace Prisma {
     id: 'id',
     userId: 'userId',
     language: 'language',
+    skill: 'skill',
     originalText: 'originalText',
     correctedText: 'correctedText',
     textScore: 'textScore',
@@ -4522,6 +4536,7 @@ export namespace Prisma {
     id?: IntFilter<"Text"> | number
     userId?: IntFilter<"Text"> | number
     language?: StringFilter<"Text"> | string
+    skill?: StringFilter<"Text"> | string
     originalText?: StringFilter<"Text"> | string
     correctedText?: StringNullableFilter<"Text"> | string | null
     textScore?: FloatNullableFilter<"Text"> | number | null
@@ -4534,6 +4549,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     language?: SortOrder
+    skill?: SortOrder
     originalText?: SortOrder
     correctedText?: SortOrderInput | SortOrder
     textScore?: SortOrderInput | SortOrder
@@ -4549,6 +4565,7 @@ export namespace Prisma {
     NOT?: TextWhereInput | TextWhereInput[]
     userId?: IntFilter<"Text"> | number
     language?: StringFilter<"Text"> | string
+    skill?: StringFilter<"Text"> | string
     originalText?: StringFilter<"Text"> | string
     correctedText?: StringNullableFilter<"Text"> | string | null
     textScore?: FloatNullableFilter<"Text"> | number | null
@@ -4561,6 +4578,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     language?: SortOrder
+    skill?: SortOrder
     originalText?: SortOrder
     correctedText?: SortOrderInput | SortOrder
     textScore?: SortOrderInput | SortOrder
@@ -4581,6 +4599,7 @@ export namespace Prisma {
     id?: IntWithAggregatesFilter<"Text"> | number
     userId?: IntWithAggregatesFilter<"Text"> | number
     language?: StringWithAggregatesFilter<"Text"> | string
+    skill?: StringWithAggregatesFilter<"Text"> | string
     originalText?: StringWithAggregatesFilter<"Text"> | string
     correctedText?: StringNullableWithAggregatesFilter<"Text"> | string | null
     textScore?: FloatNullableWithAggregatesFilter<"Text"> | number | null
@@ -4756,6 +4775,7 @@ export namespace Prisma {
   export type TextCreateInput = {
     userId: number
     language: string
+    skill?: string
     originalText: string
     correctedText?: string | null
     textScore?: number | null
@@ -4768,6 +4788,7 @@ export namespace Prisma {
     id?: number
     userId: number
     language: string
+    skill?: string
     originalText: string
     correctedText?: string | null
     textScore?: number | null
@@ -4779,6 +4800,7 @@ export namespace Prisma {
   export type TextUpdateInput = {
     userId?: IntFieldUpdateOperationsInput | number
     language?: StringFieldUpdateOperationsInput | string
+    skill?: StringFieldUpdateOperationsInput | string
     originalText?: StringFieldUpdateOperationsInput | string
     correctedText?: NullableStringFieldUpdateOperationsInput | string | null
     textScore?: NullableFloatFieldUpdateOperationsInput | number | null
@@ -4791,6 +4813,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     userId?: IntFieldUpdateOperationsInput | number
     language?: StringFieldUpdateOperationsInput | string
+    skill?: StringFieldUpdateOperationsInput | string
     originalText?: StringFieldUpdateOperationsInput | string
     correctedText?: NullableStringFieldUpdateOperationsInput | string | null
     textScore?: NullableFloatFieldUpdateOperationsInput | number | null
@@ -4803,6 +4826,7 @@ export namespace Prisma {
     id?: number
     userId: number
     language: string
+    skill?: string
     originalText: string
     correctedText?: string | null
     textScore?: number | null
@@ -4814,6 +4838,7 @@ export namespace Prisma {
   export type TextUpdateManyMutationInput = {
     userId?: IntFieldUpdateOperationsInput | number
     language?: StringFieldUpdateOperationsInput | string
+    skill?: StringFieldUpdateOperationsInput | string
     originalText?: StringFieldUpdateOperationsInput | string
     correctedText?: NullableStringFieldUpdateOperationsInput | string | null
     textScore?: NullableFloatFieldUpdateOperationsInput | number | null
@@ -4826,6 +4851,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     userId?: IntFieldUpdateOperationsInput | number
     language?: StringFieldUpdateOperationsInput | string
+    skill?: StringFieldUpdateOperationsInput | string
     originalText?: StringFieldUpdateOperationsInput | string
     correctedText?: NullableStringFieldUpdateOperationsInput | string | null
     textScore?: NullableFloatFieldUpdateOperationsInput | number | null
@@ -5089,6 +5115,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     language?: SortOrder
+    skill?: SortOrder
     originalText?: SortOrder
     correctedText?: SortOrder
     textScore?: SortOrder
@@ -5107,6 +5134,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     language?: SortOrder
+    skill?: SortOrder
     originalText?: SortOrder
     correctedText?: SortOrder
     textScore?: SortOrder
@@ -5119,6 +5147,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     language?: SortOrder
+    skill?: SortOrder
     originalText?: SortOrder
     correctedText?: SortOrder
     textScore?: SortOrder

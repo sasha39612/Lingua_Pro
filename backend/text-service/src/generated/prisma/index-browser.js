@@ -124,6 +124,7 @@ exports.Prisma.TextScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   language: 'language',
+  skill: 'skill',
   originalText: 'originalText',
   correctedText: 'correctedText',
   textScore: 'textScore',

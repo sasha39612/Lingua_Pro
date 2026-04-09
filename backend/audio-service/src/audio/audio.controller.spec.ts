@@ -12,6 +12,7 @@ function makeController() {
     getUserStats: vi.fn(),
     getListeningTasks: vi.fn(),
     getRecordsByLanguage: vi.fn(),
+    getListeningScoresByLanguage: vi.fn(),
     evaluateComprehension: vi.fn(),
     generateComprehension: vi.fn(),
     getListeningTask: vi.fn(),
@@ -184,6 +185,35 @@ describe('AudioController', () => {
     it('throws BadRequestException when language is missing', async () => {
       const { controller } = makeController();
       await expect(controller.byLanguage('')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── GET /audio/listening-by-language ─────────────────────────────────────
+
+  describe('listeningByLanguage', () => {
+    it('returns listening scores for the given language', async () => {
+      const { controller, mockService } = makeController();
+      const scores = [{ score: 0.8, createdAt: new Date() }];
+      mockService.getListeningScoresByLanguage.mockResolvedValue({ scores });
+
+      const result = await controller.listeningByLanguage('english');
+
+      expect(mockService.getListeningScoresByLanguage).toHaveBeenCalledWith('english', undefined);
+      expect(result).toEqual({ scores });
+    });
+
+    it('passes from param when provided', async () => {
+      const { controller, mockService } = makeController();
+      mockService.getListeningScoresByLanguage.mockResolvedValue({ scores: [] });
+
+      await controller.listeningByLanguage('german', '2026-01-01');
+
+      expect(mockService.getListeningScoresByLanguage).toHaveBeenCalledWith('german', '2026-01-01');
+    });
+
+    it('throws BadRequestException when language is missing', async () => {
+      const { controller } = makeController();
+      await expect(controller.listeningByLanguage('')).rejects.toThrow(BadRequestException);
     });
   });
 
