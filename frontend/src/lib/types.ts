@@ -18,6 +18,20 @@ export interface TextResult {
   createdAt: string;
 }
 
+export interface StatsData {
+  language: string;
+  period: 'week' | 'month' | 'all';
+  avg_text_score: number;
+  avg_pronunciation_score: number;
+  mistakes_total: number;
+  mistake_counts_by_type: Record<string, number>;
+  history: Array<{ date: string; text_score: number; pronunciation_score: number }>;
+  charts: {
+    mistakesByType: { labels: string[]; values: number[] };
+    progressOverTime: { labels: string[]; textScores: number[]; pronunciationScores: number[] };
+  };
+}
+
 export interface LearningTask {
   id: string;
   language: string;
