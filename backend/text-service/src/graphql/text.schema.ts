@@ -182,18 +182,20 @@ async function generateAndPersistTasks(language: string, level: string, skill: s
     if (!resp.data?.tasks) return [];
     const created: any[] = [];
     for (const t of resp.data.tasks) {
+      const normalizedLanguage = t.language?.toLowerCase() ?? language;
       try {
         const { questions, ...taskFields } = t;
         const record = await prisma.task.create({
           data: {
             ...taskFields,
-            language: taskFields.language?.toLowerCase() ?? language,
-            questions: questions ?? undefined,
+            language: normalizedLanguage,
+            ...(questions != null ? { questions } : {}),
           },
         });
         created.push(record);
       } catch (e: any) {
         console.warn('failed to persist generated task', e?.message || e);
+        created.push({ ...t, id: -1, language: normalizedLanguage, createdAt: new Date().toISOString() });
       }
     }
     return created;

@@ -138,13 +138,22 @@ export class TextService {
         if (resp.data?.tasks) {
           const created: any[] = [];
           for (const t of resp.data.tasks) {
+            const normalizedLanguage = t.language?.toLowerCase() ?? language;
             try {
+              const { questions, ...taskFields } = t;
               const record = await this.prisma.task.create({
-                data: { ...t, language: t.language?.toLowerCase() ?? language },
+                data: {
+                  ...taskFields,
+                  language: normalizedLanguage,
+                  ...(questions != null ? { questions } : {}),
+                },
               });
               created.push(record);
             } catch (err: any) {
               this.logger.warn('failed to persist generated task', err?.message || err);
+              // Return the generated data even without DB persistence so the caller
+              // always gets a usable task (mirrors how analyzeText handles DB failures)
+              created.push({ ...t, id: -1, language: normalizedLanguage, createdAt: new Date().toISOString() });
             }
           }
           tasks = created;
