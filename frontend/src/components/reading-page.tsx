@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { LabFrame } from '@/components/lab-frame';
+import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -380,32 +381,26 @@ function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }:
   // ── Matching ─────────────────────────────────────────────────────────────
   if (q.type === 'matching') {
     const opts = q.matchingOptions ?? [];
-    const chosenIdx = given !== undefined && given !== '' ? parseInt(given, 10) : -1;
+    const dropdownOptions = [
+      { value: '', label: 'Select a meaning…' },
+      ...opts.map((opt, optIdx) => ({ value: String(optIdx), label: opt })),
+    ];
     return (
       <div>
         {questionLabel}
-        <select
-          disabled={locked}
-          value={given ?? ''}
-          onChange={(e) => onAnswer(index, e.target.value)}
-          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 disabled:cursor-default disabled:opacity-70"
-        >
-          <option value="">Select a meaning…</option>
-          {opts.map((opt, optIdx) => (
-            <option key={optIdx} value={String(optIdx)}>
-              {opt}
-            </option>
-          ))}
-        </select>
+        <div className={locked ? 'pointer-events-none opacity-70' : ''}>
+          <SelectDropdown
+            value={given ?? ''}
+            options={dropdownOptions}
+            onChange={(v) => onAnswer(index, v)}
+          />
+        </div>
         {qResult && (
           <p className={`mt-2 text-xs font-medium ${qResult.correct ? 'text-teal-700' : 'text-red-600'}`}>
             {qResult.correct
               ? 'Correct!'
               : `Incorrect — correct answer: ${opts[q.correctMatchIndex ?? 0] ?? ''}`}
           </p>
-        )}
-        {!qResult && chosenIdx >= 0 && (
-          <p className="mt-1 text-xs text-slate-500">Selected: {opts[chosenIdx]}</p>
         )}
       </div>
     );
