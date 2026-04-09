@@ -33,17 +33,24 @@ describe('TaskService — local fallbacks (no AI_API_KEY)', () => {
   it('each task has required shape', async () => {
     const svc = await makeService();
     const tasks = await svc.generateTasks('English', 'B1', 'writing');
-    for (const task of tasks) {
-      expect(task).toMatchObject({
-        language: 'English',
-        level: 'B1',
-        skill: 'writing',
-        prompt: expect.any(String),
-        answerOptions: expect.arrayContaining([expect.any(String)]),
-        correctAnswer: expect.stringMatching(/^[A-D]$/),
-      });
-      expect(task.answerOptions).toHaveLength(4);
-    }
+    expect(tasks).toHaveLength(1);
+    const task = tasks[0];
+    // Writing tasks store a structured WritingTask JSON in prompt; no answer options
+    expect(task).toMatchObject({
+      language: 'English',
+      level: 'B1',
+      skill: 'writing',
+      prompt: expect.any(String),
+      answerOptions: [],
+      correctAnswer: null,
+    });
+    // prompt must be valid JSON with the required WritingTask fields
+    const parsed = JSON.parse(task.prompt);
+    expect(typeof parsed.situation).toBe('string');
+    expect(Array.isArray(parsed.taskPoints)).toBe(true);
+    expect(parsed.taskPoints.length).toBeGreaterThan(0);
+    expect(typeof parsed.wordCountMin).toBe('number');
+    expect(typeof parsed.wordCountMax).toBe('number');
   });
 
   it('normalizes empty language to "English"', async () => {

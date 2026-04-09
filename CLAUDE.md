@@ -135,7 +135,7 @@ Then aggregates scores, builds daily history, and categorises mistake types in-p
 |----------|---------------|-----------------|
 | `SpeechService` | Audio transcription, phoneme extraction, word alignment | Azure Speech SDK (primary); Whisper fallback |
 | `TextAiService` | Text analysis — grammar, corrections, feedback | `OPENAI_TEXT_MODEL` (default `gpt-4o`) |
-| `TaskService` | CEFR task generation | `OPENAI_TASK_MODEL` (default `gpt-4o-mini`) |
+| `TaskService` | CEFR task generation; `skill=writing` → `WritingTask` JSON in `prompt`; `skill=reading` → passage + 16 questions | `OPENAI_TASK_MODEL` (default `gpt-4o-mini`) |
 | `PronunciationAiService` | Human-readable pronunciation feedback string **only** | `OPENAI_EVAL_MODEL` (default `gpt-4o`) |
 | `TtsService` | Text-to-speech audio generation → base64 MP3 | `OPENAI_TTS_MODEL` (default `gpt-4o-mini-tts`) |
 
@@ -157,7 +157,8 @@ type: 'correct' | 'missing' | 'extra' | 'mispronounced'
 
 **Endpoints**:
 - `POST /text/analyze` — text correction + feedback
-- `POST /tasks/generate` — CEFR task generation
+- `POST /text/analyze-writing` — structured writing evaluation: 4 scored criteria (task achievement, grammar/vocabulary, coherence/structure, style) + corrected text; feedback written in the task language
+- `POST /tasks/generate` — CEFR task generation; `skill=writing` returns a `WritingTask` JSON stored in `prompt` field (situation, taskPoints, instructions, exampleStructure, wordCountMin/Max, style)
 - `POST /audio/transcribe` — transcription with `words[]` and `source`
 - `POST /audio/pronunciation/analyze` — Azure scores + GPT feedback + word alignment
 - `POST /audio/tts` — TTS audio generation
@@ -202,7 +203,9 @@ Lingua_Pro/
 │       │   │   ├── graphql/route.ts     # Proxy → API Gateway :8080
 │       │   │   ├── ai-feedback/route.ts # SSE streaming endpoint
 │       │   │   ├── audio/analyze/route.ts # Multipart audio → base64 → audio-service POST /audio/analyze-base64
-│       │   │   └── reading/task/route.ts  # GET ?language&level&userId → text-service GET /text/tasks?skill=reading
+│       │   │   ├── reading/task/route.ts  # GET ?language&level&userId → text-service GET /text/tasks?skill=reading
+│       │   │   ├── writing/task/route.ts  # GET ?language&level&userId → text-service GET /text/tasks?skill=writing; returns { taskId, writingTask }
+│       │   │   └── writing/analyze/route.ts # POST { text, language, taskContext } → ai-orchestrator POST /text/analyze-writing; returns WritingAnalysisResult
 │       │   └── [writing|reading|listening|speaking|stats|dashboard|admin|settings]/
 │       ├── components/
 │       │   ├── app-shell.tsx            # Layout wrapper (nav, sidebar)
