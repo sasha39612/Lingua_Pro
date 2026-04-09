@@ -38,7 +38,7 @@ ENV PORT=4001
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/backend/auth-service/dist ./dist
 COPY --from=builder /app/backend/auth-service/prisma ./prisma
-COPY --from=builder /app/backend/auth-service/src/generated ./src/generated
+COPY --from=builder /app/backend/auth-service/src/generated ./dist/generated
 COPY backend/auth-service/prisma.config.ts ./prisma.config.ts
 
 COPY backend/auth-service/entrypoint.sh ./entrypoint.sh
