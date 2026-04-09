@@ -4,8 +4,7 @@ import { buildSubgraphSchema } from '@apollo/subgraph';
 import { gql } from 'graphql-tag';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
-// @ts-ignore - Prisma v7 types export resolution
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/prisma';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
