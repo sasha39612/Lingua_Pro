@@ -41,18 +41,20 @@ export class TaskService {
                   role: 'system',
                   content: isSpeaking
                     ? `Generate 3 speaking practice passages for a ${safeLanguage} learner at CEFR ${safeLevel}. ` +
+                      `IMPORTANT: ALL text content (prompt, referenceText) MUST be written in ${safeLanguage}, not in English. ` +
                       'Each passage is meant to be read aloud by the student for pronunciation practice. ' +
                       'DO NOT generate multiple-choice questions, options, or any quiz content. ' +
                       'Return strict JSON with key "tasks" containing an array of 3 objects. ' +
                       'Each object MUST include: ' +
-                      '"prompt" (one sentence like "Read the following passage aloud"), ' +
-                      '"referenceText" (a 2-4 sentence natural passage appropriate for the CEFR level — this field is REQUIRED and must be non-empty), ' +
+                      `"prompt" (one sentence in ${safeLanguage} like "Read the following passage aloud" translated to ${safeLanguage}), ` +
+                      `"referenceText" (a 2-4 sentence natural passage in ${safeLanguage} appropriate for the CEFR level — this field is REQUIRED and must be non-empty), ` +
                       '"focusPhonemes" (array of 2-4 IPA symbols that appear frequently in the passage, e.g. ["θ", "r", "æ"]), ' +
                       '"answerOptions" (always empty array []), ' +
                       '"correctAnswer" (always null), ' +
                       '"audioUrl" (always null). ' +
-                      'The passage must be natural, level-appropriate, and contain the target phonemes.'
+                      `The passage must be natural, level-appropriate, written entirely in ${safeLanguage}, and contain the target phonemes.`
                     : `Generate 3 ${safeSkill} tasks for a ${safeLanguage} learner at CEFR ${safeLevel}. ` +
+                      `IMPORTANT: ALL text content (prompts, answer options, reference text) MUST be written in ${safeLanguage}, not in English. ` +
                       'Return strict JSON with key tasks containing an array of objects. ' +
                       'Each task must include: prompt, answerOptions (4 short strings), correctAnswer (A/B/C/D), referenceText (nullable string), audioUrl (nullable string).',
                 },
@@ -118,11 +120,12 @@ export class TaskService {
                   role: 'system',
                   content:
                     `You are a language-learning content creator. Generate a listening comprehension exercise for a ${safeLanguage} learner at CEFR level ${safeLevel}.\n` +
+                    `IMPORTANT: ALL text content (passageText, questions, options) MUST be written in ${safeLanguage}, not in English.\n` +
                     'Return strict JSON with exactly two keys:\n' +
-                    '1. "passageText": a natural spoken monologue or narrative, approximately 350-420 words. ' +
+                    `1. "passageText": a natural spoken monologue or narrative in ${safeLanguage}, approximately 350-420 words. ` +
                     'It must be written as continuous speech (no headers, no bullet points) and be appropriate for the CEFR level. ' +
                     'Choose an interesting real-world topic (science, culture, history, travel, food, technology, etc.).\n' +
-                    '2. "questions": an array of EXACTLY 5 multiple-choice comprehension questions about the passage. ' +
+                    `2. "questions": an array of EXACTLY 5 multiple-choice comprehension questions in ${safeLanguage} about the passage. ` +
                     'Each question must have: "question" (string), "options" (array of exactly 4 strings), "correctAnswer" (0-based integer index 0-3 pointing to the correct option). ' +
                     'Questions should test different aspects: main idea, specific details, vocabulary in context, inference, and speaker intent.',
                 },
