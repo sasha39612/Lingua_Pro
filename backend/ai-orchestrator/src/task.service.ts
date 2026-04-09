@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
-import type { GeneratedTask, ListeningPassage } from './types';
+import type { GeneratedTask, ListeningPassage, ReadingQuestion } from './types';
 import { safeJsonParse, withRetry, withTimeout } from './util';
 
 @Injectable()
@@ -21,6 +21,11 @@ export class TaskService {
     const safeLanguage = (language || 'English').trim() || 'English';
     const safeLevel = (level || 'A1').trim() || 'A1';
     const safeSkill = (skill || 'reading').trim() || 'reading';
+
+    if (safeSkill === 'reading') {
+      const exercise = await this.generateReadingExercise(safeLanguage, safeLevel);
+      return [exercise];
+    }
 
     if (!this.openai) {
       return this.localTaskGeneration(safeLanguage, safeLevel, safeSkill);
@@ -170,6 +175,223 @@ export class TaskService {
     }
 
     return this.localListeningPassage(safeLanguage, safeLevel);
+  }
+
+  // ── Reading exercise generation ────────────────────────────────────────────
+
+  async generateReadingExercise(language: string, level: string): Promise<GeneratedTask> {
+    if (!this.openai) {
+      return this.localReadingExercise(language, level);
+    }
+
+    try {
+      const response = await withRetry(
+        () =>
+          withTimeout(
+            this.openai!.chat.completions.create({
+              model: this.taskModel,
+              response_format: { type: 'json_object' },
+              temperature: 0.5,
+              messages: [
+                {
+                  role: 'system',
+                  content:
+                    `You are a language-learning content creator. Generate a reading comprehension exercise for a ${language} learner at CEFR level ${level}.\n` +
+                    `IMPORTANT: ALL text (passage, questions, options, labels) MUST be written in ${language}.\n` +
+                    'Return strict JSON with exactly two keys:\n' +
+                    `1. "passageText": a natural narrative passage, 600–700 characters long, no headers or bullet points, written in ${language}.\n` +
+                    '2. "questions": an array of exactly 16 question objects in this order:\n' +
+                    `   - 5 objects with type "multiple_choice": { "type": "multiple_choice", "question": string, "options": [4 strings], "correctAnswer": "A"|"B"|"C"|"D" }\n` +
+                    `   - 3 objects with type "true_false_ng": { "type": "true_false_ng", "question": string, "correctAnswer": "T"|"F"|"NG" }\n` +
+                    `   - 3 objects with type "matching": { "type": "matching", "matchingIdea": string (short concept label), "matchingOptions": [3 short paragraph-meaning strings], "correctMatchIndex": 0-based integer }\n` +
+                    `   - 3 objects with type "vocabulary": { "type": "vocabulary", "question": string (asks meaning of a word from the passage), "options": [4 strings], "correctAnswer": "A"|"B"|"C"|"D" }\n` +
+                    `   - 2 objects with type "main_idea": { "type": "main_idea", "question": string, "options": [4 strings], "correctAnswer": "A"|"B"|"C"|"D" }`,
+                },
+                {
+                  role: 'user',
+                  content: `language=${language}, level=${level}`,
+                },
+              ],
+            }),
+            25_000,
+            'reading exercise generation timed out',
+          ),
+        'generateReadingExercise',
+        this.logger,
+      );
+
+      const content = response.choices?.[0]?.message?.content || '{}';
+      const parsed = safeJsonParse<{ passageText?: string; questions?: any[] }>(content);
+
+      if (
+        typeof parsed.passageText === 'string' &&
+        parsed.passageText.trim().length > 100 &&
+        Array.isArray(parsed.questions) &&
+        parsed.questions.length === 16
+      ) {
+        const questions: ReadingQuestion[] = parsed.questions.map((q: any) => {
+          if (q.type === 'matching') {
+            return {
+              type: 'matching' as const,
+              matchingIdea: String(q.matchingIdea || ''),
+              matchingOptions: Array.isArray(q.matchingOptions)
+                ? q.matchingOptions.map((o: any) => String(o))
+                : ['Option 1', 'Option 2', 'Option 3'],
+              correctMatchIndex:
+                typeof q.correctMatchIndex === 'number' ? q.correctMatchIndex : 0,
+            };
+          }
+          return {
+            type: q.type as ReadingQuestion['type'],
+            question: String(q.question || ''),
+            options: Array.isArray(q.options) ? q.options.map((o: any) => String(o)) : undefined,
+            correctAnswer: typeof q.correctAnswer === 'string' ? q.correctAnswer : undefined,
+          };
+        });
+
+        return {
+          language,
+          level,
+          skill: 'reading',
+          prompt: `Reading comprehension exercise · ${language} · ${level}`,
+          audioUrl: null,
+          referenceText: parsed.passageText.trim(),
+          focusPhonemes: null,
+          answerOptions: [],
+          correctAnswer: null,
+          questions,
+        };
+      }
+
+      this.logger.warn('GPT returned invalid reading exercise structure, using fallback');
+    } catch (error: any) {
+      this.logger.warn(`GPT reading exercise generation failed, using fallback: ${error?.message ?? error}`);
+    }
+
+    return this.localReadingExercise(language, level);
+  }
+
+  private localReadingExercise(language: string, level: string): GeneratedTask {
+    const passage =
+      'Anna recently moved to a small town to work remotely as a graphic designer. ' +
+      'At first, she felt isolated because she did not know anyone and missed the energy of the city. ' +
+      'However, over time, she started exploring the area, joining local events, and meeting new people. ' +
+      'She discovered that the quieter lifestyle helped her focus better on her work. ' +
+      'Although she sometimes still misses her old life, she now appreciates the balance between work and relaxation that the town offers.';
+
+    const questions: ReadingQuestion[] = [
+      // Multiple choice (5)
+      {
+        type: 'multiple_choice',
+        question: 'What was Anna\'s job?',
+        options: ['Teacher', 'Graphic designer', 'Doctor', 'Engineer'],
+        correctAnswer: 'B',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'What was Anna\'s first reaction to moving?',
+        options: ['She was excited', 'She felt lonely', 'She immediately liked the town', 'She found many friends'],
+        correctAnswer: 'B',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'What helped Anna focus better on her work?',
+        options: ['City energy', 'New friends', 'Quieter lifestyle', 'Remote office'],
+        correctAnswer: 'C',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'How did Anna meet new people?',
+        options: ['Through work meetings', 'By joining local events', 'Via social media', 'Through old friends'],
+        correctAnswer: 'B',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'What does Anna appreciate now?',
+        options: ['City nightlife', 'Balance between work and relaxation', 'Remote meetings only', 'Her old apartment'],
+        correctAnswer: 'B',
+      },
+      // True / False / Not Given (3)
+      {
+        type: 'true_false_ng',
+        question: 'Anna moved because she found a new office job.',
+        correctAnswer: 'F',
+      },
+      {
+        type: 'true_false_ng',
+        question: 'She met new people over time.',
+        correctAnswer: 'T',
+      },
+      {
+        type: 'true_false_ng',
+        question: 'She never misses her old life.',
+        correctAnswer: 'F',
+      },
+      // Matching (3)
+      {
+        type: 'matching',
+        matchingIdea: 'Initial difficulty',
+        matchingOptions: ['Personal growth', 'Initial difficulty', 'Better productivity'],
+        correctMatchIndex: 1,
+      },
+      {
+        type: 'matching',
+        matchingIdea: 'Better productivity',
+        matchingOptions: ['Personal growth', 'Initial difficulty', 'Better productivity'],
+        correctMatchIndex: 2,
+      },
+      {
+        type: 'matching',
+        matchingIdea: 'Personal growth',
+        matchingOptions: ['Personal growth', 'Initial difficulty', 'Better productivity'],
+        correctMatchIndex: 0,
+      },
+      // Vocabulary (3)
+      {
+        type: 'vocabulary',
+        question: 'What does "isolated" mean in the text?',
+        options: ['Busy', 'Lonely', 'Relaxed', 'Inspired'],
+        correctAnswer: 'B',
+      },
+      {
+        type: 'vocabulary',
+        question: 'What does "appreciates" mean in the text?',
+        options: ['Ignores', 'Values', 'Dislikes', 'Forgets'],
+        correctAnswer: 'B',
+      },
+      {
+        type: 'vocabulary',
+        question: 'What does "remotely" mean in the text?',
+        options: ['In an office', 'From a distance / from home', 'Very slowly', 'With others'],
+        correctAnswer: 'B',
+      },
+      // Main idea (2)
+      {
+        type: 'main_idea',
+        question: 'What is the main message of the text?',
+        options: ['City life is always better', 'Remote work is difficult', 'Change can be hard but positive', 'Small towns are boring'],
+        correctAnswer: 'C',
+      },
+      {
+        type: 'main_idea',
+        question: 'Which title best fits the text?',
+        options: ['Back to the City', 'A New Beginning in a Small Town', 'The Problems of Remote Work', 'How to Make Friends'],
+        correctAnswer: 'B',
+      },
+    ];
+
+    return {
+      language,
+      level,
+      skill: 'reading',
+      prompt: `Reading comprehension exercise · ${language} · ${level}`,
+      audioUrl: null,
+      referenceText: passage,
+      focusPhonemes: null,
+      answerOptions: [],
+      correctAnswer: null,
+      questions,
+    };
   }
 
   // ── Local fallback ─────────────────────────────────────────────────────────

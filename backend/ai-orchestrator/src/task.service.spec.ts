@@ -21,10 +21,13 @@ async function makeService() {
 }
 
 describe('TaskService — local fallbacks (no AI_API_KEY)', () => {
-  it('returns exactly 3 tasks', async () => {
+  it('returns 1 reading exercise with questions array', async () => {
     const svc = await makeService();
     const tasks = await svc.generateTasks('English', 'A1', 'reading');
-    expect(tasks).toHaveLength(3);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].skill).toBe('reading');
+    expect(Array.isArray(tasks[0].questions)).toBe(true);
+    expect((tasks[0].questions as any[]).length).toBeGreaterThan(0);
   });
 
   it('each task has required shape', async () => {
@@ -78,7 +81,8 @@ describe('TaskService — local fallbacks (no AI_API_KEY)', () => {
     const { TaskService: Fresh } = await import('./task.service');
     const svc = new Fresh();
     const tasks = await svc.generateTasks('English', 'A1', 'reading');
-    expect(tasks).toHaveLength(3);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].skill).toBe('reading');
 
     vi.doUnmock('openai');
     delete process.env.AI_API_KEY;

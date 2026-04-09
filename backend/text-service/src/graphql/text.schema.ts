@@ -55,6 +55,7 @@ export const textTypeDefs = gql`
     focusPhonemes: [String!]!
     answerOptions: [String!]!
     correctAnswer: String
+    questions: String
     createdAt: String!
   }
 
@@ -182,8 +183,13 @@ async function generateAndPersistTasks(language: string, level: string, skill: s
     const created: any[] = [];
     for (const t of resp.data.tasks) {
       try {
+        const { questions, ...taskFields } = t;
         const record = await prisma.task.create({
-          data: { ...t, language: t.language?.toLowerCase() ?? language },
+          data: {
+            ...taskFields,
+            language: taskFields.language?.toLowerCase() ?? language,
+            questions: questions ?? undefined,
+          },
         });
         created.push(record);
       } catch (e: any) {
@@ -351,6 +357,10 @@ export const textSchema = buildSubgraphSchema([
           if (!userId) return false;
           return updateTaskSetScore(userId, language, level, skill, score);
         },
+      },
+      Task: {
+        questions: (task: any) =>
+          task.questions != null ? JSON.stringify(task.questions) : null,
       },
       Text: {
         __resolveReference: (text: any) => text

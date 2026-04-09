@@ -50,6 +50,7 @@ export const GRAPHQL_OPERATIONS = {
       focusPhonemes
       answerOptions
       correctAnswer
+      questions
       createdAt
     }
   }`,

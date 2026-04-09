@@ -40,6 +40,7 @@ model Task {
   answerOptions String[] @map("answer_options")
   correctAnswer String?  @map("correct_answer")
   focusPhonemes String[] @map("focus_phonemes")
+  questions     Json?    @map("questions")
   createdAt     DateTime @default(now()) @map("created_at")
 
   @@index([language])

@@ -201,7 +201,8 @@ Lingua_Pro/
 │       │   ├── api/
 │       │   │   ├── graphql/route.ts     # Proxy → API Gateway :8080
 │       │   │   ├── ai-feedback/route.ts # SSE streaming endpoint
-│       │   │   └── audio/analyze/route.ts # Multipart audio → base64 → audio-service POST /audio/analyze-base64
+│       │   │   ├── audio/analyze/route.ts # Multipart audio → base64 → audio-service POST /audio/analyze-base64
+│       │   │   └── reading/task/route.ts  # GET ?language&level&userId → text-service GET /text/tasks?skill=reading
 │       │   └── [writing|reading|listening|speaking|stats|dashboard|admin|settings]/
 │       ├── components/
 │       │   ├── app-shell.tsx            # Layout wrapper (nav, sidebar)
@@ -258,7 +259,7 @@ Lingua_Pro/
             ├── orchestrator.service.ts      # Thin facade — composes the 5 providers below
             ├── speech.service.ts            # Azure transcription + phoneme extraction + word alignment; Whisper fallback
             ├── text-ai.service.ts           # GPT-4o: text analysis (reading/writing domain)
-            ├── task.service.ts              # GPT-4o-mini: CEFR task generation
+            ├── task.service.ts              # GPT-4o-mini: CEFR task generation; skill='reading' generates 1 full exercise (passage + 16 questions across 5 types) instead of 3 single-question tasks
             ├── pronunciation-ai.service.ts  # GPT-4o: feedback string + phoneme hints ONLY (no scores)
             └── tts.service.ts               # gpt-4o-mini-tts: text → base64 MP3
 ```

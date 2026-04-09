@@ -2192,6 +2192,7 @@ export namespace Prisma {
     answerOptions: number
     correctAnswer: number
     focusPhonemes: number
+    questions: number
     createdAt: number
     _all: number
   }
@@ -2240,6 +2241,7 @@ export namespace Prisma {
     answerOptions?: true
     correctAnswer?: true
     focusPhonemes?: true
+    questions?: true
     createdAt?: true
     _all?: true
   }
@@ -2341,6 +2343,7 @@ export namespace Prisma {
     answerOptions: string[]
     correctAnswer: string | null
     focusPhonemes: string[]
+    questions: JsonValue | null
     createdAt: Date
     _count: TaskCountAggregateOutputType | null
     _avg: TaskAvgAggregateOutputType | null
@@ -2374,6 +2377,7 @@ export namespace Prisma {
     answerOptions?: boolean
     correctAnswer?: boolean
     focusPhonemes?: boolean
+    questions?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["task"]>
 
@@ -2388,6 +2392,7 @@ export namespace Prisma {
     answerOptions?: boolean
     correctAnswer?: boolean
     focusPhonemes?: boolean
+    questions?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["task"]>
 
@@ -2402,6 +2407,7 @@ export namespace Prisma {
     answerOptions?: boolean
     correctAnswer?: boolean
     focusPhonemes?: boolean
+    questions?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["task"]>
 
@@ -2416,10 +2422,11 @@ export namespace Prisma {
     answerOptions?: boolean
     correctAnswer?: boolean
     focusPhonemes?: boolean
+    questions?: boolean
     createdAt?: boolean
   }
 
-  export type TaskOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "language" | "level" | "skill" | "prompt" | "audioUrl" | "referenceText" | "answerOptions" | "correctAnswer" | "focusPhonemes" | "createdAt", ExtArgs["result"]["task"]>
+  export type TaskOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "language" | "level" | "skill" | "prompt" | "audioUrl" | "referenceText" | "answerOptions" | "correctAnswer" | "focusPhonemes" | "questions" | "createdAt", ExtArgs["result"]["task"]>
 
   export type $TaskPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Task"
@@ -2435,6 +2442,7 @@ export namespace Prisma {
       answerOptions: string[]
       correctAnswer: string | null
       focusPhonemes: string[]
+      questions: Prisma.JsonValue | null
       createdAt: Date
     }, ExtArgs["result"]["task"]>
     composites: {}
@@ -2869,6 +2877,7 @@ export namespace Prisma {
     readonly answerOptions: FieldRef<"Task", 'String[]'>
     readonly correctAnswer: FieldRef<"Task", 'String'>
     readonly focusPhonemes: FieldRef<"Task", 'String[]'>
+    readonly questions: FieldRef<"Task", 'Json'>
     readonly createdAt: FieldRef<"Task", 'DateTime'>
   }
     
@@ -4365,6 +4374,7 @@ export namespace Prisma {
     answerOptions: 'answerOptions',
     correctAnswer: 'correctAnswer',
     focusPhonemes: 'focusPhonemes',
+    questions: 'questions',
     createdAt: 'createdAt'
   };
 
@@ -4394,6 +4404,14 @@ export namespace Prisma {
   export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+  export const NullableJsonNullValueInput: {
+    DbNull: typeof DbNull,
+    JsonNull: typeof JsonNull
+  };
+
+  export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
   export const QueryMode: {
     default: 'default',
     insensitive: 'insensitive'
@@ -4408,6 +4426,15 @@ export namespace Prisma {
   };
 
   export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
+  export const JsonNullValueFilter: {
+    DbNull: typeof DbNull,
+    JsonNull: typeof JsonNull,
+    AnyNull: typeof AnyNull
+  };
+
+  export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 
 
   /**
@@ -4468,6 +4495,20 @@ export namespace Prisma {
    * Reference to a field of type 'DateTime[]'
    */
   export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'Json'
+   */
+  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+  /**
+   * Reference to a field of type 'QueryMode'
+   */
+  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
     
   /**
    * Deep Input Types
@@ -4562,6 +4603,7 @@ export namespace Prisma {
     answerOptions?: StringNullableListFilter<"Task">
     correctAnswer?: StringNullableFilter<"Task"> | string | null
     focusPhonemes?: StringNullableListFilter<"Task">
+    questions?: JsonNullableFilter<"Task">
     createdAt?: DateTimeFilter<"Task"> | Date | string
   }
 
@@ -4576,6 +4618,7 @@ export namespace Prisma {
     answerOptions?: SortOrder
     correctAnswer?: SortOrderInput | SortOrder
     focusPhonemes?: SortOrder
+    questions?: SortOrderInput | SortOrder
     createdAt?: SortOrder
   }
 
@@ -4593,6 +4636,7 @@ export namespace Prisma {
     answerOptions?: StringNullableListFilter<"Task">
     correctAnswer?: StringNullableFilter<"Task"> | string | null
     focusPhonemes?: StringNullableListFilter<"Task">
+    questions?: JsonNullableFilter<"Task">
     createdAt?: DateTimeFilter<"Task"> | Date | string
   }, "id">
 
@@ -4607,6 +4651,7 @@ export namespace Prisma {
     answerOptions?: SortOrder
     correctAnswer?: SortOrderInput | SortOrder
     focusPhonemes?: SortOrder
+    questions?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     _count?: TaskCountOrderByAggregateInput
     _avg?: TaskAvgOrderByAggregateInput
@@ -4629,6 +4674,7 @@ export namespace Prisma {
     answerOptions?: StringNullableListFilter<"Task">
     correctAnswer?: StringNullableWithAggregatesFilter<"Task"> | string | null
     focusPhonemes?: StringNullableListFilter<"Task">
+    questions?: JsonNullableWithAggregatesFilter<"Task">
     createdAt?: DateTimeWithAggregatesFilter<"Task"> | Date | string
   }
 
@@ -4798,6 +4844,7 @@ export namespace Prisma {
     answerOptions?: TaskCreateanswerOptionsInput | string[]
     correctAnswer?: string | null
     focusPhonemes?: TaskCreatefocusPhonemesInput | string[]
+    questions?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: Date | string
   }
 
@@ -4812,6 +4859,7 @@ export namespace Prisma {
     answerOptions?: TaskCreateanswerOptionsInput | string[]
     correctAnswer?: string | null
     focusPhonemes?: TaskCreatefocusPhonemesInput | string[]
+    questions?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: Date | string
   }
 
@@ -4825,6 +4873,7 @@ export namespace Prisma {
     answerOptions?: TaskUpdateanswerOptionsInput | string[]
     correctAnswer?: NullableStringFieldUpdateOperationsInput | string | null
     focusPhonemes?: TaskUpdatefocusPhonemesInput | string[]
+    questions?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -4839,6 +4888,7 @@ export namespace Prisma {
     answerOptions?: TaskUpdateanswerOptionsInput | string[]
     correctAnswer?: NullableStringFieldUpdateOperationsInput | string | null
     focusPhonemes?: TaskUpdatefocusPhonemesInput | string[]
+    questions?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -4853,6 +4903,7 @@ export namespace Prisma {
     answerOptions?: TaskCreateanswerOptionsInput | string[]
     correctAnswer?: string | null
     focusPhonemes?: TaskCreatefocusPhonemesInput | string[]
+    questions?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: Date | string
   }
 
@@ -4866,6 +4917,7 @@ export namespace Prisma {
     answerOptions?: TaskUpdateanswerOptionsInput | string[]
     correctAnswer?: NullableStringFieldUpdateOperationsInput | string | null
     focusPhonemes?: TaskUpdatefocusPhonemesInput | string[]
+    questions?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -4880,6 +4932,7 @@ export namespace Prisma {
     answerOptions?: TaskUpdateanswerOptionsInput | string[]
     correctAnswer?: NullableStringFieldUpdateOperationsInput | string | null
     focusPhonemes?: TaskUpdatefocusPhonemesInput | string[]
+    questions?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -5169,6 +5222,29 @@ export namespace Prisma {
     hasSome?: string[] | ListStringFieldRefInput<$PrismaModel>
     isEmpty?: boolean
   }
+  export type JsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
 
   export type TaskCountOrderByAggregateInput = {
     id?: SortOrder
@@ -5181,6 +5257,7 @@ export namespace Prisma {
     answerOptions?: SortOrder
     correctAnswer?: SortOrder
     focusPhonemes?: SortOrder
+    questions?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -5214,6 +5291,32 @@ export namespace Prisma {
 
   export type TaskSumOrderByAggregateInput = {
     id?: SortOrder
+  }
+  export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedJsonNullableFilter<$PrismaModel>
+    _max?: NestedJsonNullableFilter<$PrismaModel>
   }
 
   export type IntNullableListFilter<$PrismaModel = never> = {
@@ -5495,6 +5598,29 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
+  }
+  export type NestedJsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<NestedJsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<NestedJsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
   }
 
 

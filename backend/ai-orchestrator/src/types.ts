@@ -74,6 +74,18 @@ export type AnalyzeResult = {
 
 // ── Task generation ───────────────────────────────────────────────────────────
 
+export type ReadingQuestionType = 'multiple_choice' | 'true_false_ng' | 'matching' | 'vocabulary' | 'main_idea';
+
+export type ReadingQuestion = {
+  type: ReadingQuestionType;
+  question?: string;           // question text (all types except matching use this)
+  options?: string[];          // 4 options for MC / vocabulary / main_idea
+  correctAnswer?: string;      // 'A'|'B'|'C'|'D' for MC/vocab/main_idea; 'T'|'F'|'NG' for true_false_ng
+  matchingIdea?: string;       // matching: the idea label e.g. "Personal growth"
+  matchingOptions?: string[];  // matching: list of labels to choose from
+  correctMatchIndex?: number;  // matching: 0-based index into matchingOptions
+};
+
 export type GeneratedTask = {
   language: string;
   level: string;
@@ -82,8 +94,9 @@ export type GeneratedTask = {
   audioUrl: string | null;
   referenceText: string | null;
   focusPhonemes: string[] | null; // IPA symbols this passage targets (speaking only)
-  answerOptions: string[];        // always 4 elements; empty for speaking
-  correctAnswer: string | null;   // "A" | "B" | "C" | "D"; null for speaking
+  answerOptions: string[];        // always 4 elements; empty for speaking / reading
+  correctAnswer: string | null;   // "A" | "B" | "C" | "D"; null for speaking / reading
+  questions?: ReadingQuestion[] | null; // populated for skill='reading'
 };
 
 // ── Listening passage ─────────────────────────────────────────────────────────
