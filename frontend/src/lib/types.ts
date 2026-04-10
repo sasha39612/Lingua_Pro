@@ -22,6 +22,8 @@ export interface StatsData {
   language: string;
   period: 'week' | 'month' | 'all';
   avg_text_score: number;
+  avg_speaking_score: number;
+  avg_listening_score: number;
   avg_pronunciation_score: number;
   mistakes_total: number;
   mistake_counts_by_type: Record<string, number>;

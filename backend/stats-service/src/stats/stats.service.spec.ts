@@ -55,7 +55,9 @@ describe('StatsService', () => {
       const stats = await service.getStats('English', 'all');
 
       expect(stats.avg_text_score).toBeCloseTo(0.7);
-      expect(stats.avg_pronunciation_score).toBeCloseTo(0.8);
+      expect(stats.avg_speaking_score).toBeCloseTo(0.8);
+      expect(stats.avg_listening_score).toBe(0);
+      expect(stats.avg_pronunciation_score).toBeCloseTo(0.8); // combined (no listening data)
     });
 
     it('returns zeros when no data is available', async () => {
@@ -63,6 +65,8 @@ describe('StatsService', () => {
 
       const stats = await service.getStats('English', 'week');
       expect(stats.avg_text_score).toBe(0);
+      expect(stats.avg_speaking_score).toBe(0);
+      expect(stats.avg_listening_score).toBe(0);
       expect(stats.avg_pronunciation_score).toBe(0);
       expect(stats.mistakes_total).toBe(0);
       expect(stats.history).toEqual([]);
@@ -78,7 +82,7 @@ describe('StatsService', () => {
       expect(stats.avg_text_score).toBeCloseTo(0.9);
     });
 
-    it('merges listening scores into avg_pronunciation_score', async () => {
+    it('merges listening scores into avg_pronunciation_score and exposes them separately', async () => {
       mockAllFetches(
         [],
         [makeAudioRow(0.8, null, '2026-01-01')],
@@ -86,7 +90,9 @@ describe('StatsService', () => {
       );
 
       const stats = await service.getStats('English', 'all');
-      // avg of 0.8 (speaking) + 0.6 (listening) = 0.7
+      expect(stats.avg_speaking_score).toBeCloseTo(0.8);
+      expect(stats.avg_listening_score).toBeCloseTo(0.6);
+      // combined average of 0.8 (speaking) + 0.6 (listening) = 0.7
       expect(stats.avg_pronunciation_score).toBeCloseTo(0.7);
     });
 
@@ -98,6 +104,8 @@ describe('StatsService', () => {
       );
 
       const stats = await service.getStats('English', 'all');
+      expect(stats.avg_speaking_score).toBe(0);
+      expect(stats.avg_listening_score).toBeCloseTo(0.75);
       expect(stats.avg_pronunciation_score).toBeCloseTo(0.75);
     });
   });

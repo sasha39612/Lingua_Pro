@@ -42,7 +42,15 @@ export class StatsService {
     const avg_text_score =
       textScores.length > 0 ? textScores.reduce((a, b) => a + b, 0) / textScores.length : 0;
 
-    // Merge speaking + listening for avg pronunciation score
+    const avg_speaking_score =
+      audioScores.length > 0 ? audioScores.reduce((a, b) => a + b, 0) / audioScores.length : 0;
+
+    const avg_listening_score =
+      listeningScores.length > 0
+        ? listeningScores.reduce((a, b) => a + b, 0) / listeningScores.length
+        : 0;
+
+    // Merge speaking + listening for combined avg pronunciation score (backward compat)
     const allAudioScores = [...audioScores, ...listeningScores];
     const avg_pronunciation_score =
       allAudioScores.length > 0
@@ -59,6 +67,8 @@ export class StatsService {
       language: requestedLanguage,
       period,
       avg_text_score,
+      avg_speaking_score,
+      avg_listening_score,
       avg_pronunciation_score,
       mistakes_total: mistakesTotal,
       mistake_counts_by_type: mistakeCountsByType,
