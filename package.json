@@ -7,7 +7,7 @@
     "@nestjs/core": "^11.1.16",
     "@prisma/client": "^7.4.2",
     "@types/jsonwebtoken": "^9.0.10",
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "dotenv": "^16.6.1",
     "form-data": "^4.0.5",
     "jsonwebtoken": "^9.0.3"
@@ -17,6 +17,7 @@
   },
   "pnpm": {
     "overrides": {
+      "axios": ">=1.15.0",
       "multer": ">=2.1.1",
       "ws": ">=8.17.1",
       "hono": ">=4.12.4",
