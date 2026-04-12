@@ -266,9 +266,9 @@ export class AudioService {
       let rawQuestions: any[];
       try { rawQuestions = JSON.parse(existingTask.questionsJson); } catch { rawQuestions = []; }
       const isNewFormat = rawQuestions[0]?.difficulty !== undefined;
-      const expectedLength = isNewFormat ? 8 : 5;
 
-      if (rawQuestions.length === expectedLength) {
+      // Only reuse new-format (v2) tasks — old 5-question tasks are superseded
+      if (isNewFormat && rawQuestions.length === 8) {
         const questions = this.parseQuestionsForClient(existingTask.questionsJson);
         if (existingTask.audioUrl) {
           const isDataUrl = existingTask.audioUrl.startsWith('data:');
