@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  let body: { taskId?: number; answers?: number[]; userId?: string };
+  let body: { taskId?: number; answers?: Array<number | string>; userId?: string };
   try {
     body = await req.json();
   } catch {

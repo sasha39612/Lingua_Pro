@@ -136,7 +136,7 @@ Then aggregates scores (merging speaking + listening into `avg_pronunciation_sco
 |----------|---------------|-----------------|
 | `SpeechService` | Audio transcription, phoneme extraction, word alignment | Azure Speech SDK (primary); Whisper fallback |
 | `TextAiService` | Text analysis — grammar, corrections, feedback | `OPENAI_TEXT_MODEL` (default `gpt-4o`) |
-| `TaskService` | CEFR task generation; `skill=writing` → `WritingTask` JSON in `prompt`; `skill=reading` → passage + 16 questions | `OPENAI_TASK_MODEL` (default `gpt-4o-mini`) |
+| `TaskService` | CEFR task generation; `skill=writing` → `WritingTask` JSON in `prompt`; `skill=reading` → passage + 16 questions; `generateListeningExercise()` → 8-question CEFR-graded exercise (2×B1 MC, 2×B2 T/F/NG, 2×C1 short_answer, 2×C2 paraphrase) with weighted scoring 1–4 pts, total 20 | `OPENAI_TASK_MODEL` (default `gpt-4o-mini`) |
 | `PronunciationAiService` | Human-readable pronunciation feedback string **only** | `OPENAI_EVAL_MODEL` (default `gpt-4o`) |
 | `TtsService` | Text-to-speech audio generation → base64 MP3 | `OPENAI_TTS_MODEL` (default `gpt-4o-mini-tts`) |
 
@@ -160,6 +160,7 @@ type: 'correct' | 'missing' | 'extra' | 'mispronounced'
 - `POST /text/analyze` — text correction + feedback
 - `POST /text/analyze-writing` — structured writing evaluation: 4 scored criteria (task achievement, grammar/vocabulary, coherence/structure, style) + corrected text; feedback written in the task language
 - `POST /tasks/generate` — CEFR task generation; `skill=writing` returns a `WritingTask` JSON stored in `prompt` field (situation, taskPoints, instructions, exampleStructure, wordCountMin/Max, style)
+- `POST /tasks/generate-listening` — listening passage generation; without `version` param returns old 5-question MC format (`ListeningPassage`); with `version: '2'` returns 8-question CEFR-graded `ListeningPassageV2` (used by audio-service)
 - `POST /audio/transcribe` — transcription with `words[]` and `source`
 - `POST /audio/pronunciation/analyze` — Azure scores + GPT feedback + word alignment
 - `POST /audio/tts` — TTS audio generation
@@ -255,7 +256,7 @@ Lingua_Pro/
     │   ├── prisma/schema.prisma         # audio_records, tasks (no User model)
     │   └── src/
     │       ├── audio/
-    │       │   ├── audio.controller.ts  # POST /check, POST /analyze-base64, GET /records/:id, GET /by-language, GET /listening-by-language
+    │       │   ├── audio.controller.ts  # POST /check, POST /analyze-base64, GET /records/:id, GET /by-language, GET /listening-by-language, GET /listening-task, POST /listening-answers
     │       │   ├── audio.service.ts
     │       │   └── audio.repository.ts  # Prisma queries (uses src/generated/prisma); getListeningScoresByLanguage via raw SQL join
     │       └── generated/prisma/        # Custom Prisma output (committed type stubs only)
@@ -275,7 +276,7 @@ Lingua_Pro/
             ├── orchestrator.service.ts      # Thin facade — composes the 5 providers below
             ├── speech.service.ts            # Azure transcription + phoneme extraction + word alignment; Whisper fallback
             ├── text-ai.service.ts           # GPT-4o: text analysis (reading/writing domain)
-            ├── task.service.ts              # GPT-4o-mini: CEFR task generation; skill='reading' generates 1 full exercise (passage + 16 questions across 5 types) instead of 3 single-question tasks
+            ├── task.service.ts              # GPT-4o-mini: CEFR task generation; skill='reading' generates 1 full exercise (passage + 16 questions across 5 types); generateListeningExercise() generates 8-question CEFR-graded exercise (v2 format)
             ├── pronunciation-ai.service.ts  # GPT-4o: feedback string + phoneme hints ONLY (no scores)
             └── tts.service.ts               # gpt-4o-mini-tts: text → base64 MP3
 ```

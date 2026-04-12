@@ -40,7 +40,7 @@ interface GenerateComprehensionRequest {
 
 interface SubmitListeningAnswersRequest {
   taskId: number;
-  answers: number[];
+  answers: Array<number | string>;
 }
 
 @Controller('audio')

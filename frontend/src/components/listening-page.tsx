@@ -6,10 +6,16 @@ import { useAppStore } from '@/store/app-store';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+type ListeningDifficulty = 'B1' | 'B2' | 'C1' | 'C2';
+type ListeningQuestionType = 'multiple_choice' | 'true_false_ng' | 'short_answer' | 'paraphrase';
+
 interface ListeningQuestion {
   index: number;
+  type?: ListeningQuestionType;
+  difficulty?: ListeningDifficulty;
+  points?: number;
   question: string;
-  options: [string, string, string, string];
+  options?: string[];
 }
 
 interface ListeningTask {
@@ -24,20 +30,42 @@ interface ListeningTask {
 interface QuestionResult {
   questionIndex: number;
   question: string;
+  type?: string;
   correct: boolean;
-  userAnswer: number;
-  correctAnswer: number;
-  correctOptionText: string;
+  userAnswer: number | string;
+  correctAnswer: number | string;
+  correctOptionText?: string;
+  points: number;
+  maxPoints: number;
 }
 
 interface AnswersResult {
   score: number;
+  rawScore: number;
+  maxRawScore: number;
   correct: number;
   total: number;
+  cefrLevel?: string;
   results: QuestionResult[];
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
 const OPTION_LABELS = ['A', 'B', 'C', 'D'] as const;
+const MAX_PLAYS = 2;
+
+const DIFFICULTY_BADGE: Record<ListeningDifficulty, string> = {
+  B1: 'bg-green-100 text-green-700',
+  B2: 'bg-blue-100 text-blue-700',
+  C1: 'bg-purple-100 text-purple-700',
+  C2: 'bg-red-100 text-red-700',
+};
+
+const TFNG_OPTIONS = [
+  { label: 'True', value: 'T' },
+  { label: 'False', value: 'F' },
+  { label: 'Not Given', value: 'NG' },
+];
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -47,15 +75,17 @@ export function ListeningPage() {
   const user = useAppStore((s) => s.user);
 
   const [task, setTask] = useState<ListeningTask | null>(null);
-  // selectedAnswers[i] = option index (0-3) or null if not yet chosen
-  const [selectedAnswers, setSelectedAnswers] = useState<(number | null)[]>([]);
+  const [selectedAnswers, setSelectedAnswers] = useState<Array<number | string | null>>([]);
   const [result, setResult] = useState<AnswersResult | null>(null);
   const [loadingTask, setLoadingTask] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [playsUsed, setPlaysUsed] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const isNewFormat = task?.questions.some((q) => 'difficulty' in q && q.difficulty !== undefined) ?? false;
 
   const fetchTask = useCallback(async () => {
     if (!user) {
@@ -68,6 +98,7 @@ export function ListeningPage() {
     setSelectedAnswers([]);
     setResult(null);
     setSubmitError(null);
+    setPlaysUsed(0);
 
     try {
       const params = new URLSearchParams({ language, level, userId: user.id });
@@ -86,16 +117,24 @@ export function ListeningPage() {
     }
   }, [language, level, user]);
 
-  const handleSelectAnswer = (questionIndex: number, optionIndex: number) => {
-    if (result) return; // locked after submission
+  const handleSelectAnswer = (questionIndex: number, value: number | string) => {
+    if (result) return;
     setSelectedAnswers((prev) => {
       const next = [...prev];
-      next[questionIndex] = optionIndex;
+      next[questionIndex] = value;
       return next;
     });
   };
 
-  const allAnswered = selectedAnswers.length > 0 && selectedAnswers.every((a) => a !== null);
+  const allAnswered =
+    selectedAnswers.length > 0 &&
+    selectedAnswers.every((a, i) => {
+      if (a === null || a === undefined) return false;
+      if (task?.questions[i]?.type === 'short_answer') {
+        return typeof a === 'string' && a.trim().length > 0;
+      }
+      return true;
+    });
 
   const handleSubmit = async () => {
     if (!task || !user || !allAnswered) return;
@@ -108,7 +147,7 @@ export function ListeningPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           taskId: task.taskId,
-          answers: selectedAnswers as number[],
+          answers: selectedAnswers,
           userId: user.id,
         }),
       });
@@ -162,16 +201,43 @@ export function ListeningPage() {
           {task && audioSrc && (
             <div className="mt-4">
               <p className="mb-2 text-sm text-slate-500">
-                Listen to the audio, then answer all 5 questions below.
+                {isNewFormat
+                  ? `Listen carefully. You may play the audio up to ${MAX_PLAYS} times. Then answer all ${task.questions.length} questions below.`
+                  : 'Listen to the audio, then answer all questions below.'}
               </p>
+
+              {/* Custom play button with play-count tracking */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (playsUsed < MAX_PLAYS) {
+                      audioRef.current?.play();
+                    }
+                  }}
+                  disabled={playsUsed >= MAX_PLAYS}
+                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-teal-600">
+                    <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
+                  </svg>
+                  {playsUsed >= MAX_PLAYS
+                    ? `Audio used (${MAX_PLAYS}/${MAX_PLAYS})`
+                    : `Play audio (${playsUsed}/${MAX_PLAYS})`}
+                </button>
+                {playsUsed >= MAX_PLAYS && (
+                  <p className="text-xs text-amber-600">Play limit reached. Proceed with your answers.</p>
+                )}
+              </div>
+
+              {/* Hidden audio element — controlled programmatically */}
               {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
               <audio
                 ref={audioRef}
                 key={task.taskId}
-                controls
-                autoPlay
-                className="w-full"
                 src={audioSrc}
+                onPlay={() => setPlaysUsed((p) => p + 1)}
+                className="hidden"
               />
             </div>
           )}
@@ -188,56 +254,121 @@ export function ListeningPage() {
           <section className="space-y-4">
             {task.questions.map((q) => {
               const qResult = result?.results.find((r) => r.questionIndex === q.index);
-              const chosen = selectedAnswers[q.index] ?? null;
+              const chosen = selectedAnswers[q.index];
+              const qType = q.type ?? 'multiple_choice';
 
               return (
                 <div key={q.index} className="rounded-2xl bg-white p-5 shadow-float">
-                  <p className="mb-3 text-sm font-semibold text-slate-800">
-                    <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">
-                      {q.index + 1}
-                    </span>
-                    {q.question}
-                  </p>
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {q.options.map((option, optIdx) => {
-                      const label = OPTION_LABELS[optIdx];
-                      const isSelected = chosen === optIdx;
-
-                      // Colouring after submission
-                      let stateClass = 'border-slate-200 bg-white text-slate-700 hover:border-slate-300';
-                      if (qResult) {
-                        if (optIdx === qResult.correctAnswer) {
-                          stateClass = 'border-teal-500 bg-teal-50 text-teal-900';
-                        } else if (isSelected && !qResult.correct) {
-                          stateClass = 'border-red-400 bg-red-50 text-red-800';
-                        } else {
-                          stateClass = 'border-slate-200 bg-white text-slate-400';
-                        }
-                      } else if (isSelected) {
-                        stateClass = 'border-teal-600 bg-teal-50 text-teal-900';
-                      }
-
-                      return (
-                        <button
-                          key={optIdx}
-                          type="button"
-                          disabled={!!result}
-                          onClick={() => handleSelectAnswer(q.index, optIdx)}
-                          className={`rounded-xl border px-4 py-3 text-left text-sm transition-colors disabled:cursor-default ${stateClass}`}
-                        >
-                          <span className="mr-1.5 font-semibold">{label}.</span>
-                          {option}
-                        </button>
-                      );
-                    })}
+                  {/* Question header */}
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-800">
+                      <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">
+                        {q.index + 1}
+                      </span>
+                      {q.question}
+                    </p>
+                    {q.difficulty && (
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${DIFFICULTY_BADGE[q.difficulty]}`}>
+                        {q.difficulty} · {q.points}pt{q.points !== 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
 
+                  {/* Multiple choice / Paraphrase */}
+                  {(qType === 'multiple_choice' || qType === 'paraphrase') && q.options && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {q.options.map((option, optIdx) => {
+                        const label = OPTION_LABELS[optIdx];
+                        const isSelected = chosen === optIdx;
+                        let stateClass = 'border-slate-200 bg-white text-slate-700 hover:border-slate-300';
+                        if (qResult) {
+                          if (optIdx === qResult.correctAnswer) {
+                            stateClass = 'border-teal-500 bg-teal-50 text-teal-900';
+                          } else if (isSelected && !qResult.correct) {
+                            stateClass = 'border-red-400 bg-red-50 text-red-800';
+                          } else {
+                            stateClass = 'border-slate-200 bg-white text-slate-400';
+                          }
+                        } else if (isSelected) {
+                          stateClass = 'border-teal-600 bg-teal-50 text-teal-900';
+                        }
+                        return (
+                          <button
+                            key={optIdx}
+                            type="button"
+                            disabled={!!result}
+                            onClick={() => handleSelectAnswer(q.index, optIdx)}
+                            className={`rounded-xl border px-4 py-3 text-left text-sm transition-colors disabled:cursor-default ${stateClass}`}
+                          >
+                            <span className="mr-1.5 font-semibold">{label}.</span>
+                            {option}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* True / False / Not Given */}
+                  {qType === 'true_false_ng' && (
+                    <div className="flex flex-wrap gap-2">
+                      {TFNG_OPTIONS.map(({ label, value }) => {
+                        const isSelected = chosen === value;
+                        let stateClass = 'border-slate-200 bg-white text-slate-700 hover:border-slate-300';
+                        if (qResult) {
+                          if (value === String(qResult.correctAnswer)) {
+                            stateClass = 'border-teal-500 bg-teal-50 text-teal-900';
+                          } else if (isSelected && !qResult.correct) {
+                            stateClass = 'border-red-400 bg-red-50 text-red-800';
+                          } else {
+                            stateClass = 'border-slate-200 bg-white text-slate-400';
+                          }
+                        } else if (isSelected) {
+                          stateClass = 'border-teal-600 bg-teal-50 text-teal-900';
+                        }
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            disabled={!!result}
+                            onClick={() => handleSelectAnswer(q.index, value)}
+                            className={`rounded-xl border px-5 py-2.5 text-sm font-medium transition-colors disabled:cursor-default ${stateClass}`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Short answer */}
+                  {qType === 'short_answer' && (
+                    <input
+                      type="text"
+                      value={typeof chosen === 'string' ? chosen : ''}
+                      onChange={(e) => handleSelectAnswer(q.index, e.target.value)}
+                      disabled={!!result}
+                      placeholder="Type your answer…"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-teal-500 focus:outline-none disabled:cursor-default disabled:bg-slate-50"
+                    />
+                  )}
+
+                  {/* Per-question feedback after submission */}
                   {qResult && (
                     <p className={`mt-2 text-xs font-medium ${qResult.correct ? 'text-teal-700' : 'text-red-600'}`}>
                       {qResult.correct
-                        ? 'Correct!'
-                        : `Incorrect — correct answer: ${OPTION_LABELS[qResult.correctAnswer]}. ${qResult.correctOptionText}`}
+                        ? `Correct! (+${qResult.points}pt${qResult.points !== 1 ? 's' : ''})`
+                        : (() => {
+                            const ca = qResult.correctAnswer;
+                            if (qType === 'multiple_choice' || qType === 'paraphrase') {
+                              const idx = typeof ca === 'number' ? ca : parseInt(String(ca), 10);
+                              return `Incorrect — correct answer: ${OPTION_LABELS[idx]}. ${qResult.correctOptionText ?? ''}`;
+                            }
+                            if (qType === 'true_false_ng') {
+                              const map: Record<string, string> = { T: 'True', F: 'False', NG: 'Not Given' };
+                              return `Incorrect — correct answer: ${map[String(ca)] ?? ca}`;
+                            }
+                            return `Incorrect — correct answer: ${ca}`;
+                          })()}
                     </p>
                   )}
                 </div>
@@ -246,7 +377,7 @@ export function ListeningPage() {
           </section>
         )}
 
-        {/* ── Submit / Result ──────────────────────────────────────────────── */}
+        {/* ── Submit ───────────────────────────────────────────────────────── */}
         {task && !result && (
           <section className="rounded-2xl bg-white p-5 shadow-float">
             {submitError && <p className="mb-3 text-sm text-red-600">{submitError}</p>}
@@ -269,29 +400,65 @@ export function ListeningPage() {
           </section>
         )}
 
+        {/* ── Result ───────────────────────────────────────────────────────── */}
         {result && (
           <section className="rounded-2xl bg-white p-5 shadow-float">
             <h2 className="text-lg font-semibold">Result</h2>
+
             <div className="mt-3 flex items-center gap-4">
-              <div
-                className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white ${
-                  scorePercent === 100
-                    ? 'bg-teal-600'
-                    : scorePercent! >= 60
-                      ? 'bg-amber-500'
-                      : 'bg-red-500'
-                }`}
-              >
-                {scorePercent}%
-              </div>
-              <p className="text-sm text-slate-700">
-                {result.correct} out of {result.total} correct.{' '}
-                {scorePercent === 100
-                  ? 'Perfect score!'
-                  : scorePercent! >= 60
-                    ? 'Good effort — review the incorrect answers above.'
-                    : 'Keep practising — listen again and try a new task.'}
-              </p>
+              {isNewFormat ? (
+                <>
+                  <div
+                    className={`flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-full text-white ${
+                      result.rawScore >= 18
+                        ? 'bg-teal-600'
+                        : result.rawScore >= 13
+                          ? 'bg-blue-500'
+                          : result.rawScore >= 7
+                            ? 'bg-amber-500'
+                            : 'bg-red-500'
+                    }`}
+                  >
+                    <span className="text-lg font-bold leading-none">{result.rawScore}</span>
+                    <span className="text-xs opacity-80">/{result.maxRawScore}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-700">
+                      {result.correct} of {result.total} correct.
+                    </p>
+                    {result.cefrLevel && (
+                      <p className="mt-1 text-sm font-semibold text-slate-800">
+                        Comprehension level:{' '}
+                        <span className={`rounded-full px-2 py-0.5 text-xs ${DIFFICULTY_BADGE[result.cefrLevel as ListeningDifficulty] ?? 'bg-slate-100 text-slate-700'}`}>
+                          {result.cefrLevel}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div
+                    className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white ${
+                      scorePercent === 100
+                        ? 'bg-teal-600'
+                        : scorePercent! >= 60
+                          ? 'bg-amber-500'
+                          : 'bg-red-500'
+                    }`}
+                  >
+                    {scorePercent}%
+                  </div>
+                  <p className="text-sm text-slate-700">
+                    {result.correct} out of {result.total} correct.{' '}
+                    {scorePercent === 100
+                      ? 'Perfect score!'
+                      : scorePercent! >= 60
+                        ? 'Good effort — review the incorrect answers above.'
+                        : 'Keep practising — listen again and try a new task.'}
+                  </p>
+                </>
+              )}
             </div>
 
             <button

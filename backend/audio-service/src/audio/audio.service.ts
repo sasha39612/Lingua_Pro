@@ -18,8 +18,11 @@ interface AudioProcessingResult {
 
 export interface ListeningQuestionForClient {
   index: number;
+  type?: string;
+  difficulty?: string;
+  points?: number;
   question: string;
-  options: [string, string, string, string];
+  options?: string[];
 }
 
 export interface ListeningTaskResult {
@@ -34,17 +37,54 @@ export interface ListeningTaskResult {
 export interface QuestionResult {
   questionIndex: number;
   question: string;
+  type?: string;
   correct: boolean;
-  userAnswer: number;
-  correctAnswer: number;
-  correctOptionText: string;
+  userAnswer: number | string;
+  correctAnswer: number | string;
+  correctOptionText?: string;
+  points: number;
+  maxPoints: number;
 }
 
 export interface ListeningAnswersResult {
   score: number;
+  rawScore: number;
+  maxRawScore: number;
   correct: number;
   total: number;
+  cefrLevel?: string;
   results: QuestionResult[];
+}
+
+const CEFR_LISTENING_MAP = [
+  { min: 0,  max: 6,  level: 'B1' },
+  { min: 7,  max: 12, level: 'B2' },
+  { min: 13, max: 17, level: 'C1' },
+  { min: 18, max: 20, level: 'C2' },
+];
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function fuzzyMatchShortAnswer(userRaw: string, correctRaw: string): boolean {
+  const u = userRaw.trim().toLowerCase();
+  const c = correctRaw.trim().toLowerCase();
+  if (u === c) return true;
+  if (u.includes(c) || c.includes(u)) return true;
+  const maxDist = c.length <= 8 ? 2 : 3;
+  return levenshtein(u, c) <= maxDist;
 }
 
 @Injectable()
@@ -223,9 +263,13 @@ export class AudioService {
     );
 
     if (existingTask && existingTask.questionsJson) {
-      const questions = this.parseQuestionsForClient(existingTask.questionsJson);
-      if (questions.length === 5) {
-        // Task already has audio stored as a data URL
+      let rawQuestions: any[];
+      try { rawQuestions = JSON.parse(existingTask.questionsJson); } catch { rawQuestions = []; }
+      const isNewFormat = rawQuestions[0]?.difficulty !== undefined;
+      const expectedLength = isNewFormat ? 8 : 5;
+
+      if (rawQuestions.length === expectedLength) {
+        const questions = this.parseQuestionsForClient(existingTask.questionsJson);
         if (existingTask.audioUrl) {
           const isDataUrl = existingTask.audioUrl.startsWith('data:');
           const audioBase64 = isDataUrl ? (existingTask.audioUrl.split(',')[1] ?? null) : null;
@@ -268,9 +312,9 @@ export class AudioService {
       }
     }
 
-    // 2. No suitable task — generate a fresh passage with 5 questions via AI
-    this.logger.log(`getListeningTask: generating new passage for userId=${userId} lang=${normalizedLanguage} level=${level}`);
-    const passage = await this.aiOrchestrator.generateListeningPassage(language, level);
+    // 2. No suitable task — generate a fresh 8-question exercise via AI
+    this.logger.log(`getListeningTask: generating new exercise for userId=${userId} lang=${normalizedLanguage} level=${level}`);
+    const passage = await this.aiOrchestrator.generateListeningExercise(language, level);
 
     // 3. Synthesize TTS audio for the passage text
     const tts = await this.aiOrchestrator.synthesizeSpeech(passage.passageText, language);
@@ -304,7 +348,7 @@ export class AudioService {
   async submitListeningAnswers(
     userId: string,
     taskId: number,
-    userAnswers: number[],
+    userAnswers: Array<number | string>,
   ): Promise<ListeningAnswersResult> {
     this.logger.log(`submitListeningAnswers: userId=${userId} taskId=${taskId} answers=${JSON.stringify(userAnswers)}`);
 
@@ -317,7 +361,7 @@ export class AudioService {
       throw new NotFoundException('Task has no questions. Press "Next Task" to load a new one.');
     }
 
-    let questions: { question: string; options: string[]; correctAnswer: number }[];
+    let questions: any[];
     try {
       questions = JSON.parse(task.questionsJson);
     } catch (err) {
@@ -325,45 +369,94 @@ export class AudioService {
       throw new InternalServerErrorException('Task question data is corrupted');
     }
 
+    const isNewFormat = questions[0]?.difficulty !== undefined;
     const total = questions.length;
     let correct = 0;
+    let rawScore = 0;
 
-    const results: QuestionResult[] = questions.map((q, i) => {
-      const userAnswer = typeof userAnswers[i] === 'number' ? userAnswers[i] : -1;
-      const isCorrect = userAnswer === q.correctAnswer;
-      if (isCorrect) correct++;
-      return {
+    const results: QuestionResult[] = questions.map((q: any, i: number) => {
+      const userAnswer = userAnswers[i] ?? -1;
+      const qType: string = q.type ?? 'multiple_choice';
+      const maxPoints: number = isNewFormat ? (q.points ?? 1) : 1;
+      let isCorrect = false;
+
+      if (qType === 'true_false_ng') {
+        isCorrect = typeof userAnswer === 'string' &&
+          userAnswer.toUpperCase() === String(q.correctAnswer).toUpperCase();
+      } else if (qType === 'short_answer') {
+        isCorrect = typeof userAnswer === 'string' &&
+          fuzzyMatchShortAnswer(userAnswer, String(q.correctAnswer ?? ''));
+      } else {
+        // multiple_choice and paraphrase — numeric index comparison
+        isCorrect = typeof userAnswer === 'number' && userAnswer === q.correctAnswer;
+      }
+
+      if (isCorrect) {
+        correct++;
+        rawScore += maxPoints;
+      }
+
+      const baseResult = {
         questionIndex: i,
         question: q.question,
+        type: qType,
         correct: isCorrect,
         userAnswer,
         correctAnswer: q.correctAnswer,
-        correctOptionText: q.options[q.correctAnswer] ?? '',
+        points: isCorrect ? maxPoints : 0,
+        maxPoints,
       };
+
+      if (qType === 'multiple_choice' || qType === 'paraphrase') {
+        return { ...baseResult, correctOptionText: (q.options ?? [])[q.correctAnswer] ?? '' };
+      }
+      return baseResult;
     });
 
-    const score = total > 0 ? correct / total : 0;
+    let score: number;
+    let cefrLevel: string | undefined;
 
+    if (isNewFormat) {
+      const maxRawScore = 20;
+      score = rawScore / maxRawScore;
+      cefrLevel = CEFR_LISTENING_MAP.find(b => rawScore >= b.min && rawScore <= b.max)?.level;
+      try {
+        await this.audioRepository.upsertListeningScore(parseInt(userId, 10), taskId, score);
+      } catch (err: any) {
+        this.logger.error(`Failed to persist listening score: ${err?.message ?? err}`);
+      }
+      return { score, rawScore, maxRawScore, correct, total, cefrLevel, results };
+    }
+
+    // Old format — flat scoring
+    score = total > 0 ? correct / total : 0;
     try {
       await this.audioRepository.upsertListeningScore(parseInt(userId, 10), taskId, score);
     } catch (err: any) {
-      // Non-fatal: log the DB error but still return the results to the user
       this.logger.error(`Failed to persist listening score: ${err?.message ?? err}`);
     }
-
-    return { score, correct, total, results };
+    return { score, rawScore: correct, maxRawScore: total, correct, total, results };
   }
 
   // Strip correctAnswer before sending to client so the answer isn't exposed
   private parseQuestionsForClient(questionsJson: string): ListeningQuestionForClient[] {
     try {
-      const parsed: { question: string; options: [string, string, string, string]; correctAnswer: number }[] =
-        JSON.parse(questionsJson);
-      return parsed.map((q, i) => ({
-        index: i,
-        question: q.question,
-        options: q.options,
-      }));
+      const parsed: any[] = JSON.parse(questionsJson);
+      return parsed.map((q, i) => {
+        const base: ListeningQuestionForClient = {
+          index: i,
+          type: q.type ?? 'multiple_choice',
+          difficulty: q.difficulty,
+          points: q.points,
+          question: q.question,
+        };
+        // Only send options for question types that need them
+        if (q.type === 'multiple_choice' || q.type === 'paraphrase' || q.type === undefined) {
+          base.options = q.options;
+        }
+        // correctAnswer intentionally omitted
+        return base;
+      });
     } catch {
       return [];
     }

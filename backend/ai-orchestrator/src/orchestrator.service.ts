@@ -9,6 +9,7 @@ import type {
   AnalyzeResult,
   GeneratedTask,
   ListeningPassage,
+  ListeningPassageV2,
   PronunciationAnalysisResult,
   TranscriptionResult,
   TtsResult,
@@ -44,6 +45,10 @@ export class OrchestratorService {
 
   generateListeningPassage(language: string, level: string): Promise<ListeningPassage> {
     return this.tasks.generateListeningPassage(language, level);
+  }
+
+  generateListeningExercise(language: string, level: string): Promise<ListeningPassageV2> {
+    return this.tasks.generateListeningExercise(language, level);
   }
 
   // ── Audio transcription ────────────────────────────────────────────────────

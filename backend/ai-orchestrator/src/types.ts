@@ -99,7 +99,7 @@ export type GeneratedTask = {
   questions?: ReadingQuestion[] | null; // populated for skill='reading'
 };
 
-// ── Listening passage ─────────────────────────────────────────────────────────
+// ── Listening passage (v1 — 5 MC questions, backward-compat) ─────────────────
 
 export type ListeningQuestion = {
   question: string;
@@ -111,6 +111,62 @@ export type ListeningPassage = {
   passageText: string;         // ~400 word spoken text for TTS
   questions: ListeningQuestion[]; // always 5
 };
+
+// ── Listening passage (v2 — 8 questions, CEFR-graded) ────────────────────────
+
+export type ListeningDifficulty = 'B1' | 'B2' | 'C1' | 'C2';
+
+export interface ListeningMCQuestion {
+  type: 'multiple_choice';
+  difficulty: ListeningDifficulty;
+  points: number;
+  question: string;
+  options: [string, string, string, string];
+  correctAnswer: number; // 0-based index
+}
+
+export interface ListeningTFNGQuestion {
+  type: 'true_false_ng';
+  difficulty: ListeningDifficulty;
+  points: number;
+  question: string;
+  correctAnswer: 'T' | 'F' | 'NG';
+}
+
+export interface ListeningShortAnswerQuestion {
+  type: 'short_answer';
+  difficulty: ListeningDifficulty;
+  points: number;
+  question: string;
+  correctAnswer: string; // canonical 1–5 word answer for fuzzy match
+}
+
+export interface ListeningParaphraseQuestion {
+  type: 'paraphrase';
+  difficulty: ListeningDifficulty;
+  points: number;
+  question: string;
+  options: [string, string, string, string];
+  correctAnswer: number; // 0-based index
+}
+
+export type ListeningQuestionV2 =
+  | ListeningMCQuestion
+  | ListeningTFNGQuestion
+  | ListeningShortAnswerQuestion
+  | ListeningParaphraseQuestion;
+
+export type ListeningPassageV2 = {
+  passageText: string;
+  questions: ListeningQuestionV2[]; // exactly 8
+};
+
+export const CEFR_LISTENING_MAP = [
+  { min: 0,  max: 6,  level: 'B1' as const },
+  { min: 7,  max: 12, level: 'B2' as const },
+  { min: 13, max: 17, level: 'C1' as const },
+  { min: 18, max: 20, level: 'C2' as const },
+];
 
 // ── Writing task ──────────────────────────────────────────────────────────────
 

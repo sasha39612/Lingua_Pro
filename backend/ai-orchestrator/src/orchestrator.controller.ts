@@ -29,6 +29,10 @@ class GenerateListeningDto {
 
   @IsString()
   level!: string;
+
+  @IsOptional()
+  @IsString()
+  version?: string;
 }
 
 class TranscribeAudioDto {
@@ -97,6 +101,9 @@ export class OrchestratorController {
 
   @Post('tasks/generate-listening')
   async generateListeningPassage(@Body() body: GenerateListeningDto) {
+    if (body.version === '2') {
+      return this.orchestratorService.generateListeningExercise(body.language, body.level);
+    }
     return this.orchestratorService.generateListeningPassage(body.language, body.level);
   }
 

@@ -20,6 +20,7 @@ const mockAiOrchestrator = {
   analyzeAudio: vi.fn(),
   generateTask: vi.fn(),
   generateListeningPassage: vi.fn(),
+  generateListeningExercise: vi.fn(),
   synthesizeSpeech: vi.fn(),
 };
 
@@ -255,16 +256,26 @@ describe('AudioService', () => {
 
     const fakeTts = { audioBase64: 'BASE64DATA', mimeType: 'audio/mpeg', durationEstimateMs: 3000 };
 
-    const fakePassage = {
+    // v2 passage — 8 questions in new CEFR-graded format
+    const fakePassageV2 = {
       passageText: 'The speaker talks about travel.',
-      questions: fakeQuestions,
+      questions: [
+        { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q1?', options: ['A', 'B', 'C', 'D'], correctAnswer: 0 },
+        { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q2?', options: ['A', 'B', 'C', 'D'], correctAnswer: 1 },
+        { type: 'true_false_ng', difficulty: 'B2', points: 2, question: 'Q3?', correctAnswer: 'T' },
+        { type: 'true_false_ng', difficulty: 'B2', points: 2, question: 'Q4?', correctAnswer: 'F' },
+        { type: 'short_answer', difficulty: 'C1', points: 3, question: 'Q5?', correctAnswer: 'travel' },
+        { type: 'short_answer', difficulty: 'C1', points: 3, question: 'Q6?', correctAnswer: 'commute' },
+        { type: 'paraphrase', difficulty: 'C2', points: 4, question: 'Q7?', options: ['A', 'B', 'C', 'D'], correctAnswer: 2 },
+        { type: 'paraphrase', difficulty: 'C2', points: 4, question: 'Q8?', options: ['A', 'B', 'C', 'D'], correctAnswer: 3 },
+      ],
     };
 
     beforeEach(() => {
       mockAudioRepository.getNextListeningTask.mockResolvedValue(null);
       mockAudioRepository.createTask.mockResolvedValue(fakeTaskWithAudio);
       mockAudioRepository.updateTaskAudio.mockResolvedValue(undefined);
-      mockAiOrchestrator.generateListeningPassage.mockResolvedValue(fakePassage);
+      mockAiOrchestrator.generateListeningExercise.mockResolvedValue(fakePassageV2);
       mockAiOrchestrator.synthesizeSpeech.mockResolvedValue(fakeTts);
     });
 
@@ -274,11 +285,11 @@ describe('AudioService', () => {
       const result = await service.getListeningTask('42', 'english', 'B1');
 
       expect(mockAudioRepository.getNextListeningTask).toHaveBeenCalledWith(42, 'english', 'B1');
-      expect(mockAiOrchestrator.generateListeningPassage).not.toHaveBeenCalled();
+      expect(mockAiOrchestrator.generateListeningExercise).not.toHaveBeenCalled();
       expect(result.taskId).toBe(10);
       expect(result.audioUrl).toBe('data:audio/mpeg;base64,AAAA');
       expect(result.audioBase64).toBe('AAAA');
-      expect(result.questions).toHaveLength(5);
+      expect(result.questions).toHaveLength(5); // existing old-format task has 5 questions
       expect(result.questions[0]).toMatchObject({ index: 0, question: 'Q1?' });
     });
 
@@ -327,17 +338,23 @@ describe('AudioService', () => {
 
       await service.getListeningTask('42', 'english', 'B1');
 
-      expect(mockAiOrchestrator.generateListeningPassage).toHaveBeenCalledWith('english', 'B1');
+      expect(mockAiOrchestrator.generateListeningExercise).toHaveBeenCalledWith('english', 'B1');
     });
 
-    it('generates new passage + TTS and saves when no existing task found', async () => {
+    it('generates new exercise + TTS and saves when no existing task found', async () => {
       mockAudioRepository.getNextListeningTask.mockResolvedValue(null);
+      // Return a task whose questionsJson contains the v2 questions so parseQuestionsForClient gets 8
+      mockAudioRepository.createTask.mockResolvedValueOnce({
+        ...fakeTaskWithAudio,
+        audioUrl: 'data:audio/mpeg;base64,BASE64DATA',
+        questionsJson: JSON.stringify(fakePassageV2.questions),
+      });
 
       const result = await service.getListeningTask('42', 'english', 'B1');
 
-      expect(mockAiOrchestrator.generateListeningPassage).toHaveBeenCalledWith('english', 'B1');
+      expect(mockAiOrchestrator.generateListeningExercise).toHaveBeenCalledWith('english', 'B1');
       expect(mockAiOrchestrator.synthesizeSpeech).toHaveBeenCalledWith(
-        fakePassage.passageText,
+        fakePassageV2.passageText,
         'english',
       );
       expect(mockAudioRepository.createTask).toHaveBeenCalledWith(
@@ -346,12 +363,12 @@ describe('AudioService', () => {
           level: 'B1',
           skill: 'listening',
           audioUrl: 'data:audio/mpeg;base64,BASE64DATA',
-          questionsJson: fakeQuestionsJson,
+          questionsJson: JSON.stringify(fakePassageV2.questions),
         }),
       );
       expect(result.taskId).toBe(fakeTaskWithAudio.id);
       expect(result.audioBase64).toBe('BASE64DATA');
-      expect(result.questions).toHaveLength(5);
+      expect(result.questions).toHaveLength(8); // new v2 format
     });
 
     it('normalizes language to lowercase before querying', async () => {

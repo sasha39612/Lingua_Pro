@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
-import type { GeneratedTask, ListeningPassage, ReadingQuestion, WritingTask } from './types';
+import type { GeneratedTask, ListeningPassage, ListeningPassageV2, ListeningQuestionV2, ReadingQuestion, WritingTask } from './types';
 import { safeJsonParse, withRetry, withTimeout } from './util';
 
 @Injectable()
@@ -191,6 +191,131 @@ export class TaskService {
     }
 
     return this.localListeningPassage(safeLanguage, safeLevel);
+  }
+
+  // ── Listening exercise v2 generation (8 questions, CEFR-graded) ───────────
+
+  async generateListeningExercise(language: string, level: string): Promise<ListeningPassageV2> {
+    const safeLanguage = (language || 'English').trim() || 'English';
+    const safeLevel = (level || 'B1').trim() || 'B1';
+
+    if (!this.openai) {
+      return this.localListeningExercise(safeLanguage, safeLevel);
+    }
+
+    try {
+      const response = await withRetry(
+        () =>
+          withTimeout(
+            this.openai!.chat.completions.create({
+              model: this.taskModel,
+              response_format: { type: 'json_object' },
+              temperature: 0.6,
+              messages: [
+                {
+                  role: 'system',
+                  content:
+                    `You are a language-learning content creator. Generate a CEFR-graded listening comprehension exercise for a ${safeLanguage} learner.\n` +
+                    `IMPORTANT: ALL text (passageText, questions, options) MUST be written in ${safeLanguage}.\n` +
+                    'Return strict JSON with exactly two keys:\n' +
+                    `1. "passageText": a natural spoken monologue, approximately 450 words, written as continuous speech (no headers, no bullet points). Choose an engaging real-world topic. The passage must contain information answerable at B1 through C2 difficulty.\n` +
+                    '2. "questions": an array of EXACTLY 8 question objects in this order:\n' +
+                    '   - 2 questions with difficulty "B1" (straightforward factual recall):\n' +
+                    '     { "type": "multiple_choice", "difficulty": "B1", "points": 1, "question": string, "options": [4 strings], "correctAnswer": integer 0-3 }\n' +
+                    '   - 2 questions with difficulty "B2" (inference and detail — single True/False/Not Given statement):\n' +
+                    '     { "type": "true_false_ng", "difficulty": "B2", "points": 2, "question": string, "correctAnswer": "T" | "F" | "NG" }\n' +
+                    '     For "NG": the statement must be neither confirmed nor denied by the passage text.\n' +
+                    '   - 2 questions with difficulty "C1" (vocabulary in context or nuance — short written answer):\n' +
+                    '     { "type": "short_answer", "difficulty": "C1", "points": 3, "question": string, "correctAnswer": string (1-5 words, the canonical answer) }\n' +
+                    '   - 2 questions with difficulty "C2" (paraphrase / speaker intent):\n' +
+                    '     { "type": "paraphrase", "difficulty": "C2", "points": 4, "question": string, "options": [4 strings], "correctAnswer": integer 0-3 }\n' +
+                    'Rules: B1 tests basic facts; B2 tests whether a statement is True, False, or Not Given; C1 requires a short open answer about vocabulary or nuance; C2 requires choosing the best paraphrase of the speaker\'s meaning. Do not repeat information across questions.',
+                },
+                {
+                  role: 'user',
+                  content: `language=${safeLanguage}, level=${safeLevel}`,
+                },
+              ],
+            }),
+            28_000,
+            'listening exercise v2 generation timed out',
+          ),
+        'generateListeningExercise',
+        this.logger,
+      );
+
+      const content = response.choices?.[0]?.message?.content || '{}';
+      const parsed = safeJsonParse<{ passageText?: string; questions?: any[] }>(content);
+
+      if (
+        typeof parsed.passageText === 'string' &&
+        parsed.passageText.trim().length > 100 &&
+        Array.isArray(parsed.questions) &&
+        parsed.questions.length === 8
+      ) {
+        const questions: ListeningQuestionV2[] = parsed.questions.map((q: any, i: number) => {
+          const type = String(q?.type || 'multiple_choice');
+          const difficulty = ['B1', 'B2', 'C1', 'C2'].includes(q?.difficulty) ? q.difficulty : 'B1';
+          const points = typeof q?.points === 'number' ? q.points : { B1: 1, B2: 2, C1: 3, C2: 4 }[difficulty as string] ?? 1;
+
+          if (type === 'true_false_ng') {
+            return {
+              type: 'true_false_ng' as const,
+              difficulty,
+              points,
+              question: String(q?.question || `Question ${i + 1}`),
+              correctAnswer: ['T', 'F', 'NG'].includes(String(q?.correctAnswer))
+                ? (String(q.correctAnswer) as 'T' | 'F' | 'NG')
+                : 'T',
+            };
+          }
+          if (type === 'short_answer') {
+            return {
+              type: 'short_answer' as const,
+              difficulty,
+              points,
+              question: String(q?.question || `Question ${i + 1}`),
+              correctAnswer: String(q?.correctAnswer || ''),
+            };
+          }
+          if (type === 'paraphrase') {
+            const opts = Array.isArray(q?.options) && q.options.length === 4
+              ? q.options.map((o: any) => String(o))
+              : ['Option A', 'Option B', 'Option C', 'Option D'];
+            return {
+              type: 'paraphrase' as const,
+              difficulty,
+              points,
+              question: String(q?.question || `Question ${i + 1}`),
+              options: opts as [string, string, string, string],
+              correctAnswer: typeof q?.correctAnswer === 'number' && q.correctAnswer >= 0 && q.correctAnswer <= 3
+                ? q.correctAnswer : 0,
+            };
+          }
+          // default: multiple_choice
+          const opts = Array.isArray(q?.options) && q.options.length === 4
+            ? q.options.map((o: any) => String(o))
+            : ['Option A', 'Option B', 'Option C', 'Option D'];
+          return {
+            type: 'multiple_choice' as const,
+            difficulty,
+            points,
+            question: String(q?.question || `Question ${i + 1}`),
+            options: opts as [string, string, string, string],
+            correctAnswer: typeof q?.correctAnswer === 'number' && q.correctAnswer >= 0 && q.correctAnswer <= 3
+              ? q.correctAnswer : 0,
+          };
+        });
+
+        return { passageText: parsed.passageText.trim(), questions };
+      }
+
+      this.logger.warn('GPT returned invalid listening exercise v2 structure, using fallback');
+    } catch (error: any) {
+      this.logger.warn(`GPT listening exercise v2 generation failed, using fallback: ${error?.message ?? error}`);
+    }
+
+    return this.localListeningExercise(safeLanguage, safeLevel);
   }
 
   // ── Reading exercise generation ────────────────────────────────────────────
@@ -590,6 +715,99 @@ export class TaskService {
       focusPhonemes,
       answerOptions: options,
       correctAnswer: normalizedCorrect,
+    };
+  }
+
+  private localListeningExercise(_language: string, _level: string): ListeningPassageV2 {
+    return {
+      passageText:
+        'Over the past few years, remote work has become increasingly popular, especially among young professionals. ' +
+        'Many people appreciate the flexibility it offers, allowing them to manage their time more effectively and avoid long commutes. ' +
+        'However, this shift has also introduced new challenges. Some workers report feeling disconnected from their colleagues, ' +
+        'which can affect teamwork and motivation. Interestingly, companies are now experimenting with hybrid models, ' +
+        'where employees split their time between home and the office. This approach seems to combine the advantages of both systems. ' +
+        'While it may not suit everyone, it reflects a broader change in how we think about work and productivity in the modern world. ' +
+        'Studies suggest that workers who have flexible arrangements tend to report higher job satisfaction. ' +
+        'Managers, on the other hand, often worry about maintaining a strong team culture when people are not physically together. ' +
+        'Communication tools have improved greatly to support remote collaboration, but some employees still prefer face-to-face interaction. ' +
+        'The future of work is likely to involve a mix of different arrangements tailored to individual roles and preferences.',
+      questions: [
+        {
+          type: 'multiple_choice',
+          difficulty: 'B1',
+          points: 1,
+          question: 'Why do people like remote work?',
+          options: ['It pays more', 'It offers flexibility', 'It is easier to find', 'It requires less skill'],
+          correctAnswer: 1,
+        },
+        {
+          type: 'multiple_choice',
+          difficulty: 'B1',
+          points: 1,
+          question: 'What is the hybrid model?',
+          options: [
+            'Working only from home',
+            'Working only in the office',
+            'Combining remote and office work',
+            'Changing jobs frequently',
+          ],
+          correctAnswer: 2,
+        },
+        {
+          type: 'true_false_ng',
+          difficulty: 'B2',
+          points: 2,
+          question: 'Remote work became popular recently.',
+          correctAnswer: 'T',
+        },
+        {
+          type: 'true_false_ng',
+          difficulty: 'B2',
+          points: 2,
+          question: 'Remote workers earn significantly more than office workers.',
+          correctAnswer: 'NG',
+        },
+        {
+          type: 'short_answer',
+          difficulty: 'C1',
+          points: 3,
+          question: 'What do people avoid by working remotely?',
+          correctAnswer: 'long commutes',
+        },
+        {
+          type: 'short_answer',
+          difficulty: 'C1',
+          points: 3,
+          question: 'What do managers worry about when people work remotely?',
+          correctAnswer: 'team culture',
+        },
+        {
+          type: 'paraphrase',
+          difficulty: 'C2',
+          points: 4,
+          question: 'What is the speaker\'s overall attitude toward hybrid work?',
+          options: [
+            'Completely negative',
+            'Completely positive',
+            'Balanced and neutral',
+            'Uncertain and confused',
+          ],
+          correctAnswer: 2,
+        },
+        {
+          type: 'paraphrase',
+          difficulty: 'C2',
+          points: 4,
+          question: 'What can be inferred from the passage about the future of work?',
+          options: [
+            'Remote work will disappear completely',
+            'Work culture is continuing to evolve',
+            'All offices will close permanently',
+            'Employees are becoming less productive',
+          ],
+          correctAnswer: 1,
+        },
+      ],
     };
   }
 

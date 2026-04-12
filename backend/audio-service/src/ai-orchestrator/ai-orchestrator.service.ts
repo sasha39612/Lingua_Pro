@@ -48,6 +48,55 @@ export interface ListeningPassage {
   questions: ListeningQuestion[];
 }
 
+// ── Listening v2 — CEFR-graded 8-question format ─────────────────────────────
+
+export type ListeningDifficulty = 'B1' | 'B2' | 'C1' | 'C2';
+
+export interface ListeningMCQuestionV2 {
+  type: 'multiple_choice';
+  difficulty: ListeningDifficulty;
+  points: number;
+  question: string;
+  options: [string, string, string, string];
+  correctAnswer: number;
+}
+
+export interface ListeningTFNGQuestionV2 {
+  type: 'true_false_ng';
+  difficulty: ListeningDifficulty;
+  points: number;
+  question: string;
+  correctAnswer: 'T' | 'F' | 'NG';
+}
+
+export interface ListeningShortAnswerQuestionV2 {
+  type: 'short_answer';
+  difficulty: ListeningDifficulty;
+  points: number;
+  question: string;
+  correctAnswer: string;
+}
+
+export interface ListeningParaphraseQuestionV2 {
+  type: 'paraphrase';
+  difficulty: ListeningDifficulty;
+  points: number;
+  question: string;
+  options: [string, string, string, string];
+  correctAnswer: number;
+}
+
+export type ListeningQuestionV2 =
+  | ListeningMCQuestionV2
+  | ListeningTFNGQuestionV2
+  | ListeningShortAnswerQuestionV2
+  | ListeningParaphraseQuestionV2;
+
+export interface ListeningPassageV2 {
+  passageText: string;
+  questions: ListeningQuestionV2[]; // exactly 8
+}
+
 export interface TtsResult {
   audioBase64: string | null;
   mimeType: 'audio/mpeg' | null;
@@ -149,6 +198,32 @@ export class AiOrchestratorService {
     return this.localListeningPassageFallback(language, level);
   }
 
+  // ── Listening exercise v2 generation ──────────────────────────────────────
+
+  async generateListeningExercise(language: string, level: string): Promise<ListeningPassageV2> {
+    if (!this.orchestratorBaseUrl) {
+      return this.localListeningExerciseFallback();
+    }
+    try {
+      const response = await axios.post(
+        `${this.orchestratorBaseUrl.replace(/\/$/, '')}/tasks/generate-listening`,
+        { language, level, version: '2' },
+        { timeout: 35_000 },
+      );
+      const d = response?.data;
+      if (
+        typeof d?.passageText === 'string' &&
+        Array.isArray(d?.questions) &&
+        d.questions.length === 8
+      ) {
+        return d as ListeningPassageV2;
+      }
+    } catch {
+      console.warn('AI orchestrator listening exercise v2 generation failed, using fallback');
+    }
+    return this.localListeningExerciseFallback();
+  }
+
   // ── Text-to-speech ─────────────────────────────────────────────────────────
 
   async synthesizeSpeech(text: string, language: string): Promise<TtsResult> {
@@ -229,6 +304,84 @@ export class AiOrchestratorService {
           question: 'What do experts recommend instead of looking at screens before bed?',
           options: ['Exercising heavily', 'Eating a large meal', 'Reading a book or listening to calm music', 'Planning the next day in detail'],
           correctAnswer: 2,
+        },
+      ],
+    };
+  }
+
+  private localListeningExerciseFallback(): ListeningPassageV2 {
+    return {
+      passageText:
+        'Over the past few years, remote work has become increasingly popular, especially among young professionals. ' +
+        'Many people appreciate the flexibility it offers, allowing them to manage their time more effectively and avoid long commutes. ' +
+        'However, this shift has also introduced new challenges. Some workers report feeling disconnected from their colleagues, ' +
+        'which can affect teamwork and motivation. Interestingly, companies are now experimenting with hybrid models, ' +
+        'where employees split their time between home and the office. This approach seems to combine the advantages of both systems. ' +
+        'While it may not suit everyone, it reflects a broader change in how we think about work and productivity in the modern world. ' +
+        'Studies suggest that workers who have flexible arrangements tend to report higher job satisfaction. ' +
+        'Managers, on the other hand, often worry about maintaining a strong team culture when people are not physically together. ' +
+        'Communication tools have improved greatly to support remote collaboration, but some employees still prefer face-to-face interaction. ' +
+        'The future of work is likely to involve a mix of different arrangements tailored to individual roles and preferences.',
+      questions: [
+        {
+          type: 'multiple_choice',
+          difficulty: 'B1',
+          points: 1,
+          question: 'Why do people like remote work?',
+          options: ['It pays more', 'It offers flexibility', 'It is easier to find', 'It requires less skill'],
+          correctAnswer: 1,
+        },
+        {
+          type: 'multiple_choice',
+          difficulty: 'B1',
+          points: 1,
+          question: 'What is the hybrid model?',
+          options: ['Working only from home', 'Working only in the office', 'Combining remote and office work', 'Changing jobs frequently'],
+          correctAnswer: 2,
+        },
+        {
+          type: 'true_false_ng',
+          difficulty: 'B2',
+          points: 2,
+          question: 'Remote work became popular recently.',
+          correctAnswer: 'T',
+        },
+        {
+          type: 'true_false_ng',
+          difficulty: 'B2',
+          points: 2,
+          question: 'Remote workers earn significantly more than office workers.',
+          correctAnswer: 'NG',
+        },
+        {
+          type: 'short_answer',
+          difficulty: 'C1',
+          points: 3,
+          question: 'What do people avoid by working remotely?',
+          correctAnswer: 'long commutes',
+        },
+        {
+          type: 'short_answer',
+          difficulty: 'C1',
+          points: 3,
+          question: 'What do managers worry about when people work remotely?',
+          correctAnswer: 'team culture',
+        },
+        {
+          type: 'paraphrase',
+          difficulty: 'C2',
+          points: 4,
+          question: "What is the speaker's overall attitude toward hybrid work?",
+          options: ['Completely negative', 'Completely positive', 'Balanced and neutral', 'Uncertain and confused'],
+          correctAnswer: 2,
+        },
+        {
+          type: 'paraphrase',
+          difficulty: 'C2',
+          points: 4,
+          question: 'What can be inferred about the future of work?',
+          options: ['Remote work will disappear completely', 'Work culture is continuing to evolve', 'All offices will close permanently', 'Employees are becoming less productive'],
+          correctAnswer: 1,
         },
       ],
     };
