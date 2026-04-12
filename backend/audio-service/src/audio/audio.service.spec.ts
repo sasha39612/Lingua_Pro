@@ -229,14 +229,21 @@ describe('AudioService', () => {
   // ─── getListeningTask ────────────────────────────────────────────────────────
 
   describe('getListeningTask', () => {
-    const fakeQuestions = [
-      { question: 'Q1?', options: ['A', 'B', 'C', 'D'], correctAnswer: 0 },
-      { question: 'Q2?', options: ['A', 'B', 'C', 'D'], correctAnswer: 1 },
-      { question: 'Q3?', options: ['A', 'B', 'C', 'D'], correctAnswer: 2 },
-      { question: 'Q4?', options: ['A', 'B', 'C', 'D'], correctAnswer: 3 },
-      { question: 'Q5?', options: ['A', 'B', 'C', 'D'], correctAnswer: 0 },
-    ];
-    const fakeQuestionsJson = JSON.stringify(fakeQuestions);
+    // v2 passage — 8 questions in new CEFR-graded format
+    const fakePassageV2 = {
+      passageText: 'The speaker talks about travel.',
+      questions: [
+        { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q1?', options: ['A', 'B', 'C', 'D'], correctAnswer: 0 },
+        { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q2?', options: ['A', 'B', 'C', 'D'], correctAnswer: 1 },
+        { type: 'true_false_ng', difficulty: 'B2', points: 2, question: 'Q3?', correctAnswer: 'T' },
+        { type: 'true_false_ng', difficulty: 'B2', points: 2, question: 'Q4?', correctAnswer: 'F' },
+        { type: 'short_answer', difficulty: 'C1', points: 3, question: 'Q5?', correctAnswer: 'travel' },
+        { type: 'short_answer', difficulty: 'C1', points: 3, question: 'Q6?', correctAnswer: 'commute' },
+        { type: 'paraphrase', difficulty: 'C2', points: 4, question: 'Q7?', options: ['A', 'B', 'C', 'D'], correctAnswer: 2 },
+        { type: 'paraphrase', difficulty: 'C2', points: 4, question: 'Q8?', options: ['A', 'B', 'C', 'D'], correctAnswer: 3 },
+      ],
+    };
+    const fakeQuestionsJson = JSON.stringify(fakePassageV2.questions);
 
     const fakeTaskWithAudio = {
       id: 10,
@@ -256,21 +263,6 @@ describe('AudioService', () => {
 
     const fakeTts = { audioBase64: 'BASE64DATA', mimeType: 'audio/mpeg', durationEstimateMs: 3000 };
 
-    // v2 passage — 8 questions in new CEFR-graded format
-    const fakePassageV2 = {
-      passageText: 'The speaker talks about travel.',
-      questions: [
-        { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q1?', options: ['A', 'B', 'C', 'D'], correctAnswer: 0 },
-        { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q2?', options: ['A', 'B', 'C', 'D'], correctAnswer: 1 },
-        { type: 'true_false_ng', difficulty: 'B2', points: 2, question: 'Q3?', correctAnswer: 'T' },
-        { type: 'true_false_ng', difficulty: 'B2', points: 2, question: 'Q4?', correctAnswer: 'F' },
-        { type: 'short_answer', difficulty: 'C1', points: 3, question: 'Q5?', correctAnswer: 'travel' },
-        { type: 'short_answer', difficulty: 'C1', points: 3, question: 'Q6?', correctAnswer: 'commute' },
-        { type: 'paraphrase', difficulty: 'C2', points: 4, question: 'Q7?', options: ['A', 'B', 'C', 'D'], correctAnswer: 2 },
-        { type: 'paraphrase', difficulty: 'C2', points: 4, question: 'Q8?', options: ['A', 'B', 'C', 'D'], correctAnswer: 3 },
-      ],
-    };
-
     beforeEach(() => {
       mockAudioRepository.getNextListeningTask.mockResolvedValue(null);
       mockAudioRepository.createTask.mockResolvedValue(fakeTaskWithAudio);
@@ -289,7 +281,7 @@ describe('AudioService', () => {
       expect(result.taskId).toBe(10);
       expect(result.audioUrl).toBe('data:audio/mpeg;base64,AAAA');
       expect(result.audioBase64).toBe('AAAA');
-      expect(result.questions).toHaveLength(5); // existing old-format task has 5 questions
+      expect(result.questions).toHaveLength(8);
       expect(result.questions[0]).toMatchObject({ index: 0, question: 'Q1?' });
     });
 
