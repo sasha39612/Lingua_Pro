@@ -1,11 +1,20 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/app-store';
+
+const SKILL_LINKS = [
+  { href: '/speaking', icon: '/icons/speaking.svg', label: 'Speaking' },
+  { href: '/listening', icon: '/icons/listening.svg', label: 'Listening' },
+  { href: '/reading', icon: '/icons/reading.svg', label: 'Reading' },
+  { href: '/writing', icon: '/icons/writing.svg', label: 'Writing' },
+];
 
 export function LabFrame({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const token = useAppStore((s) => s.token);
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
@@ -16,9 +25,28 @@ export function LabFrame({ children }: { children: React.ReactNode }) {
         <div className="w-full">
           <header className="border-b border-white/25 bg-gradient-to-r from-[#0a54c2] to-[#1a6be0] text-white shadow-[0_10px_30px_rgba(10,52,128,0.35)]">
             <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-7">
-              <Link href="/dashboard" className="text-3xl font-bold leading-none tracking-tight text-white">
-                LanguageLab
-              </Link>
+              <div className="flex items-center gap-4">
+                <Link href="/dashboard" className="text-3xl font-bold leading-none tracking-tight text-white">
+                  LanguageLab
+                </Link>
+                <span className="h-6 w-px bg-white/30" />
+                <nav className="flex items-center gap-1">
+                  {SKILL_LINKS.map(({ href, icon, label }) => {
+                    const isActive = pathname === href;
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        title={label}
+                        className={`group relative flex flex-col items-center rounded-xl p-1.5 transition ${isActive ? 'bg-white/20' : 'hover:bg-white/10'}`}
+                      >
+                        <Image src={icon} alt={label} width={28} height={28} className="h-7 w-7 object-contain brightness-0 invert" />
+                        <span className="mt-0.5 text-[10px] font-medium leading-none opacity-75">{label}</span>
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
               <div className="flex items-center gap-5 text-sm sm:text-base">
                 {user?.role === 'admin' ? (
                   <>
