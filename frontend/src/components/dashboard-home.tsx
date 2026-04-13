@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/app-store';
 
 const SKILL_LINKS = [
-  { href: '/speaking', icon: '/icons/speaking.svg', label: 'Speaking' },
-  { href: '/listening', icon: '/icons/listening.svg', label: 'Listening' },
-  { href: '/reading', icon: '/icons/reading.svg', label: 'Reading' },
-  { href: '/writing', icon: '/icons/writing.svg', label: 'Writing' },
+  { href: '/speaking', icon: '/icons/speaking-inverted.svg', label: 'Speaking' },
+  { href: '/listening', icon: '/icons/listening-inverted.svg', label: 'Listening' },
+  { href: '/reading', icon: '/icons/reading-inverted.svg', label: 'Reading' },
+  { href: '/writing', icon: '/icons/writing-inverted.svg', label: 'Writing' },
 ];
 
 export function DashboardHome() {
@@ -52,7 +52,7 @@ export function DashboardHome() {
                       title={label}
                       className="flex flex-col items-center rounded-xl p-1.5 transition hover:bg-white/10"
                     >
-                      <Image src={icon} alt={label} width={28} height={28} className="h-7 w-7 object-contain brightness-0 invert" />
+                      <Image src={icon} alt={label} width={28} height={28} className="h-7 w-7 object-contain" />
                       <span className="mt-0.5 text-[10px] font-medium leading-none opacity-75">{label}</span>
                     </Link>
                   ))}
