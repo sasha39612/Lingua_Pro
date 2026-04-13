@@ -482,6 +482,90 @@ describe('AudioService', () => {
       await service.submitListeningAnswers('7', 10, [0, 1, 2, 3, 0]);
       expect(mockAudioRepository.upsertListeningScore).toHaveBeenCalledWith(7, 10, expect.any(Number));
     });
+
+    // ── v2 (CEFR-graded) format ──────────────────────────────────────────────
+
+    describe('v2 format — weighted scoring and level-relative CEFR result', () => {
+      // B2 task: 4×B1(1pt) + 4×B2(2pts) = 12 pts max
+      const b2Questions = [
+        { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q1?', options: ['A','B','C','D'], correctAnswer: 0 },
+        { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q2?', options: ['A','B','C','D'], correctAnswer: 1 },
+        { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q3?', options: ['A','B','C','D'], correctAnswer: 2 },
+        { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q4?', options: ['A','B','C','D'], correctAnswer: 3 },
+        { type: 'true_false_ng',   difficulty: 'B2', points: 2, question: 'Q5?', correctAnswer: 'T' },
+        { type: 'true_false_ng',   difficulty: 'B2', points: 2, question: 'Q6?', correctAnswer: 'F' },
+        { type: 'true_false_ng',   difficulty: 'B2', points: 2, question: 'Q7?', correctAnswer: 'NG' },
+        { type: 'true_false_ng',   difficulty: 'B2', points: 2, question: 'Q8?', correctAnswer: 'T' },
+      ];
+      const fakeB2Task = {
+        id: 20,
+        prompt: 'Listen.',
+        answerOptions: [] as string[],
+        correctAnswer: null,
+        questionsJson: JSON.stringify(b2Questions),
+        language: 'english',
+        level: 'B2',
+        skill: 'listening',
+        audioUrl: null,
+        referenceText: null,
+        createdAt: new Date(),
+      };
+
+      beforeEach(() => {
+        mockAudioRepository.getTaskById.mockResolvedValue(fakeB2Task);
+      });
+
+      it('computes maxRawScore dynamically (B2 task = 12)', async () => {
+        const result = await service.submitListeningAnswers('42', 20, [0, 1, 2, 3, 'T', 'F', 'NG', 'T']);
+        expect(result.maxRawScore).toBe(12);
+        expect(result.rawScore).toBe(12);
+        expect(result.score).toBeCloseTo(1);
+      });
+
+      it('cefrLevel = B2 when score >= 90% of B2 task', async () => {
+        // All correct → 12/12 = 100% → B2
+        const result = await service.submitListeningAnswers('42', 20, [0, 1, 2, 3, 'T', 'F', 'NG', 'T']);
+        expect(result.cefrLevel).toBe('B2');
+      });
+
+      it('cefrLevel = B1 when score 60-89% of B2 task', async () => {
+        // Get 8/12 ≈ 67% → one below B2 = B1
+        const result = await service.submitListeningAnswers('42', 20, [0, 1, 2, 3, 'T', 'F', 'T', 'F']);
+        // Q7 wrong (NG vs T), Q8 wrong (T vs F) → 4×1 + 2×2 = 8pts
+        expect(result.rawScore).toBe(8);
+        expect(result.cefrLevel).toBe('B1');
+      });
+
+      it('cefrLevel = B1 (floor) when score < 60% of B2 task', async () => {
+        // Get 4/12 ≈ 33% → two below B2 = B1 (floor at index 0)
+        const result = await service.submitListeningAnswers('42', 20, [0, 1, 2, 3, 'F', 'T', 'T', 'F']);
+        // All B2 wrong → 4pts → 33%
+        expect(result.rawScore).toBe(4);
+        expect(result.cefrLevel).toBe('B1');
+      });
+
+      it('cefrLevel = C1 when score 60-89% of C2 task', async () => {
+        // C2 task uses fakePassageV2 from getListeningTask tests: max 20pts
+        const c2Questions = [
+          { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q1?', options: ['A','B','C','D'], correctAnswer: 0 },
+          { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q2?', options: ['A','B','C','D'], correctAnswer: 1 },
+          { type: 'true_false_ng',   difficulty: 'B2', points: 2, question: 'Q3?', correctAnswer: 'T' },
+          { type: 'true_false_ng',   difficulty: 'B2', points: 2, question: 'Q4?', correctAnswer: 'F' },
+          { type: 'short_answer',    difficulty: 'C1', points: 3, question: 'Q5?', correctAnswer: 'travel' },
+          { type: 'short_answer',    difficulty: 'C1', points: 3, question: 'Q6?', correctAnswer: 'commute' },
+          { type: 'paraphrase',      difficulty: 'C2', points: 4, question: 'Q7?', options: ['A','B','C','D'], correctAnswer: 2 },
+          { type: 'paraphrase',      difficulty: 'C2', points: 4, question: 'Q8?', options: ['A','B','C','D'], correctAnswer: 3 },
+        ];
+        mockAudioRepository.getTaskById.mockResolvedValue({
+          ...fakeB2Task, id: 30, level: 'C2', questionsJson: JSON.stringify(c2Questions),
+        });
+        // Answer all B1+B2+C1 correct, C2 wrong: 1+1+2+2+3+3 = 12/20 = 60% → C1
+        const result = await service.submitListeningAnswers('42', 30, [0, 1, 'T', 'F', 'travel', 'commute', 0, 0]);
+        expect(result.rawScore).toBe(12);
+        expect(result.maxRawScore).toBe(20);
+        expect(result.cefrLevel).toBe('C1');
+      });
+    });
   });
 
   // ─── getListeningScoresByLanguage ──────────────────────────────────────────
