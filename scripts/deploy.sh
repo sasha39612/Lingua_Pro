@@ -18,6 +18,9 @@ export IMAGE_TAG="$IMAGE_TAG"
 echo "==> Pulling images (tag: $IMAGE_TAG)..."
 docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
 
+echo "==> Removing stale stopped containers..."
+docker container prune -f
+
 echo "==> Starting services..."
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --remove-orphans
 
