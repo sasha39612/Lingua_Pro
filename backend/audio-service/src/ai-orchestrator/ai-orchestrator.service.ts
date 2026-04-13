@@ -202,7 +202,7 @@ export class AiOrchestratorService {
 
   async generateListeningExercise(language: string, level: string): Promise<ListeningPassageV2> {
     if (!this.orchestratorBaseUrl) {
-      return this.localListeningExerciseFallback();
+      return this.localListeningExerciseFallback(level);
     }
     try {
       const response = await axios.post(
@@ -221,7 +221,7 @@ export class AiOrchestratorService {
     } catch {
       console.warn('AI orchestrator listening exercise v2 generation failed, using fallback');
     }
-    return this.localListeningExerciseFallback();
+    return this.localListeningExerciseFallback(level);
   }
 
   // ── Text-to-speech ─────────────────────────────────────────────────────────
@@ -309,82 +309,55 @@ export class AiOrchestratorService {
     };
   }
 
-  private localListeningExerciseFallback(): ListeningPassageV2 {
-    return {
-      passageText:
-        'Over the past few years, remote work has become increasingly popular, especially among young professionals. ' +
-        'Many people appreciate the flexibility it offers, allowing them to manage their time more effectively and avoid long commutes. ' +
-        'However, this shift has also introduced new challenges. Some workers report feeling disconnected from their colleagues, ' +
-        'which can affect teamwork and motivation. Interestingly, companies are now experimenting with hybrid models, ' +
-        'where employees split their time between home and the office. This approach seems to combine the advantages of both systems. ' +
-        'While it may not suit everyone, it reflects a broader change in how we think about work and productivity in the modern world. ' +
-        'Studies suggest that workers who have flexible arrangements tend to report higher job satisfaction. ' +
-        'Managers, on the other hand, often worry about maintaining a strong team culture when people are not physically together. ' +
-        'Communication tools have improved greatly to support remote collaboration, but some employees still prefer face-to-face interaction. ' +
-        'The future of work is likely to involve a mix of different arrangements tailored to individual roles and preferences.',
-      questions: [
-        {
-          type: 'multiple_choice',
-          difficulty: 'B1',
-          points: 1,
-          question: 'Why do people like remote work?',
-          options: ['It pays more', 'It offers flexibility', 'It is easier to find', 'It requires less skill'],
-          correctAnswer: 1,
-        },
-        {
-          type: 'multiple_choice',
-          difficulty: 'B1',
-          points: 1,
-          question: 'What is the hybrid model?',
-          options: ['Working only from home', 'Working only in the office', 'Combining remote and office work', 'Changing jobs frequently'],
-          correctAnswer: 2,
-        },
-        {
-          type: 'true_false_ng',
-          difficulty: 'B2',
-          points: 2,
-          question: 'Remote work became popular recently.',
-          correctAnswer: 'T',
-        },
-        {
-          type: 'true_false_ng',
-          difficulty: 'B2',
-          points: 2,
-          question: 'Remote workers earn significantly more than office workers.',
-          correctAnswer: 'NG',
-        },
-        {
-          type: 'short_answer',
-          difficulty: 'C1',
-          points: 3,
-          question: 'What do people avoid by working remotely?',
-          correctAnswer: 'long commutes',
-        },
-        {
-          type: 'short_answer',
-          difficulty: 'C1',
-          points: 3,
-          question: 'What do managers worry about when people work remotely?',
-          correctAnswer: 'team culture',
-        },
-        {
-          type: 'paraphrase',
-          difficulty: 'C2',
-          points: 4,
-          question: "What is the speaker's overall attitude toward hybrid work?",
-          options: ['Completely negative', 'Completely positive', 'Balanced and neutral', 'Uncertain and confused'],
-          correctAnswer: 2,
-        },
-        {
-          type: 'paraphrase',
-          difficulty: 'C2',
-          points: 4,
-          question: 'What can be inferred about the future of work?',
-          options: ['Remote work will disappear completely', 'Work culture is continuing to evolve', 'All offices will close permanently', 'Employees are becoming less productive'],
-          correctAnswer: 1,
-        },
-      ],
-    };
+  private localListeningExerciseFallback(level = 'C2'): ListeningPassageV2 {
+    const passageText =
+      'Over the past few years, remote work has become increasingly popular, especially among young professionals. ' +
+      'Many people appreciate the flexibility it offers, allowing them to manage their time more effectively and avoid long commutes. ' +
+      'However, this shift has also introduced new challenges. Some workers report feeling disconnected from their colleagues, ' +
+      'which can affect teamwork and motivation. Interestingly, companies are now experimenting with hybrid models, ' +
+      'where employees split their time between home and the office. This approach seems to combine the advantages of both systems. ' +
+      'While it may not suit everyone, it reflects a broader change in how we think about work and productivity in the modern world. ' +
+      'Studies suggest that workers who have flexible arrangements tend to report higher job satisfaction. ' +
+      'Managers, on the other hand, often worry about maintaining a strong team culture when people are not physically together. ' +
+      'Communication tools have improved greatly to support remote collaboration, but some employees still prefer face-to-face interaction. ' +
+      'The future of work is likely to involve a mix of different arrangements tailored to individual roles and preferences.';
+
+    const b1: ListeningQuestionV2[] = [
+      { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Why do people like remote work?', options: ['It pays more', 'It offers flexibility', 'It is easier to find', 'It requires less skill'], correctAnswer: 1 },
+      { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'What is the hybrid model?', options: ['Working only from home', 'Working only in the office', 'Combining remote and office work', 'Changing jobs frequently'], correctAnswer: 2 },
+      { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Who especially likes remote work?', options: ['Senior managers', 'Young professionals', 'Factory workers', 'Part-time staff'], correctAnswer: 1 },
+      { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'What have communication tools done to support remote work?', options: ['Become more expensive', 'Improved greatly', 'Become slower', 'Disappeared'], correctAnswer: 1 },
+      { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'What do remote workers avoid?', options: ['Deadlines', 'Long commutes', 'Meetings', 'Office equipment'], correctAnswer: 1 },
+      { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'What do workers with flexible arrangements report?', options: ['Lower salaries', 'Higher job satisfaction', 'More overtime', 'Less productivity'], correctAnswer: 1 },
+      { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'What does the hybrid model combine?', options: ['Two different jobs', 'Remote and office work', 'Two languages', 'Part-time and full-time hours'], correctAnswer: 1 },
+      { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'What is the future of work likely to involve?', options: ['Only office work', 'Only remote work', 'A mix of different arrangements', 'No flexible options'], correctAnswer: 2 },
+    ];
+    const b2: ListeningQuestionV2[] = [
+      { type: 'true_false_ng', difficulty: 'B2', points: 2, question: 'Remote work became popular recently.', correctAnswer: 'T' },
+      { type: 'true_false_ng', difficulty: 'B2', points: 2, question: 'Remote workers earn significantly more than office workers.', correctAnswer: 'NG' },
+      { type: 'true_false_ng', difficulty: 'B2', points: 2, question: 'Some employees still prefer face-to-face interaction.', correctAnswer: 'T' },
+      { type: 'true_false_ng', difficulty: 'B2', points: 2, question: 'The hybrid model suits everyone equally well.', correctAnswer: 'F' },
+    ];
+    const c1: ListeningQuestionV2[] = [
+      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What do people avoid by working remotely?', correctAnswer: 'long commutes' },
+      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What do managers worry about when people work remotely?', correctAnswer: 'team culture' },
+      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What do flexible arrangements give workers according to studies?', correctAnswer: 'job satisfaction' },
+      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What problem do some workers report when working remotely?', correctAnswer: 'feeling disconnected' },
+    ];
+    const c2: ListeningQuestionV2[] = [
+      { type: 'paraphrase', difficulty: 'C2', points: 4, question: "What is the speaker's overall attitude toward hybrid work?", options: ['Completely negative', 'Completely positive', 'Balanced and neutral', 'Uncertain and confused'], correctAnswer: 2 },
+      { type: 'paraphrase', difficulty: 'C2', points: 4, question: 'What can be inferred about the future of work?', options: ['Remote work will disappear completely', 'Work culture is continuing to evolve', 'All offices will close permanently', 'Employees are becoming less productive'], correctAnswer: 1 },
+    ];
+
+    let questions: ListeningQuestionV2[];
+    switch (level) {
+      case 'B1': questions = b1.slice(0, 8); break;
+      case 'B2': questions = [...b1.slice(0, 4), ...b2.slice(0, 4)]; break;
+      case 'C1': questions = [...b1.slice(0, 2), ...b2.slice(0, 2), ...c1.slice(0, 4)]; break;
+      default:   questions = [...b1.slice(0, 2), ...b2.slice(0, 2), ...c1.slice(0, 2), ...c2];
+    }
+
+    return { passageText, questions };
   }
 
   private localTaskFallback(language: string, level: string, skill: string): GeneratedTask {

@@ -56,12 +56,7 @@ export interface ListeningAnswersResult {
   results: QuestionResult[];
 }
 
-const CEFR_LISTENING_MAP = [
-  { min: 0,  max: 6,  level: 'B1' },
-  { min: 7,  max: 12, level: 'B2' },
-  { min: 13, max: 17, level: 'C1' },
-  { min: 18, max: 20, level: 'C2' },
-];
+const CEFR_LEVELS = ['B1', 'B2', 'C1', 'C2'] as const;
 
 function levenshtein(a: string, b: string): number {
   const m = a.length, n = b.length;
@@ -417,9 +412,17 @@ export class AudioService {
     let cefrLevel: string | undefined;
 
     if (isNewFormat) {
-      const maxRawScore = 20;
-      score = rawScore / maxRawScore;
-      cefrLevel = CEFR_LISTENING_MAP.find(b => rawScore >= b.min && rawScore <= b.max)?.level;
+      const maxRawScore = questions.reduce((sum: number, q: any) => sum + (q.points ?? 1), 0);
+      score = maxRawScore > 0 ? rawScore / maxRawScore : 0;
+      const taskLevel = task.level ?? 'B1';
+      const userLevelIdx = Math.max(0, CEFR_LEVELS.indexOf(taskLevel as typeof CEFR_LEVELS[number]));
+      const pct = score;
+      const cefrIdx = pct >= 0.9
+        ? userLevelIdx
+        : pct >= 0.6
+          ? Math.max(0, userLevelIdx - 1)
+          : Math.max(0, userLevelIdx - 2);
+      cefrLevel = CEFR_LEVELS[cefrIdx];
       try {
         await this.audioRepository.upsertListeningScore(parseInt(userId, 10), taskId, score);
       } catch (err: any) {
