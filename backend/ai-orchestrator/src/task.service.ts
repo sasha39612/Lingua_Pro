@@ -287,7 +287,7 @@ export class TaskService {
         Array.isArray(parsed.questions) &&
         parsed.questions.length === 8
       ) {
-        // Validate that all questions respect the level ceiling
+        // Clamp questions to the allowed difficulty ceiling for this level
         const allowedDifficulties: Record<string, string[]> = {
           B1: ['B1'],
           B2: ['B1', 'B2'],
@@ -295,16 +295,11 @@ export class TaskService {
           C2: ['B1', 'B2', 'C1', 'C2'],
         };
         const allowed = allowedDifficulties[safeLevel] ?? allowedDifficulties['B1'];
-        const hasInvalidDifficulty = parsed.questions.some(
-          (q: any) => q?.difficulty && !allowed.includes(q.difficulty),
-        );
-        if (hasInvalidDifficulty) {
-          this.logger.warn(`GPT returned questions above level ${safeLevel}, using fallback`);
-          return this.localListeningExercise(safeLanguage, safeLevel);
-        }
+        const maxAllowedDifficulty = allowed[allowed.length - 1];
         const questions: ListeningQuestionV2[] = parsed.questions.map((q: any, i: number) => {
           const type = String(q?.type || 'multiple_choice');
-          const difficulty = ['B1', 'B2', 'C1', 'C2'].includes(q?.difficulty) ? q.difficulty : 'B1';
+          const rawDifficulty = ['B1', 'B2', 'C1', 'C2'].includes(q?.difficulty) ? q.difficulty : 'B1';
+          const difficulty = allowed.includes(rawDifficulty) ? rawDifficulty : maxAllowedDifficulty;
           const points = typeof q?.points === 'number' ? q.points : { B1: 1, B2: 2, C1: 3, C2: 4 }[difficulty as string] ?? 1;
 
           if (type === 'true_false_ng') {

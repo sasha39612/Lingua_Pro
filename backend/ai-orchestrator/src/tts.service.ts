@@ -70,6 +70,7 @@ export class TtsService {
     if (lang.includes('german')) return 'echo';
     if (lang.includes('polish')) return 'fable';
     if (lang.includes('albanian')) return 'alloy';
+    if (lang.includes('ukrainian')) return 'nova';
     return 'alloy'; // default for English and unknown languages
   }
 
