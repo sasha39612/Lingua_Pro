@@ -58,29 +58,8 @@ export interface ListeningAnswersResult {
 
 const CEFR_LEVELS = ['B1', 'B2', 'C1', 'C2'] as const;
 
-function levenshtein(a: string, b: string): number {
-  const m = a.length, n = b.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-  );
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] = a[i - 1] === b[j - 1]
-        ? dp[i - 1][j - 1]
-        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-    }
-  }
-  return dp[m][n];
-}
 
-function fuzzyMatchShortAnswer(userRaw: string, correctRaw: string): boolean {
-  const u = userRaw.trim().toLowerCase();
-  const c = correctRaw.trim().toLowerCase();
-  if (u === c) return true;
-  if (u.includes(c) || c.includes(u)) return true;
-  const maxDist = c.length <= 8 ? 2 : 3;
-  return levenshtein(u, c) <= maxDist;
-}
+
 
 @Injectable()
 export class AudioService {
@@ -378,11 +357,8 @@ export class AudioService {
       if (qType === 'true_false_ng') {
         isCorrect = typeof userAnswer === 'string' &&
           userAnswer.toUpperCase() === String(q.correctAnswer).toUpperCase();
-      } else if (qType === 'short_answer') {
-        isCorrect = typeof userAnswer === 'string' &&
-          fuzzyMatchShortAnswer(userAnswer, String(q.correctAnswer ?? ''));
       } else {
-        // multiple_choice and paraphrase — numeric index comparison
+        // multiple_choice, paraphrase, short_answer — numeric index comparison
         isCorrect = typeof userAnswer === 'number' && userAnswer === q.correctAnswer;
       }
 
@@ -402,7 +378,7 @@ export class AudioService {
         maxPoints,
       };
 
-      if (qType === 'multiple_choice' || qType === 'paraphrase') {
+      if (qType === 'multiple_choice' || qType === 'paraphrase' || qType === 'short_answer') {
         return { ...baseResult, correctOptionText: (q.options ?? [])[q.correctAnswer] ?? '' };
       }
       return baseResult;
@@ -454,7 +430,7 @@ export class AudioService {
           question: q.question,
         };
         // Only send options for question types that need them
-        if (q.type === 'multiple_choice' || q.type === 'paraphrase' || q.type === undefined) {
+        if (q.type === 'multiple_choice' || q.type === 'paraphrase' || q.type === 'short_answer' || q.type === undefined) {
           base.options = q.options;
         }
         // correctAnswer intentionally omitted

@@ -551,8 +551,8 @@ describe('AudioService', () => {
           { type: 'multiple_choice', difficulty: 'B1', points: 1, question: 'Q2?', options: ['A','B','C','D'], correctAnswer: 1 },
           { type: 'true_false_ng',   difficulty: 'B2', points: 2, question: 'Q3?', correctAnswer: 'T' },
           { type: 'true_false_ng',   difficulty: 'B2', points: 2, question: 'Q4?', correctAnswer: 'F' },
-          { type: 'short_answer',    difficulty: 'C1', points: 3, question: 'Q5?', correctAnswer: 'travel' },
-          { type: 'short_answer',    difficulty: 'C1', points: 3, question: 'Q6?', correctAnswer: 'commute' },
+          { type: 'short_answer',    difficulty: 'C1', points: 3, question: 'Q5?', options: ['travel', 'walking', 'cycling', 'driving'], correctAnswer: 0 },
+          { type: 'short_answer',    difficulty: 'C1', points: 3, question: 'Q6?', options: ['commute', 'remote', 'hybrid', 'office'], correctAnswer: 0 },
           { type: 'paraphrase',      difficulty: 'C2', points: 4, question: 'Q7?', options: ['A','B','C','D'], correctAnswer: 2 },
           { type: 'paraphrase',      difficulty: 'C2', points: 4, question: 'Q8?', options: ['A','B','C','D'], correctAnswer: 3 },
         ];
@@ -560,7 +560,7 @@ describe('AudioService', () => {
           ...fakeB2Task, id: 30, level: 'C2', questionsJson: JSON.stringify(c2Questions),
         });
         // Answer all B1+B2+C1 correct, C2 wrong: 1+1+2+2+3+3 = 12/20 = 60% → C1
-        const result = await service.submitListeningAnswers('42', 30, [0, 1, 'T', 'F', 'travel', 'commute', 0, 0]);
+        const result = await service.submitListeningAnswers('42', 30, [0, 1, 'T', 'F', 0, 0, 0, 0]);
         expect(result.rawScore).toBe(12);
         expect(result.maxRawScore).toBe(20);
         expect(result.cefrLevel).toBe('C1');

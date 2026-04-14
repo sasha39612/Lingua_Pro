@@ -128,13 +128,7 @@ export function ListeningPage() {
 
   const allAnswered =
     selectedAnswers.length > 0 &&
-    selectedAnswers.every((a, i) => {
-      if (a === null || a === undefined) return false;
-      if (task?.questions[i]?.type === 'short_answer') {
-        return typeof a === 'string' && a.trim().length > 0;
-      }
-      return true;
-    });
+    selectedAnswers.every((a) => a !== null && a !== undefined);
 
   const handleSubmit = async () => {
     if (!task || !user || !allAnswered) return;
@@ -274,8 +268,8 @@ export function ListeningPage() {
                     )}
                   </div>
 
-                  {/* Multiple choice / Paraphrase */}
-                  {(qType === 'multiple_choice' || qType === 'paraphrase') && q.options && (
+                  {/* Multiple choice */}
+                  {qType === 'multiple_choice' && q.options && (
                     <div className="grid gap-2 sm:grid-cols-2">
                       {q.options.map((option, optIdx) => {
                         const label = OPTION_LABELS[optIdx];
@@ -305,6 +299,41 @@ export function ListeningPage() {
                           </button>
                         );
                       })}
+                    </div>
+                  )}
+
+                  {/* Short answer / Paraphrase — dropdown */}
+                  {(qType === 'short_answer' || qType === 'paraphrase') && q.options && (
+                    <div className="relative">
+                      <select
+                        value={typeof chosen === 'number' ? chosen : ''}
+                        onChange={(e) => handleSelectAnswer(q.index, Number(e.target.value))}
+                        disabled={!!result}
+                        className={`w-full appearance-none rounded-xl border px-4 py-3 pr-10 text-sm focus:outline-none disabled:cursor-default ${
+                          qResult
+                            ? qResult.correct
+                              ? 'border-teal-500 bg-teal-50 text-teal-900'
+                              : 'border-red-400 bg-red-50 text-red-800'
+                            : typeof chosen === 'number'
+                              ? 'border-teal-600 bg-teal-50 text-teal-900'
+                              : 'border-slate-200 bg-white text-slate-500'
+                        }`}
+                      >
+                        <option value="" disabled>Select an answer…</option>
+                        {q.options.map((option, optIdx) => (
+                          <option key={optIdx} value={optIdx}>
+                            {OPTION_LABELS[optIdx]}. {option}
+                          </option>
+                        ))}
+                      </select>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                      >
+                        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                      </svg>
                     </div>
                   )}
 
@@ -340,18 +369,6 @@ export function ListeningPage() {
                     </div>
                   )}
 
-                  {/* Short answer */}
-                  {qType === 'short_answer' && (
-                    <input
-                      type="text"
-                      value={typeof chosen === 'string' ? chosen : ''}
-                      onChange={(e) => handleSelectAnswer(q.index, e.target.value)}
-                      disabled={!!result}
-                      placeholder="Type your answer…"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-teal-500 focus:outline-none disabled:cursor-default disabled:bg-slate-50"
-                    />
-                  )}
-
                   {/* Per-question feedback after submission */}
                   {qResult && (
                     <p className={`mt-2 text-xs font-medium ${qResult.correct ? 'text-teal-700' : 'text-red-600'}`}>
@@ -359,7 +376,7 @@ export function ListeningPage() {
                         ? `Correct! (+${qResult.points}pt${qResult.points !== 1 ? 's' : ''})`
                         : (() => {
                             const ca = qResult.correctAnswer;
-                            if (qType === 'multiple_choice' || qType === 'paraphrase') {
+                            if (qType === 'multiple_choice' || qType === 'paraphrase' || qType === 'short_answer') {
                               const idx = typeof ca === 'number' ? ca : parseInt(String(ca), 10);
                               return `Incorrect — correct answer: ${OPTION_LABELS[idx]}. ${qResult.correctOptionText ?? ''}`;
                             }

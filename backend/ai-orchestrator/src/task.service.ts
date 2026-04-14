@@ -239,8 +239,8 @@ export class TaskService {
                         '   - 2 questions with difficulty "B2" (inference and detail — True/False/Not Given):\n' +
                         '     { "type": "true_false_ng", "difficulty": "B2", "points": 2, "question": string, "correctAnswer": "T" | "F" | "NG" }\n' +
                         '     For "NG": the statement must be neither confirmed nor denied by the passage text.\n' +
-                        '   - 4 questions with difficulty "C1" (vocabulary in context or nuance — short written answer):\n' +
-                        '     { "type": "short_answer", "difficulty": "C1", "points": 3, "question": string, "correctAnswer": string (1-5 words, the canonical answer) }\n',
+                        '   - 4 questions with difficulty "C1" (vocabulary in context or nuance — choose the best answer):\n' +
+                        '     { "type": "short_answer", "difficulty": "C1", "points": 3, "question": string, "options": [4 strings], "correctAnswer": integer 0-3 }\n',
                       C2:
                         '2. "questions": an array of EXACTLY 8 question objects in this order:\n' +
                         '   - 2 questions with difficulty "B1" (straightforward factual recall):\n' +
@@ -248,8 +248,8 @@ export class TaskService {
                         '   - 2 questions with difficulty "B2" (inference and detail — True/False/Not Given):\n' +
                         '     { "type": "true_false_ng", "difficulty": "B2", "points": 2, "question": string, "correctAnswer": "T" | "F" | "NG" }\n' +
                         '     For "NG": the statement must be neither confirmed nor denied by the passage text.\n' +
-                        '   - 2 questions with difficulty "C1" (vocabulary in context or nuance — short written answer):\n' +
-                        '     { "type": "short_answer", "difficulty": "C1", "points": 3, "question": string, "correctAnswer": string (1-5 words, the canonical answer) }\n' +
+                        '   - 2 questions with difficulty "C1" (vocabulary in context or nuance — choose the best answer):\n' +
+                        '     { "type": "short_answer", "difficulty": "C1", "points": 3, "question": string, "options": [4 strings], "correctAnswer": integer 0-3 }\n' +
                         '   - 2 questions with difficulty "C2" (paraphrase / speaker intent):\n' +
                         '     { "type": "paraphrase", "difficulty": "C2", "points": 4, "question": string, "options": [4 strings], "correctAnswer": integer 0-3 }\n',
                     };
@@ -314,12 +314,17 @@ export class TaskService {
             };
           }
           if (type === 'short_answer') {
+            const opts = Array.isArray(q?.options) && q.options.length === 4
+              ? q.options.map((o: any) => String(o))
+              : ['Option A', 'Option B', 'Option C', 'Option D'];
             return {
               type: 'short_answer' as const,
               difficulty,
               points,
               question: String(q?.question || `Question ${i + 1}`),
-              correctAnswer: String(q?.correctAnswer || ''),
+              options: opts as [string, string, string, string],
+              correctAnswer: typeof q?.correctAnswer === 'number' && q.correctAnswer >= 0 && q.correctAnswer <= 3
+                ? q.correctAnswer : 0,
             };
           }
           if (type === 'paraphrase') {
@@ -797,10 +802,10 @@ export class TaskService {
 
     // C1 questions (short_answer, 3pts)
     const c1: ListeningQuestionV2[] = [
-      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What do people avoid by working remotely?', correctAnswer: 'long commutes' },
-      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What do managers worry about when people work remotely?', correctAnswer: 'team culture' },
-      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What do flexible arrangements give workers according to studies?', correctAnswer: 'job satisfaction' },
-      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What problem do some workers report when working remotely?', correctAnswer: 'feeling disconnected' },
+      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What do people avoid by working remotely?', options: ['long commutes', 'team meetings', 'office noise', 'salary cuts'], correctAnswer: 0 },
+      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What do managers worry about when people work remotely?', options: ['team culture', 'internet speed', 'office costs', 'working hours'], correctAnswer: 0 },
+      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What do flexible arrangements give workers according to studies?', options: ['job satisfaction', 'higher salaries', 'more holidays', 'faster promotions'], correctAnswer: 0 },
+      { type: 'short_answer', difficulty: 'C1', points: 3, question: 'What problem do some workers report when working remotely?', options: ['feeling disconnected', 'lower pay', 'longer hours', 'poor equipment'], correctAnswer: 0 },
     ];
 
     // C2 questions (paraphrase, 4pts)

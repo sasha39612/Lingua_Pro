@@ -136,7 +136,7 @@ Then aggregates scores (merging speaking + listening into `avg_pronunciation_sco
 |----------|---------------|-----------------|
 | `SpeechService` | Audio transcription, phoneme extraction, word alignment | Azure Speech SDK (primary); Whisper fallback |
 | `TextAiService` | Text analysis — grammar, corrections, feedback | `OPENAI_TEXT_MODEL` (default `gpt-4o`) |
-| `TaskService` | CEFR task generation; `skill=writing` → `WritingTask` JSON in `prompt`; `skill=reading` → passage + 16 questions; `generateListeningExercise()` → 8-question CEFR-graded exercise (2×B1 MC, 2×B2 T/F/NG, 2×C1 short_answer, 2×C2 paraphrase) with weighted scoring 1–4 pts, total 20 | `OPENAI_TASK_MODEL` (default `gpt-4o-mini`) |
+| `TaskService` | CEFR task generation; `skill=writing` → `WritingTask` JSON in `prompt`; `skill=reading` → passage + 16 questions; `generateListeningExercise()` → 8-question CEFR-graded exercise (2×B1 MC, 2×B2 T/F/NG, 2×C1 short_answer, 2×C2 paraphrase) with weighted scoring 1–4 pts, total 20; **all question types use 4 options + numeric `correctAnswer` 0-3** — `short_answer` and `paraphrase` render as dropdowns on the frontend | `OPENAI_TASK_MODEL` (default `gpt-4o-mini`) |
 | `PronunciationAiService` | Human-readable pronunciation feedback string **only** | `OPENAI_EVAL_MODEL` (default `gpt-4o`) |
 | `TtsService` | Text-to-speech audio generation → base64 MP3 | `OPENAI_TTS_MODEL` (default `gpt-4o-mini-tts`) |
 

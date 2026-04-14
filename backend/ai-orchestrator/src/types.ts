@@ -138,7 +138,8 @@ export interface ListeningShortAnswerQuestion {
   difficulty: ListeningDifficulty;
   points: number;
   question: string;
-  correctAnswer: string; // canonical 1–5 word answer for fuzzy match
+  options: [string, string, string, string];
+  correctAnswer: number; // 0-based index into options
 }
 
 export interface ListeningParaphraseQuestion {
