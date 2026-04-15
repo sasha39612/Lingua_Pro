@@ -88,6 +88,10 @@ export class StatsService {
       if (from) url.searchParams.set('from', from);
       if (userId) url.searchParams.set('userId', userId);
       const resp = await fetch(url.toString());
+      if (!resp.ok) {
+        this.logger.warn(`[fetchTexts] text-service returned ${resp.status} for language=${language}`);
+        return [];
+      }
       const data = await resp.json() as { texts?: { textScore: number | null; feedback: string | null; createdAt: string }[] };
       return data?.texts ?? [];
     } catch (err: any) {
@@ -107,6 +111,10 @@ export class StatsService {
       if (from) url.searchParams.set('from', from);
       if (userId) url.searchParams.set('userId', userId);
       const resp = await fetch(url.toString());
+      if (!resp.ok) {
+        this.logger.warn(`[fetchAudioRecords] audio-service returned ${resp.status} for language=${language}`);
+        return [];
+      }
       const data = await resp.json() as { records?: { pronunciationScore: number | null; feedback: string | null; createdAt: string }[] };
       return data?.records ?? [];
     } catch (err: any) {
@@ -126,6 +134,10 @@ export class StatsService {
       if (from) url.searchParams.set('from', from);
       if (userId) url.searchParams.set('userId', userId);
       const resp = await fetch(url.toString());
+      if (!resp.ok) {
+        this.logger.warn(`[fetchListeningScores] audio-service returned ${resp.status} for language=${language}`);
+        return [];
+      }
       const data = await resp.json() as { scores?: { score: number; createdAt: string }[] };
       return data?.scores ?? [];
     } catch (err: any) {
