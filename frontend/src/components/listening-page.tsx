@@ -2,7 +2,9 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { LabFrame } from '@/components/lab-frame';
+import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
+import type { AppLanguage } from '@/lib/types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +56,23 @@ interface AnswersResult {
 const OPTION_LABELS = ['A', 'B', 'C', 'D'] as const;
 const MAX_PLAYS = 2;
 
+const LEVEL_OPTIONS = [
+  { value: 'A1', label: 'A1' },
+  { value: 'A2', label: 'A2' },
+  { value: 'B1', label: 'B1' },
+  { value: 'B2', label: 'B2' },
+  { value: 'C1', label: 'C1' },
+  { value: 'C2', label: 'C2' },
+];
+
+const LANGUAGE_OPTIONS = [
+  { value: 'English', label: 'English' },
+  { value: 'German', label: 'German' },
+  { value: 'Albanian', label: 'Albanian' },
+  { value: 'Polish', label: 'Polish' },
+  { value: 'Ukrainian', label: 'Ukrainian' },
+];
+
 const DIFFICULTY_BADGE: Record<ListeningDifficulty, string> = {
   B1: 'bg-green-100 text-green-700',
   B2: 'bg-blue-100 text-blue-700',
@@ -73,6 +92,8 @@ export function ListeningPage() {
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const user = useAppStore((s) => s.user);
+  const setLanguage = useAppStore((s) => s.setLanguage);
+  const setLevel = useAppStore((s) => s.setLevel);
 
   const [task, setTask] = useState<ListeningTask | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<Array<number | string | null>>([]);
@@ -168,10 +189,25 @@ export function ListeningPage() {
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <section className="rounded-2xl bg-white p-5 shadow-float">
-          <h1 className="text-2xl font-bold">Listening</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {language} · {level}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold">Listening</h1>
+            <div className="flex gap-2">
+              <div className="w-36">
+                <SelectDropdown
+                  value={language}
+                  options={LANGUAGE_OPTIONS}
+                  onChange={(v) => setLanguage(v as AppLanguage)}
+                />
+              </div>
+              <div className="w-24">
+                <SelectDropdown
+                  value={level}
+                  options={LEVEL_OPTIONS}
+                  onChange={setLevel}
+                />
+              </div>
+            </div>
+          </div>
 
           {!task && !loadingTask && (
             <button
