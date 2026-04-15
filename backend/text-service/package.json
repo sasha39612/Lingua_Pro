@@ -37,6 +37,6 @@
     "prisma": "^7.4.2",
     "ts-node": "*",
     "typescript": "*",
-    "vitest": "^2.0.0"
+    "vitest": "^3.0.0"
   }
 }
