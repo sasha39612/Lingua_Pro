@@ -164,13 +164,13 @@ describe('AudioService', () => {
     it('delegates with language and optional from param', async () => {
       mockAudioRepository.getRecordsByLanguage.mockResolvedValue({ records: [] });
       await service.getRecordsByLanguage('english', '2026-01-01');
-      expect(mockAudioRepository.getRecordsByLanguage).toHaveBeenCalledWith('english', '2026-01-01');
+      expect(mockAudioRepository.getRecordsByLanguage).toHaveBeenCalledWith('english', '2026-01-01', undefined);
     });
 
     it('delegates without from param when not provided', async () => {
       mockAudioRepository.getRecordsByLanguage.mockResolvedValue({ records: [] });
       await service.getRecordsByLanguage('german');
-      expect(mockAudioRepository.getRecordsByLanguage).toHaveBeenCalledWith('german', undefined);
+      expect(mockAudioRepository.getRecordsByLanguage).toHaveBeenCalledWith('german', undefined, undefined);
     });
   });
 
@@ -580,7 +580,7 @@ describe('AudioService', () => {
 
       const result = await service.getListeningScoresByLanguage('english');
 
-      expect(mockAudioRepository.getListeningScoresByLanguage).toHaveBeenCalledWith('english', undefined);
+      expect(mockAudioRepository.getListeningScoresByLanguage).toHaveBeenCalledWith('english', undefined, undefined);
       expect(result).toEqual({ scores });
     });
 
@@ -592,6 +592,7 @@ describe('AudioService', () => {
       expect(mockAudioRepository.getListeningScoresByLanguage).toHaveBeenCalledWith(
         'german',
         '2026-01-01T00:00:00.000Z',
+        undefined,
       );
     });
 

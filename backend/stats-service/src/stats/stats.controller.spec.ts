@@ -33,7 +33,7 @@ describe('StatsController', () => {
 
       const result = await controller.getStats({ language: 'english', period: 'week' });
 
-      expect(mockService.getStats).toHaveBeenCalledWith('ENGLISH', 'week');
+      expect(mockService.getStats).toHaveBeenCalledWith('ENGLISH', 'week', undefined);
       expect(result).toEqual(statsResult);
     });
 
@@ -43,7 +43,7 @@ describe('StatsController', () => {
 
       await controller.getStats({ language: 'german', period: 'month' });
 
-      expect(mockService.getStats).toHaveBeenCalledWith('GERMAN', 'month');
+      expect(mockService.getStats).toHaveBeenCalledWith('GERMAN', 'month', undefined);
     });
 
     it('passes "all" period correctly', async () => {
@@ -52,7 +52,7 @@ describe('StatsController', () => {
 
       await controller.getStats({ language: 'Polish', period: 'all' });
 
-      expect(mockService.getStats).toHaveBeenCalledWith('POLISH', 'all');
+      expect(mockService.getStats).toHaveBeenCalledWith('POLISH', 'all', undefined);
     });
 
     it('propagates service errors', async () => {

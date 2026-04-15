@@ -169,7 +169,7 @@ describe('AudioController', () => {
 
       const result = await controller.byLanguage('english');
 
-      expect(mockService.getRecordsByLanguage).toHaveBeenCalledWith('english', undefined);
+      expect(mockService.getRecordsByLanguage).toHaveBeenCalledWith('english', undefined, undefined);
       expect(result).toEqual({ records: [] });
     });
 
@@ -179,7 +179,7 @@ describe('AudioController', () => {
 
       await controller.byLanguage('english', '2026-01-01');
 
-      expect(mockService.getRecordsByLanguage).toHaveBeenCalledWith('english', '2026-01-01');
+      expect(mockService.getRecordsByLanguage).toHaveBeenCalledWith('english', '2026-01-01', undefined);
     });
 
     it('throws BadRequestException when language is missing', async () => {
@@ -198,7 +198,7 @@ describe('AudioController', () => {
 
       const result = await controller.listeningByLanguage('english');
 
-      expect(mockService.getListeningScoresByLanguage).toHaveBeenCalledWith('english', undefined);
+      expect(mockService.getListeningScoresByLanguage).toHaveBeenCalledWith('english', undefined, undefined);
       expect(result).toEqual({ scores });
     });
 
@@ -208,7 +208,7 @@ describe('AudioController', () => {
 
       await controller.listeningByLanguage('german', '2026-01-01');
 
-      expect(mockService.getListeningScoresByLanguage).toHaveBeenCalledWith('german', '2026-01-01');
+      expect(mockService.getListeningScoresByLanguage).toHaveBeenCalledWith('german', '2026-01-01', undefined);
     });
 
     it('throws BadRequestException when language is missing', async () => {

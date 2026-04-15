@@ -133,7 +133,7 @@ describe('TextController', () => {
 
       const result = await controller.byLanguage('Polish');
 
-      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('Polish', undefined, undefined);
+      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('Polish', undefined, undefined, undefined);
       expect(result).toEqual(data);
     });
 
@@ -143,7 +143,7 @@ describe('TextController', () => {
 
       await controller.byLanguage('English', '2026-01-01');
 
-      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('English', '2026-01-01', undefined);
+      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('English', '2026-01-01', undefined, undefined);
     });
 
     it('passes optional skill parameter', async () => {
@@ -152,7 +152,7 @@ describe('TextController', () => {
 
       await controller.byLanguage('English', undefined, 'reading');
 
-      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('English', undefined, 'reading');
+      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('English', undefined, 'reading', undefined);
     });
 
     it('passes both from and skill when provided', async () => {
@@ -161,7 +161,7 @@ describe('TextController', () => {
 
       await controller.byLanguage('German', '2026-01-01', 'writing');
 
-      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('German', '2026-01-01', 'writing');
+      expect(mockService.getTextsByLanguage).toHaveBeenCalledWith('German', '2026-01-01', 'writing', undefined);
     });
 
     it('propagates service errors', async () => {
