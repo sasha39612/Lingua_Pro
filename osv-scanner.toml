@@ -1,3 +1,7 @@
 [[IgnoredVulns]]
 id = "GHSA-9q82-xgwf-vj6h"
 reason = "apollo-server-core@3.x has no fix available; @apollo/server 4→5 is a breaking API change incompatible with @nestjs/graphql@11 used by text-service"
+
+[[IgnoredVulns]]
+id = "GHSA-2g4f-4pwh-qvx6"
+reason = "ajv 8.18.0 breaks @eslint/eslintrc internal API (Cannot set properties of undefined, setting defaultMeta); no compatible fix available without upgrading ESLint"
