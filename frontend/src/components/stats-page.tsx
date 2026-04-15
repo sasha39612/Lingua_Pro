@@ -65,7 +65,8 @@ export function StatsPage() {
   );
 
   const nextLevel = getNextLevel(level);
-  const textPct = data ? Math.round(data.avg_text_score * 100) : 0;
+  const readingPct = data ? Math.round((data.avg_reading_score ?? 0) * 100) : 0;
+  const writingPct = data ? Math.round((data.avg_writing_score ?? 0) * 100) : 0;
   const speakingPct = data ? Math.round((data.avg_speaking_score ?? data.avg_pronunciation_score) * 100) : 0;
   const listeningPct = data ? Math.round((data.avg_listening_score ?? 0) * 100) : 0;
   const examReadiness = data
@@ -83,7 +84,8 @@ export function StatsPage() {
     period === 'week' ? 'this week' : period === 'month' ? 'this month' : 'all time';
 
   const examSkillScores: ExamSkillScores = {
-    readingWriting: textPct,
+    reading: readingPct,
+    writing: writingPct,
     speaking: speakingPct,
     listening: listeningPct,
   };

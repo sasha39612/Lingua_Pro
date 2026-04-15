@@ -2,8 +2,8 @@ import { StatsService } from './stats.service';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeTextRow(textScore: number | null, feedback: string | null, date: string) {
-  return { textScore, feedback, createdAt: `${date}T10:00:00.000Z` };
+function makeTextRow(textScore: number | null, feedback: string | null, date: string, skill = 'writing') {
+  return { textScore, feedback, createdAt: `${date}T10:00:00.000Z`, skill };
 }
 
 function makeAudioRow(pronunciationScore: number | null, feedback: string | null, date: string) {
@@ -38,9 +38,9 @@ describe('StatsService', () => {
     listeningScores: { score: number; createdAt: string }[] = [],
   ) {
     globalFetch
-      .mockResolvedValueOnce({ json: async () => ({ texts }) })
-      .mockResolvedValueOnce({ json: async () => ({ records: audioRecords }) })
-      .mockResolvedValueOnce({ json: async () => ({ scores: listeningScores }) });
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ texts }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ records: audioRecords }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ scores: listeningScores }) });
   }
 
   // ─── getStats: averages ────────────────────────────────────────────────────
@@ -70,6 +70,33 @@ describe('StatsService', () => {
       expect(stats.avg_pronunciation_score).toBe(0);
       expect(stats.mistakes_total).toBe(0);
       expect(stats.history).toEqual([]);
+    });
+
+    it('separates avg_reading_score and avg_writing_score by skill', async () => {
+      mockAllFetches(
+        [
+          makeTextRow(0.8, null, '2026-01-01', 'reading'),
+          makeTextRow(0.6, null, '2026-01-02', 'reading'),
+          makeTextRow(0.9, null, '2026-01-03', 'writing'),
+        ],
+        [],
+      );
+
+      const stats = await service.getStats('English', 'all');
+      expect(stats.avg_reading_score).toBeCloseTo(0.7);
+      expect(stats.avg_writing_score).toBeCloseTo(0.9);
+      expect(stats.avg_text_score).toBeCloseTo((0.8 + 0.6 + 0.9) / 3);
+    });
+
+    it('returns zero for reading/writing when no records of that skill exist', async () => {
+      mockAllFetches(
+        [makeTextRow(0.75, null, '2026-01-01', 'writing')],
+        [],
+      );
+
+      const stats = await service.getStats('English', 'all');
+      expect(stats.avg_reading_score).toBe(0);
+      expect(stats.avg_writing_score).toBeCloseTo(0.75);
     });
 
     it('ignores null scores in average calculation', async () => {
@@ -269,8 +296,8 @@ describe('StatsService', () => {
     it('returns empty stats if text-service is unreachable', async () => {
       globalFetch
         .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) })
-        .mockResolvedValueOnce({ json: async () => ({ scores: [] }) });
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ records: [] }) })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ scores: [] }) });
 
       const stats = await service.getStats('English', 'week');
       expect(stats.avg_text_score).toBe(0);
@@ -279,8 +306,8 @@ describe('StatsService', () => {
 
     it('returns partial stats if only listening service is unreachable', async () => {
       globalFetch
-        .mockResolvedValueOnce({ json: async () => ({ texts: [makeTextRow(0.8, null, '2026-01-01')] }) })
-        .mockResolvedValueOnce({ json: async () => ({ records: [] }) })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ texts: [makeTextRow(0.8, null, '2026-01-01')] }) })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ records: [] }) })
         .mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
       const stats = await service.getStats('English', 'week');

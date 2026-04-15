@@ -13,7 +13,8 @@ export interface SummaryStats {
 }
 
 export interface ExamSkillScores {
-  readingWriting: number;
+  reading: number;
+  writing: number;
   speaking: number;
   listening: number;
 }

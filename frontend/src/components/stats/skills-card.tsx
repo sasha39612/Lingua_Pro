@@ -29,9 +29,10 @@ function getStatusMeta(value: number): StatusMeta {
 }
 
 const SKILL_GROUPS: Array<{ key: keyof ExamSkillScores; label: string; color: string }> = [
-  { key: 'readingWriting', label: 'Reading & Writing', color: 'bg-teal-500' },
-  { key: 'speaking',       label: 'Speaking',          color: 'bg-violet-500' },
-  { key: 'listening',      label: 'Listening',         color: 'bg-blue-500' },
+  { key: 'reading',   label: 'Reading',   color: 'bg-teal-500'    },
+  { key: 'writing',   label: 'Writing',   color: 'bg-emerald-500' },
+  { key: 'speaking',  label: 'Speaking',  color: 'bg-violet-500'  },
+  { key: 'listening', label: 'Listening', color: 'bg-blue-500'    },
 ];
 
 interface SkillsCardProps {

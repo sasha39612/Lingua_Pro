@@ -31,6 +31,16 @@ export class StatsService {
       .map((t) => t.textScore)
       .filter((s): s is number => typeof s === 'number');
 
+    const readingScores = textData
+      .filter((t) => t.skill === 'reading')
+      .map((t) => t.textScore)
+      .filter((s): s is number => typeof s === 'number');
+
+    const writingScores = textData
+      .filter((t) => !t.skill || t.skill !== 'reading')
+      .map((t) => t.textScore)
+      .filter((s): s is number => typeof s === 'number');
+
     const audioScores = audioData
       .map((a) => a.pronunciationScore)
       .filter((s): s is number => typeof s === 'number');
@@ -41,6 +51,12 @@ export class StatsService {
 
     const avg_text_score =
       textScores.length > 0 ? textScores.reduce((a, b) => a + b, 0) / textScores.length : 0;
+
+    const avg_reading_score =
+      readingScores.length > 0 ? readingScores.reduce((a, b) => a + b, 0) / readingScores.length : 0;
+
+    const avg_writing_score =
+      writingScores.length > 0 ? writingScores.reduce((a, b) => a + b, 0) / writingScores.length : 0;
 
     const avg_speaking_score =
       audioScores.length > 0 ? audioScores.reduce((a, b) => a + b, 0) / audioScores.length : 0;
@@ -67,6 +83,8 @@ export class StatsService {
       language: requestedLanguage,
       period,
       avg_text_score,
+      avg_reading_score,
+      avg_writing_score,
       avg_speaking_score,
       avg_listening_score,
       avg_pronunciation_score,
@@ -81,7 +99,7 @@ export class StatsService {
     language: string,
     from?: string,
     userId?: string,
-  ): Promise<{ textScore: number | null; feedback: string | null; createdAt: string }[]> {
+  ): Promise<{ textScore: number | null; feedback: string | null; createdAt: string; skill?: string }[]> {
     try {
       const url = new URL(`${this.textServiceUrl}/text/by-language`);
       url.searchParams.set('language', language);
@@ -92,7 +110,7 @@ export class StatsService {
         this.logger.warn(`[fetchTexts] text-service returned ${resp.status} for language=${language}`);
         return [];
       }
-      const data = await resp.json() as { texts?: { textScore: number | null; feedback: string | null; createdAt: string }[] };
+      const data = await resp.json() as { texts?: { textScore: number | null; feedback: string | null; createdAt: string; skill?: string }[] };
       return data?.texts ?? [];
     } catch (err: any) {
       this.logger.warn('could not fetch texts from text-service', err?.message);

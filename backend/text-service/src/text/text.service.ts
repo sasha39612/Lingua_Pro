@@ -101,7 +101,7 @@ export class TextService {
     try {
       const texts = await this.prisma.text.findMany({
         where,
-        select: { textScore: true, feedback: true, createdAt: true },
+        select: { textScore: true, feedback: true, createdAt: true, skill: true },
         orderBy: { createdAt: 'asc' },
       });
       return { texts };
