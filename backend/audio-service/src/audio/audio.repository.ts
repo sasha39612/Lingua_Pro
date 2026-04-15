@@ -243,7 +243,9 @@ export class AudioRepository {
         `;
         return rows.map((r) => ({ score: r.score, createdAt: r.created_at }));
       }
-    } catch {
+    } catch (err: any) {
+      // Log so migration/DB issues are visible in service logs rather than silently ignored
+      console.error('[AudioRepository] getListeningScoresByLanguage failed:', err?.message ?? err);
       return [];
     }
   }
