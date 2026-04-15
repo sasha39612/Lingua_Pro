@@ -83,10 +83,14 @@ export class AudioRepository {
   async getRecordsByLanguage(
     language: string,
     from?: string,
+    userId?: string,
   ): Promise<{ records: { pronunciationScore: number | null; feedback: string | null; createdAt: Date }[] }> {
     const where: any = { language: language.toLowerCase() };
     if (from) {
       where.createdAt = { gte: new Date(from) };
+    }
+    if (userId) {
+      where.userId = parseInt(userId, 10);
     }
     const records = await this.prisma.audioRecord.findMany({
       where,
@@ -193,25 +197,52 @@ export class AudioRepository {
   async getListeningScoresByLanguage(
     language: string,
     from?: string,
+    userId?: string,
   ): Promise<{ score: number; createdAt: Date }[]> {
     try {
-      const rows = from
-        ? await this.prisma.$queryRaw<{ score: number; created_at: Date }[]>`
-            SELECT ls.score, ls.created_at
-            FROM listening_scores ls
-            INNER JOIN tasks t ON t.id = ls.task_id
-            WHERE t.language = ${language.toLowerCase()}
-              AND ls.created_at >= ${new Date(from)}
-            ORDER BY ls.created_at ASC
-          `
-        : await this.prisma.$queryRaw<{ score: number; created_at: Date }[]>`
-            SELECT ls.score, ls.created_at
-            FROM listening_scores ls
-            INNER JOIN tasks t ON t.id = ls.task_id
-            WHERE t.language = ${language.toLowerCase()}
-            ORDER BY ls.created_at ASC
-          `;
-      return rows.map((r) => ({ score: r.score, createdAt: r.created_at }));
+      const lang = language.toLowerCase();
+      const userIdInt = userId ? parseInt(userId, 10) : null;
+      if (from && userIdInt !== null) {
+        const rows = await this.prisma.$queryRaw<{ score: number; created_at: Date }[]>`
+          SELECT ls.score, ls.created_at
+          FROM listening_scores ls
+          INNER JOIN tasks t ON t.id = ls.task_id
+          WHERE t.language = ${lang}
+            AND ls.user_id = ${userIdInt}
+            AND ls.created_at >= ${new Date(from)}
+          ORDER BY ls.created_at ASC
+        `;
+        return rows.map((r) => ({ score: r.score, createdAt: r.created_at }));
+      } else if (from) {
+        const rows = await this.prisma.$queryRaw<{ score: number; created_at: Date }[]>`
+          SELECT ls.score, ls.created_at
+          FROM listening_scores ls
+          INNER JOIN tasks t ON t.id = ls.task_id
+          WHERE t.language = ${lang}
+            AND ls.created_at >= ${new Date(from)}
+          ORDER BY ls.created_at ASC
+        `;
+        return rows.map((r) => ({ score: r.score, createdAt: r.created_at }));
+      } else if (userIdInt !== null) {
+        const rows = await this.prisma.$queryRaw<{ score: number; created_at: Date }[]>`
+          SELECT ls.score, ls.created_at
+          FROM listening_scores ls
+          INNER JOIN tasks t ON t.id = ls.task_id
+          WHERE t.language = ${lang}
+            AND ls.user_id = ${userIdInt}
+          ORDER BY ls.created_at ASC
+        `;
+        return rows.map((r) => ({ score: r.score, createdAt: r.created_at }));
+      } else {
+        const rows = await this.prisma.$queryRaw<{ score: number; created_at: Date }[]>`
+          SELECT ls.score, ls.created_at
+          FROM listening_scores ls
+          INNER JOIN tasks t ON t.id = ls.task_id
+          WHERE t.language = ${lang}
+          ORDER BY ls.created_at ASC
+        `;
+        return rows.map((r) => ({ score: r.score, createdAt: r.created_at }));
+      }
     } catch {
       return [];
     }

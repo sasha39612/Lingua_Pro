@@ -1,4 +1,4 @@
-import { IsIn, IsString, Length } from 'class-validator';
+import { IsIn, IsOptional, IsString, Length } from 'class-validator';
 
 export class GetStatsQueryDto {
   @IsString()
@@ -7,4 +7,8 @@ export class GetStatsQueryDto {
 
   @IsIn(['week', 'month', 'all'])
   period!: 'week' | 'month' | 'all';
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }

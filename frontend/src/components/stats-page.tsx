@@ -28,6 +28,7 @@ import { Period, ChartData, ExamSkillScores, TargetLevel } from '@/components/st
 export function StatsPage() {
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
+  const user = useAppStore((s) => s.user);
   const [period, setPeriod] = useState<Period>('week');
   const [targetLevel, setTargetLevel] = useState<TargetLevel>(() => {
     if (typeof window !== 'undefined') {
@@ -42,15 +43,16 @@ export function StatsPage() {
   };
 
   const { data, isLoading, isError } = useQuery<StatsData>({
-    queryKey: ['stats', language, period],
+    queryKey: ['stats', language, period, user?.id],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/stats?language=${encodeURIComponent(language)}&period=${period}`,
-      );
+      const params = new URLSearchParams({ language, period });
+      if (user?.id) params.set('userId', user.id);
+      const res = await fetch(`/api/stats?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch stats');
       return res.json();
     },
     staleTime: 60_000,
+    enabled: !!user,
   });
 
   // ── Derived values ───────────────────────────────────────────────────────────

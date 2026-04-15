@@ -43,7 +43,8 @@ export class TextController {
     @Query('language') language: string,
     @Query('from') from?: string,
     @Query('skill') skill?: string,
+    @Query('userId') userId?: string,
   ) {
-    return this.textService.getTextsByLanguage(language, from, skill);
+    return this.textService.getTextsByLanguage(language, from, skill, userId);
   }
 }

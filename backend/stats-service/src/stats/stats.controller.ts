@@ -8,6 +8,6 @@ export class StatsController {
 
   @Get('stats')
   getStats(@Query() query: GetStatsQueryDto) {
-    return this.statsService.getStats(query.language.toUpperCase(), query.period);
+    return this.statsService.getStats(query.language.toUpperCase(), query.period, query.userId);
   }
 }

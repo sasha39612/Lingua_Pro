@@ -129,12 +129,12 @@ export class AudioService {
     return this.audioRepository.getListeningTasks(language, level);
   }
 
-  async getRecordsByLanguage(language: string, from?: string) {
-    return this.audioRepository.getRecordsByLanguage(language, from);
+  async getRecordsByLanguage(language: string, from?: string, userId?: string) {
+    return this.audioRepository.getRecordsByLanguage(language, from, userId);
   }
 
-  async getListeningScoresByLanguage(language: string, from?: string) {
-    const scores = await this.audioRepository.getListeningScoresByLanguage(language, from);
+  async getListeningScoresByLanguage(language: string, from?: string, userId?: string) {
+    const scores = await this.audioRepository.getListeningScoresByLanguage(language, from, userId);
     return { scores };
   }
 

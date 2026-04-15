@@ -15,16 +15,16 @@ export class StatsService {
     this.audioServiceUrl = process.env.AUDIO_SERVICE_URL || 'http://audio-service:4003';
   }
 
-  async getStats(language: string, period: Period) {
+  async getStats(language: string, period: Period, userId?: string) {
     const requestedLanguage = language.trim().toUpperCase();
     const normalizedLanguage = this.normalizeLanguage(requestedLanguage);
     const fromDate = this.getFromDate(period);
     const fromParam = fromDate ? fromDate.toISOString() : undefined;
 
     const [textData, audioData, listeningData] = await Promise.all([
-      this.fetchTexts(normalizedLanguage, fromParam),
-      this.fetchAudioRecords(normalizedLanguage, fromParam),
-      this.fetchListeningScores(normalizedLanguage, fromParam),
+      this.fetchTexts(normalizedLanguage, fromParam, userId),
+      this.fetchAudioRecords(normalizedLanguage, fromParam, userId),
+      this.fetchListeningScores(normalizedLanguage, fromParam, userId),
     ]);
 
     const textScores = textData
@@ -80,11 +80,13 @@ export class StatsService {
   private async fetchTexts(
     language: string,
     from?: string,
+    userId?: string,
   ): Promise<{ textScore: number | null; feedback: string | null; createdAt: string }[]> {
     try {
       const url = new URL(`${this.textServiceUrl}/text/by-language`);
       url.searchParams.set('language', language);
       if (from) url.searchParams.set('from', from);
+      if (userId) url.searchParams.set('userId', userId);
       const resp = await fetch(url.toString());
       const data = await resp.json() as { texts?: { textScore: number | null; feedback: string | null; createdAt: string }[] };
       return data?.texts ?? [];
@@ -97,11 +99,13 @@ export class StatsService {
   private async fetchAudioRecords(
     language: string,
     from?: string,
+    userId?: string,
   ): Promise<{ pronunciationScore: number | null; feedback: string | null; createdAt: string }[]> {
     try {
       const url = new URL(`${this.audioServiceUrl}/audio/by-language`);
       url.searchParams.set('language', language);
       if (from) url.searchParams.set('from', from);
+      if (userId) url.searchParams.set('userId', userId);
       const resp = await fetch(url.toString());
       const data = await resp.json() as { records?: { pronunciationScore: number | null; feedback: string | null; createdAt: string }[] };
       return data?.records ?? [];
@@ -114,11 +118,13 @@ export class StatsService {
   private async fetchListeningScores(
     language: string,
     from?: string,
+    userId?: string,
   ): Promise<{ score: number; createdAt: string }[]> {
     try {
       const url = new URL(`${this.audioServiceUrl}/audio/listening-by-language`);
       url.searchParams.set('language', language);
       if (from) url.searchParams.set('from', from);
+      if (userId) url.searchParams.set('userId', userId);
       const resp = await fetch(url.toString());
       const data = await resp.json() as { scores?: { score: number; createdAt: string }[] };
       return data?.scores ?? [];

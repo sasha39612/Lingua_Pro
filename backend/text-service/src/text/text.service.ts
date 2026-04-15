@@ -93,10 +93,11 @@ export class TextService {
     }
   }
 
-  async getTextsByLanguage(language: string, from?: string, skill?: string) {
+  async getTextsByLanguage(language: string, from?: string, skill?: string, userId?: string) {
     const where: any = { language: language.toLowerCase() };
     if (from) where.createdAt = { gte: new Date(from) };
     if (skill) where.skill = skill;
+    if (userId) where.userId = parseInt(userId, 10);
     try {
       const texts = await this.prisma.text.findMany({
         where,

@@ -6,12 +6,16 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const language = searchParams.get('language') ?? 'English';
   const period = searchParams.get('period') ?? 'week';
+  const userId = searchParams.get('userId');
 
   const statsServiceUrl = process.env.STATS_SERVICE_URL || 'http://stats-service:4004';
 
+  const params = new URLSearchParams({ language, period });
+  if (userId) params.set('userId', userId);
+
   try {
     const res = await fetch(
-      `${statsServiceUrl}/stats?language=${encodeURIComponent(language)}&period=${encodeURIComponent(period)}`,
+      `${statsServiceUrl}/stats?${params.toString()}`,
       { signal: AbortSignal.timeout(10_000) },
     );
 

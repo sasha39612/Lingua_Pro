@@ -100,19 +100,27 @@ export class AudioController {
   }
 
   @Get('by-language')
-  async byLanguage(@Query('language') language: string, @Query('from') from?: string) {
+  async byLanguage(
+    @Query('language') language: string,
+    @Query('from') from?: string,
+    @Query('userId') userId?: string,
+  ) {
     if (!language) {
       throw new BadRequestException('language is required');
     }
-    return this.audioService.getRecordsByLanguage(language, from);
+    return this.audioService.getRecordsByLanguage(language, from, userId);
   }
 
   @Get('listening-by-language')
-  async listeningByLanguage(@Query('language') language: string, @Query('from') from?: string) {
+  async listeningByLanguage(
+    @Query('language') language: string,
+    @Query('from') from?: string,
+    @Query('userId') userId?: string,
+  ) {
     if (!language) {
       throw new BadRequestException('language is required');
     }
-    return this.audioService.getListeningScoresByLanguage(language, from);
+    return this.audioService.getListeningScoresByLanguage(language, from, userId);
   }
 
   @Post('comprehension/evaluate')
