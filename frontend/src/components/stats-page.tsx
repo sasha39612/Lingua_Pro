@@ -42,7 +42,7 @@ export function StatsPage() {
     localStorage.setItem('targetLevel', lvl);
   };
 
-  const { data, isLoading, isError, refetch } = useQuery<StatsData>({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery<StatsData>({
     queryKey: ['stats', language, period, user?.id],
     queryFn: async () => {
       const params = new URLSearchParams({ language, period });
@@ -53,6 +53,7 @@ export function StatsPage() {
     },
     staleTime: 0,
     refetchOnMount: true,
+    retry: 1,
     enabled: !!user,
   });
 
@@ -114,7 +115,7 @@ export function StatsPage() {
           onTargetLevelChange={handleTargetLevelChange}
           examReadiness={examReadiness}
           onRefresh={() => refetch()}
-          isRefreshing={isLoading}
+          isRefreshing={isFetching}
         />
 
         <SummaryCards
