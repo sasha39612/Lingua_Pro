@@ -147,6 +147,11 @@ export class TextService {
     let tasks: any[] = [];
     try {
       tasks = await this.prisma.task.findMany({ where: { language, level, skill: effectiveSkill } });
+      // Reading tasks must have questions stored; skip any that are missing them
+      // (can happen if tasks were cached before the questions column was added)
+      if (effectiveSkill === 'reading') {
+        tasks = tasks.filter((t: any) => t.questions != null);
+      }
     } catch (err: any) {
       this.logger.error('failed to query cached tasks', err?.message || err);
     }
