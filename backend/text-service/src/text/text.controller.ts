@@ -1,8 +1,9 @@
-import { Controller, Post, Body, Get, Query, Headers, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Headers, BadRequestException, Logger } from '@nestjs/common';
 import { TextService } from './text.service';
 
 @Controller('text')
 export class TextController {
+  private readonly logger = new Logger(TextController.name);
   constructor(private readonly textService: TextService) {}
 
   @Post('check')
@@ -24,6 +25,7 @@ export class TextController {
     @Body('skill') skill: string,
     @Body('score') score: number,
   ) {
+    this.logger.log(`score: userId=${userId} language=${language} skill=${skill} score=${score}`);
     const uid = parseInt(userId, 10);
     return this.textService.recordScore(uid, language, skill, score);
   }

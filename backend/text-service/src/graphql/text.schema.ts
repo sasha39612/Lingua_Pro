@@ -184,11 +184,12 @@ async function generateAndPersistTasks(language: string, level: string, skill: s
     for (const t of resp.data.tasks) {
       const normalizedLanguage = t.language?.toLowerCase() ?? language;
       try {
-        const { questions, ...taskFields } = t;
+        const { questions, focusPhonemes, ...taskFields } = t;
         const record = await prisma.task.create({
           data: {
             ...taskFields,
             language: normalizedLanguage,
+            focusPhonemes: focusPhonemes ?? [],
             ...(questions != null ? { questions } : {}),
           },
         });
