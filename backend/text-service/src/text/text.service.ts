@@ -74,7 +74,7 @@ export class TextService {
   }
 
   async recordScore(userId: number, language: string, skill: string, score: number) {
-    language = language.toLowerCase();
+    language = (language || 'english').toLowerCase();
     try {
       const record = await this.prisma.text.create({
         data: {
@@ -166,11 +166,12 @@ export class TextService {
           for (const t of resp.data.tasks) {
             const normalizedLanguage = t.language?.toLowerCase() ?? language;
             try {
-              const { questions, ...taskFields } = t;
+              const { questions, focusPhonemes, ...taskFields } = t;
               const record = await this.prisma.task.create({
                 data: {
                   ...taskFields,
                   language: normalizedLanguage,
+                  focusPhonemes: focusPhonemes ?? [],
                   ...(questions != null ? { questions } : {}),
                 },
               });

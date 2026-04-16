@@ -128,7 +128,7 @@ export function ReadingPage() {
       fetch('/api/text/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, language, skill: 'reading', score }),
+        body: JSON.stringify({ userId: user.id, language: language || 'English', skill: 'reading', score }),
       }).catch(() => { /* best-effort */ });
     }
   };
