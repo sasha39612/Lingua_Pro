@@ -250,13 +250,30 @@ describe('TextService', () => {
     it('returns cached tasks from DB without calling orchestrator', async () => {
       const { service, mockPrisma, mockHttp } = makeService();
 
-      const cachedTasks = [{ id: 1, language: 'English', level: 'A1', skill: 'reading', prompt: 'Task' }];
+      // Reading tasks must have questions stored; include them so the filter passes
+      const cachedTasks = [{ id: 1, language: 'English', level: 'A1', skill: 'reading', prompt: 'Task', questions: [{ type: 'multiple_choice', question: 'Q?' }] }];
       mockPrisma.task.findMany.mockResolvedValue(cachedTasks);
 
       const result = await service.getTasks('English', 'A1', 'reading');
 
       expect(result).toEqual(cachedTasks);
       expect(mockHttp.post).not.toHaveBeenCalled();
+    });
+
+    it('regenerates reading tasks when cached tasks have no questions', async () => {
+      const { service, mockPrisma, mockHttp } = makeService();
+
+      // Stale tasks without questions (e.g. cached before questions column was added)
+      const staleTasks = [{ id: 1, language: 'English', level: 'A1', skill: 'reading', prompt: 'Task', questions: null }];
+      const generatedTasks = [{ language: 'English', level: 'A1', skill: 'reading', prompt: 'New', questions: [{ type: 'multiple_choice' }] }];
+      mockPrisma.task.findMany.mockResolvedValue(staleTasks);
+      mockPrisma.task.create.mockResolvedValue({ id: 2, ...generatedTasks[0] });
+      mockHttp.post.mockReturnValue(of({ data: { tasks: generatedTasks } }));
+
+      const result = await service.getTasks('English', 'A1', 'reading');
+
+      expect(mockHttp.post).toHaveBeenCalled();
+      expect(result.length).toBeGreaterThan(0);
     });
 
     it('calls orchestrator and persists when DB has no cached tasks', async () => {
