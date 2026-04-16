@@ -8,3 +8,5 @@ pnpm-debug.log*
 src/generated/prisma/*.node
 src/generated/prisma/*.so*
 src/generated/prisma/*.dylib*
+src/generated/prisma/* 2.*
+src/generated/prisma/.*.icloud
