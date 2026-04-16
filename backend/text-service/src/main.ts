@@ -17,9 +17,9 @@ async function bootstrap() {
   await apolloServer.start();
 
   const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.use(json()); // parse JSON bodies for all REST routes
   expressApp.use(
     '/graphql',
-    json(),
     expressMiddleware(apolloServer, {
       context: async ({ req }: any) => {
         const rawUserId = req.headers['x-user-id'];
