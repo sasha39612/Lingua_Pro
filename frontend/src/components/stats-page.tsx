@@ -23,7 +23,7 @@ import {
   computeDelta,
   computePreviousReadiness,
 } from '@/components/stats/utils';
-import { Period, ChartData, ExamSkillScores, TargetLevel } from '@/components/stats/types';
+import { Period, ChartData, ExamSkillScores, ExamSkillCounts, TargetLevel } from '@/components/stats/types';
 
 export function StatsPage() {
   const language = useAppStore((s) => s.language);
@@ -42,7 +42,7 @@ export function StatsPage() {
     localStorage.setItem('targetLevel', lvl);
   };
 
-  const { data, isLoading, isError } = useQuery<StatsData>({
+  const { data, isLoading, isError, refetch } = useQuery<StatsData>({
     queryKey: ['stats', language, period, user?.id],
     queryFn: async () => {
       const params = new URLSearchParams({ language, period });
@@ -90,6 +90,13 @@ export function StatsPage() {
     listening: listeningPct,
   };
 
+  const examSkillCounts: ExamSkillCounts = {
+    reading: data?.reading_count ?? 0,
+    writing: data?.writing_count ?? 0,
+    speaking: data?.speaking_count ?? 0,
+    listening: data?.listening_count ?? 0,
+  };
+
   const charts: ChartData = {
     progressOverTime: data?.charts.progressOverTime ?? { labels: [], textScores: [], pronunciationScores: [] },
     mistakesByType: data?.charts.mistakesByType ?? { labels: [], values: [] },
@@ -106,6 +113,8 @@ export function StatsPage() {
           targetLevel={targetLevel}
           onTargetLevelChange={handleTargetLevelChange}
           examReadiness={examReadiness}
+          onRefresh={() => refetch()}
+          isRefreshing={isLoading}
         />
 
         <SummaryCards
@@ -121,7 +130,7 @@ export function StatsPage() {
             progressPct={examReadiness}
             isLoading={isLoading}
           />
-          <SkillsCard scores={examSkillScores} isLoading={isLoading} />
+          <SkillsCard scores={examSkillScores} counts={examSkillCounts} isLoading={isLoading} />
         </div>
 
         <ChartsSection charts={charts} isLoading={isLoading} />

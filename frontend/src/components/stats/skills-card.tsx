@@ -1,4 +1,4 @@
-import { ExamSkillScores } from './types';
+import { ExamSkillCounts, ExamSkillScores } from './types';
 
 interface ProgressBarProps {
   value: number;
@@ -37,27 +37,34 @@ const SKILL_GROUPS: Array<{ key: keyof ExamSkillScores; label: string; color: st
 
 interface SkillsCardProps {
   scores: ExamSkillScores;
+  counts: ExamSkillCounts;
   isLoading: boolean;
 }
 
-export function SkillsCard({ scores, isLoading }: SkillsCardProps) {
+export function SkillsCard({ scores, counts, isLoading }: SkillsCardProps) {
   return (
     <div className="rounded-2xl bg-white p-6 shadow-float">
       <h3 className="font-semibold text-slate-800">Exam Sections</h3>
       <div className="mt-4 space-y-5">
         {SKILL_GROUPS.map(({ key, label, color }) => {
           const pct = isLoading ? 0 : scores[key];
+          const count = isLoading ? 0 : counts[key];
           const meta = getStatusMeta(pct);
           return (
             <div key={key}>
               <div className="flex items-center justify-between text-sm text-slate-600">
                 <span>{label}</span>
-                <span>{isLoading ? '…' : `${pct}%`}</span>
+                <span className="flex items-center gap-2">
+                  {!isLoading && count > 0 && (
+                    <span className="text-xs text-slate-400">{count} {count === 1 ? 'session' : 'sessions'}</span>
+                  )}
+                  <span>{isLoading ? '…' : `${pct}%`}</span>
+                </span>
               </div>
               <ProgressBar value={pct} color={color} />
               {!isLoading && (
-                <p className={`mt-1 text-xs font-medium ${meta.color}`}>
-                  {meta.icon} {meta.label}
+                <p className={`mt-1 text-xs font-medium ${count === 0 ? 'text-slate-400' : meta.color}`}>
+                  {count === 0 ? 'No sessions yet' : `${meta.icon} ${meta.label}`}
                 </p>
               )}
             </div>

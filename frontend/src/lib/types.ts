@@ -27,6 +27,10 @@ export interface StatsData {
   avg_speaking_score: number;
   avg_listening_score: number;
   avg_pronunciation_score: number;
+  reading_count: number;
+  writing_count: number;
+  speaking_count: number;
+  listening_count: number;
   mistakes_total: number;
   mistake_counts_by_type: Record<string, number>;
   history: Array<{ date: string; text_score: number; pronunciation_score: number }>;

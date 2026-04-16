@@ -19,6 +19,13 @@ export interface ExamSkillScores {
   listening: number;
 }
 
+export interface ExamSkillCounts {
+  reading: number;
+  writing: number;
+  speaking: number;
+  listening: number;
+}
+
 export interface ChartData {
   progressOverTime: {
     labels: string[];
