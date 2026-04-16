@@ -101,6 +101,7 @@ export function ReadingPage() {
 
   const allAnswered =
     task !== null &&
+    task.questions.length > 0 &&
     task.questions.every((_, idx) => answers[idx] !== undefined && answers[idx] !== '');
 
   const handleSubmit = () => {
@@ -118,7 +119,7 @@ export function ReadingPage() {
     });
 
     const correctCount = results.filter((r) => r.correct).length;
-    const score = correctCount / task.questions.length;
+    const score = task.questions.length > 0 ? correctCount / task.questions.length : 0;
 
     setResult({ score, correct: correctCount, total: task.questions.length, results });
 

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Query, Headers } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Headers, BadRequestException } from '@nestjs/common';
 import { TextService } from './text.service';
 
 @Controller('text')
@@ -12,6 +12,7 @@ export class TextController {
     @Body('text') text: string,
     @Body('skill') skill?: string,
   ) {
+    if (!language) throw new BadRequestException('language is required');
     const uid = parseInt(userId, 10);
     return this.textService.analyzeText(uid, language, text, skill);
   }
@@ -23,6 +24,7 @@ export class TextController {
     @Body('skill') skill: string,
     @Body('score') score: number,
   ) {
+    if (!language) throw new BadRequestException('language is required');
     const uid = parseInt(userId, 10);
     return this.textService.recordScore(uid, language, skill, score);
   }
@@ -34,6 +36,8 @@ export class TextController {
     @Query('skill') skill?: string,
     @Headers('x-user-id') rawUserId?: string,
   ) {
+    if (!language) throw new BadRequestException('language is required');
+    if (!level) throw new BadRequestException('level is required');
     const userId = rawUserId ? parseInt(rawUserId, 10) : null;
     return this.textService.getTasks(language, level, skill, userId);
   }
@@ -45,6 +49,7 @@ export class TextController {
     @Query('skill') skill?: string,
     @Query('userId') userId?: string,
   ) {
+    if (!language) throw new BadRequestException('language is required');
     return this.textService.getTextsByLanguage(language, from, skill, userId);
   }
 }
