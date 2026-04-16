@@ -24,7 +24,6 @@ export class TextController {
     @Body('skill') skill: string,
     @Body('score') score: number,
   ) {
-    if (!language) throw new BadRequestException('language is required');
     const uid = parseInt(userId, 10);
     return this.textService.recordScore(uid, language, skill, score);
   }
