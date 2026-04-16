@@ -51,8 +51,9 @@ export function StatsPage() {
       if (!res.ok) throw new Error('Failed to fetch stats');
       return res.json();
     },
-    staleTime: 0,
+    staleTime: 30_000,
     refetchOnMount: true,
+    refetchOnWindowFocus: false,
     retry: 1,
     enabled: !!user,
   });
@@ -114,7 +115,7 @@ export function StatsPage() {
           targetLevel={targetLevel}
           onTargetLevelChange={handleTargetLevelChange}
           examReadiness={examReadiness}
-          onRefresh={() => refetch()}
+          onRefresh={() => { if (!isFetching) refetch(); }}
           isRefreshing={isFetching}
         />
 
