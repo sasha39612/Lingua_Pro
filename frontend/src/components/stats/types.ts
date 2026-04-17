@@ -8,10 +8,10 @@ export interface SummaryStats {
   examReadiness: number;
   readinessLabel: string;
   blockedBy?: string;
+  targetLevelSub: string;
   streak: number;
   periodLabel: string;
   deltaNote?: string;
-  isOvershoot?: boolean;
 }
 
 export interface FocusSkill {

@@ -151,6 +151,21 @@ export function StatsPage() {
       ? blockingSkill.charAt(0).toUpperCase() + blockingSkill.slice(1)
       : undefined;
 
+  const nextTargetLevel = NEXT_LEVEL[targetLevel];
+
+  const targetLevelSub =
+    overshoot > 0
+      ? nextTargetLevel
+        ? `→ ${nextTargetLevel}`
+        : `Mastered (${targetLevel})`
+      : examReadiness >= 100 && allSkillsMet
+      ? `${targetLevel} reached`
+      : blockedBy
+      ? `Improve: ${blockedBy}`
+      : examReadiness >= 100
+      ? 'Almost ready'
+      : `${examReadiness}% toward goal`;
+
   const examSkillCounts: ExamSkillCounts = {
     reading: data?.reading_count ?? 0,
     writing: data?.writing_count ?? 0,
@@ -179,7 +194,7 @@ export function StatsPage() {
         />
 
         <SummaryCards
-          stats={{ targetLevel, activeDays, examReadiness, readinessLabel: effectiveReadinessLabel, blockedBy, streak, periodLabel }}
+          stats={{ targetLevel, activeDays, examReadiness, readinessLabel: effectiveReadinessLabel, blockedBy, targetLevelSub, streak, periodLabel }}
           delta={delta}
           isLoading={isLoading}
         />
@@ -190,6 +205,7 @@ export function StatsPage() {
             nextLevel={nextLevel}
             progressPct={examReadiness}
             targetLevel={targetLevel}
+            allSkillsMet={allSkillsMet}
             isLoading={isLoading}
           />
           <SkillsCard scores={examSkillScores} counts={examSkillCounts} targetLevel={targetLevel} isLoading={isLoading} />

@@ -22,6 +22,7 @@ interface LevelProgressCardProps {
   nextLevel: string;
   progressPct: number;
   targetLevel: TargetLevel;
+  allSkillsMet: boolean;
   isLoading: boolean;
 }
 
@@ -30,6 +31,7 @@ export function LevelProgressCard({
   nextLevel,
   progressPct,
   targetLevel,
+  allSkillsMet,
   isLoading,
 }: LevelProgressCardProps) {
   const nextTarget = NEXT_LEVEL[targetLevel];
@@ -46,9 +48,9 @@ export function LevelProgressCard({
         <p className="mt-2 text-xs text-slate-400">
           {isLoading
             ? '…'
-            : progressPct >= 100 && nextTarget
+            : progressPct >= 100 && allSkillsMet && nextTarget
             ? `→ Aim for ${nextTarget}`
-            : progressPct >= 100
+            : progressPct >= 100 && allSkillsMet
             ? 'Highest level reached'
             : `Based on text + speaking combined (${progressPct}%)`}
         </p>
