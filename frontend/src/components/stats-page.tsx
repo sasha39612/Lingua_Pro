@@ -25,6 +25,7 @@ import {
   computeReadinessTowardTarget,
   computeOvershoot,
   LEVEL_THRESHOLDS,
+  NEXT_LEVEL,
   SKILL_THRESHOLDS,
   SKILL_PRIORITY,
 } from '@/components/stats/utils';
