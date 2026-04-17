@@ -1,7 +1,35 @@
-import { SkillKey, TargetLevel, WeakPoint } from './types';
+import { ExamSkillScores, SkillKey, TargetLevel, WeakPoint } from './types';
 
 const CEFR_LEVELS = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 export const CEFR_TARGET_LEVELS: TargetLevel[] = ['B1', 'B2', 'C1', 'C2'];
+
+export const LEVEL_THRESHOLDS: Record<TargetLevel, number> = {
+  B1: 60,
+  B2: 75,
+  C1: 88,
+  C2: 96,
+};
+
+export const NEXT_LEVEL: Record<TargetLevel, TargetLevel | null> = {
+  B1: 'B2',
+  B2: 'C1',
+  C1: 'C2',
+  C2: null,
+};
+
+export const SKILL_THRESHOLDS: Record<TargetLevel, Record<keyof ExamSkillScores, number>> = {
+  B1: { reading: 60, writing: 60, speaking: 55, listening: 60 },
+  B2: { reading: 75, writing: 75, speaking: 70, listening: 75 },
+  C1: { reading: 88, writing: 88, speaking: 82, listening: 88 },
+  C2: { reading: 96, writing: 96, speaking: 92, listening: 96 },
+};
+
+export const SKILL_PRIORITY: Record<keyof ExamSkillScores, number> = {
+  speaking: 4,
+  writing: 3,
+  listening: 2,
+  reading: 1,
+};
 
 export function getNextLevel(level: string): string {
   const idx = CEFR_LEVELS.indexOf(level);
@@ -63,6 +91,31 @@ export function computeDelta(current: number, previous: number): DeltaResult | n
   };
 }
 
+// IMPORTANT: rawScore must be computed in stats-page.tsx and passed here.
+// Do NOT recompute it inside utils.
+export function computeRawScore(
+  reading: number,
+  writing: number,
+  speaking: number,
+  listening: number,
+): number {
+  return Math.round(reading * 0.2 + writing * 0.3 + speaking * 0.3 + listening * 0.2);
+}
+
+export function computeReadinessTowardTarget(
+  rawScore: number,
+  targetLevel: TargetLevel,
+): number {
+  return Math.min(100, Math.round((rawScore / LEVEL_THRESHOLDS[targetLevel]) * 100));
+}
+
+export function computeOvershoot(
+  rawScore: number,
+  targetLevel: TargetLevel,
+): number {
+  return Math.max(0, rawScore - LEVEL_THRESHOLDS[targetLevel]);
+}
+
 export function getPeriodStartDate(period: 'week' | 'month' | 'all'): string | null {
   if (period === 'all') return null;
   const d = new Date();
@@ -74,11 +127,16 @@ export function getPeriodStartDate(period: 'week' | 'month' | 'all'): string | n
 export function computePreviousReadiness(
   history: Array<{ date: string; text_score: number; pronunciation_score: number }>,
   period: 'week' | 'month' | 'all',
-): number {
-  if (period === 'all' || history.length === 0) return 0;
+  targetLevel: TargetLevel,
+): number | null {
+  if (period === 'all' || history.length < 2) return null;
+
   const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date));
   const first = sorted[0];
-  return computeReadiness(first.text_score, first.pronunciation_score);
+
+  const proxyRaw = Math.round((first.text_score + first.pronunciation_score) / 2);
+
+  return computeReadinessTowardTarget(proxyRaw, targetLevel);
 }
 
 export const WEAK_POINT_CONFIG: Record<string, { label: string; href: string }> = {

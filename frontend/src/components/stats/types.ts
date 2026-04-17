@@ -4,12 +4,20 @@ export type TargetLevel = 'B1' | 'B2' | 'C1' | 'C2';
 
 export interface SummaryStats {
   targetLevel: string;
-  nextLevel: string;
   activeDays: number;
   examReadiness: number;
   readinessLabel: string;
+  blockedBy?: string;
   streak: number;
   periodLabel: string;
+  deltaNote?: string;
+  isOvershoot?: boolean;
+}
+
+export interface FocusSkill {
+  label: string;
+  skill: keyof ExamSkillScores;
+  gapPts: number;
 }
 
 export interface ExamSkillScores {

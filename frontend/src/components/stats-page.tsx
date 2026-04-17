@@ -18,12 +18,17 @@ import {
   getNextLevel,
   computeStreak,
   buildWeakPoints,
-  computeReadiness,
   getReadinessLabel,
   computeDelta,
   computePreviousReadiness,
+  computeRawScore,
+  computeReadinessTowardTarget,
+  computeOvershoot,
+  LEVEL_THRESHOLDS,
+  SKILL_THRESHOLDS,
+  SKILL_PRIORITY,
 } from '@/components/stats/utils';
-import { Period, ChartData, ExamSkillScores, ExamSkillCounts, TargetLevel } from '@/components/stats/types';
+import { Period, ChartData, ExamSkillScores, ExamSkillCounts, TargetLevel, FocusSkill } from '@/components/stats/types';
 
 export function StatsPage() {
   const language = useAppStore((s) => s.language);
@@ -67,23 +72,17 @@ export function StatsPage() {
   );
 
   const nextLevel = getNextLevel(level);
-  const readingPct = data ? Math.round((data.avg_reading_score ?? 0) * 100) : 0;
-  const writingPct = data ? Math.round((data.avg_writing_score ?? 0) * 100) : 0;
-  const speakingPct = data ? Math.round((data.avg_speaking_score ?? data.avg_pronunciation_score) * 100) : 0;
+
+  const readingPct   = data ? Math.round((data.avg_reading_score  ?? 0) * 100) : 0;
+  const writingPct   = data ? Math.round((data.avg_writing_score  ?? 0) * 100) : 0;
+  const speakingPct  = data ? Math.round((data.avg_speaking_score ?? data.avg_pronunciation_score) * 100) : 0;
   const listeningPct = data ? Math.round((data.avg_listening_score ?? 0) * 100) : 0;
-  const examReadiness = data
-    ? computeReadiness(data.avg_text_score, data.avg_pronunciation_score)
-    : 0;
-  const readinessLabel = getReadinessLabel(examReadiness);
-  const activeDays = data?.history.length ?? 0;
 
-  const previousReadiness = data
-    ? computePreviousReadiness(data.history, period)
-    : 0;
-  const delta = data ? computeDelta(examReadiness, previousReadiness) : null;
-
-  const periodLabel =
-    period === 'week' ? 'this week' : period === 'month' ? 'this month' : 'all time';
+  const convertedHistory = (data?.history ?? []).map(h => ({
+    date: h.date,
+    text_score: Math.round(h.text_score * 100),
+    pronunciation_score: Math.round(h.pronunciation_score * 100),
+  }));
 
   const examSkillScores: ExamSkillScores = {
     reading: readingPct,
@@ -91,6 +90,66 @@ export function StatsPage() {
     speaking: speakingPct,
     listening: listeningPct,
   };
+
+  const rawScore = data
+    ? computeRawScore(readingPct, writingPct, speakingPct, listeningPct)
+    : 0;
+
+  const examReadiness = data
+    ? computeReadinessTowardTarget(rawScore, targetLevel)
+    : 0;
+
+  const overshoot = data
+    ? computeOvershoot(rawScore, targetLevel)
+    : 0;
+
+  const gapPts = rawScore < LEVEL_THRESHOLDS[targetLevel]
+    ? LEVEL_THRESHOLDS[targetLevel] - rawScore
+    : 0;
+
+  const allSkillsMet = (['reading', 'writing', 'speaking', 'listening'] as const)
+    .every(s => examSkillScores[s] >= SKILL_THRESHOLDS[targetLevel][s]);
+
+  const effectiveReadinessLabel =
+    examReadiness >= 100 && !allSkillsMet
+      ? 'Almost ready'
+      : getReadinessLabel(examReadiness);
+
+  const previousReadiness = computePreviousReadiness(
+    convertedHistory,
+    period,
+    targetLevel,
+  );
+
+  const delta = previousReadiness !== null
+    ? computeDelta(examReadiness, previousReadiness)
+    : null;
+
+  const activeDays = data?.history.length ?? 0;
+
+  const periodLabel =
+    period === 'week' ? 'this week' : period === 'month' ? 'this month' : 'all time';
+
+  const focusSkill: FocusSkill | null =
+    (['reading', 'writing', 'speaking', 'listening'] as const)
+      .map(s => ({
+        label: s.charAt(0).toUpperCase() + s.slice(1),
+        skill: s,
+        gapPts: Math.max(0, SKILL_THRESHOLDS[targetLevel][s] - examSkillScores[s]),
+      }))
+      .filter(s => s.gapPts > 0)
+      .sort((a, b) => {
+        if (b.gapPts !== a.gapPts) return b.gapPts - a.gapPts;
+        return SKILL_PRIORITY[b.skill] - SKILL_PRIORITY[a.skill];
+      })[0] ?? null;
+
+  const blockingSkill = (['reading', 'writing', 'speaking', 'listening'] as const)
+    .find(s => examSkillScores[s] < SKILL_THRESHOLDS[targetLevel][s]);
+
+  const blockedBy =
+    examReadiness >= 100 && !allSkillsMet && blockingSkill
+      ? blockingSkill.charAt(0).toUpperCase() + blockingSkill.slice(1)
+      : undefined;
 
   const examSkillCounts: ExamSkillCounts = {
     reading: data?.reading_count ?? 0,
@@ -120,7 +179,7 @@ export function StatsPage() {
         />
 
         <SummaryCards
-          stats={{ targetLevel, nextLevel, activeDays, examReadiness, readinessLabel, streak, periodLabel }}
+          stats={{ targetLevel, activeDays, examReadiness, readinessLabel: effectiveReadinessLabel, blockedBy, streak, periodLabel }}
           delta={delta}
           isLoading={isLoading}
         />
@@ -130,12 +189,13 @@ export function StatsPage() {
             currentLevel={level}
             nextLevel={nextLevel}
             progressPct={examReadiness}
+            targetLevel={targetLevel}
             isLoading={isLoading}
           />
-          <SkillsCard scores={examSkillScores} counts={examSkillCounts} isLoading={isLoading} />
+          <SkillsCard scores={examSkillScores} counts={examSkillCounts} targetLevel={targetLevel} isLoading={isLoading} />
         </div>
 
-        <ChartsSection charts={charts} isLoading={isLoading} />
+        <ChartsSection charts={charts} targetLevel={targetLevel} isLoading={isLoading} />
 
         <WeakPointsCard items={weakPoints} isLoading={isLoading} />
 

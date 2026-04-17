@@ -1,4 +1,5 @@
-import { ExamSkillCounts, ExamSkillScores } from './types';
+import { ExamSkillCounts, ExamSkillScores, TargetLevel } from './types';
+import { SKILL_THRESHOLDS } from './utils';
 
 interface ProgressBarProps {
   value: number;
@@ -38,10 +39,11 @@ const SKILL_GROUPS: Array<{ key: keyof ExamSkillScores; label: string; color: st
 interface SkillsCardProps {
   scores: ExamSkillScores;
   counts: ExamSkillCounts;
+  targetLevel: TargetLevel;
   isLoading: boolean;
 }
 
-export function SkillsCard({ scores, counts, isLoading }: SkillsCardProps) {
+export function SkillsCard({ scores, counts, targetLevel, isLoading }: SkillsCardProps) {
   return (
     <div className="rounded-2xl bg-white p-6 shadow-float">
       <h3 className="font-semibold text-slate-800">Exam Sections</h3>
@@ -50,6 +52,7 @@ export function SkillsCard({ scores, counts, isLoading }: SkillsCardProps) {
           const pct = isLoading ? 0 : scores[key];
           const count = isLoading ? 0 : counts[key];
           const meta = getStatusMeta(pct);
+          const gapPts = isLoading ? 0 : Math.max(0, SKILL_THRESHOLDS[targetLevel][key] - pct);
           return (
             <div key={key}>
               <div className="flex items-center justify-between text-sm text-slate-600">
@@ -64,7 +67,11 @@ export function SkillsCard({ scores, counts, isLoading }: SkillsCardProps) {
               <ProgressBar value={pct} color={color} />
               {!isLoading && (
                 <p className={`mt-1 text-xs font-medium ${count === 0 ? 'text-slate-400' : meta.color}`}>
-                  {count === 0 ? 'No sessions yet' : `${meta.icon} ${meta.label}`}
+                  {count === 0
+                    ? 'No sessions yet'
+                    : gapPts > 0
+                    ? `${meta.icon} ${meta.label} · ${gapPts} pts to target`
+                    : `${meta.icon} ${meta.label}`}
                 </p>
               )}
             </div>

@@ -1,4 +1,5 @@
-import { ChartData } from './types';
+import { ChartData, TargetLevel } from './types';
+import { LEVEL_THRESHOLDS } from './utils';
 
 // ── Progress Line Chart ────────────────────────────────────────────────────────
 
@@ -6,7 +7,8 @@ function ProgressLineChart({
   labels,
   textScores,
   pronunciationScores,
-}: ChartData['progressOverTime']) {
+  targetLevel,
+}: ChartData['progressOverTime'] & { targetLevel: TargetLevel }) {
   if (labels.length === 0) {
     return (
       <div className="flex h-40 items-center justify-center text-sm text-slate-400">
@@ -33,6 +35,8 @@ function ProgressLineChart({
   const step = Math.max(1, Math.floor(n / 5));
   for (let i = step; i < n - 1; i += step) labelIdxs.add(i);
 
+  const targetLineY = toY(LEVEL_THRESHOLDS[targetLevel] / 100);
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 150 }}>
       {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
@@ -46,6 +50,11 @@ function ProgressLineChart({
           </g>
         );
       })}
+      <line
+        x1={PAD.left} y1={targetLineY}
+        x2={W - PAD.right} y2={targetLineY}
+        stroke="#f59e0b" strokeWidth={1} strokeDasharray="4 2"
+      />
       <polyline points={pts(textScores)} fill="none" stroke="#0ea5e9" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
       <polyline points={pts(pronunciationScores)} fill="none" stroke="#8b5cf6" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
       {textScores.map((v, i) => <circle key={`t${i}`} cx={toX(i)} cy={toY(v)} r={2.5} fill="#0ea5e9" />)}
@@ -111,10 +120,11 @@ function ChartSkeleton() {
 
 interface ChartsSectionProps {
   charts: ChartData;
+  targetLevel: TargetLevel;
   isLoading: boolean;
 }
 
-export function ChartsSection({ charts, isLoading }: ChartsSectionProps) {
+export function ChartsSection({ charts, targetLevel, isLoading }: ChartsSectionProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {/* Progress over time */}
@@ -123,11 +133,15 @@ export function ChartsSection({ charts, isLoading }: ChartsSectionProps) {
         <div className="mt-1 flex gap-4 text-xs text-slate-500">
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-2 w-4 rounded-sm bg-sky-500" />
-            Text
+            Reading+Writing
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-2 w-4 rounded-sm bg-violet-500" />
-            Speaking
+            Speaking+Listening
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-4 rounded-sm bg-amber-400" style={{ borderTop: '2px dashed #f59e0b', background: 'none' }} />
+            Target
           </span>
         </div>
         <div className="mt-3">
@@ -138,6 +152,7 @@ export function ChartsSection({ charts, isLoading }: ChartsSectionProps) {
               labels={charts.progressOverTime.labels}
               textScores={charts.progressOverTime.textScores}
               pronunciationScores={charts.progressOverTime.pronunciationScores}
+              targetLevel={targetLevel}
             />
           )}
         </div>

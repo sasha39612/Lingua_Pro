@@ -1,5 +1,5 @@
-import { SummaryStats } from './types';
-import { DeltaResult } from './utils';
+import { SummaryStats, TargetLevel } from './types';
+import { DeltaResult, NEXT_LEVEL } from './utils';
 
 interface CardProps {
   title: string;
@@ -38,7 +38,13 @@ export function SummaryCards({ stats, delta, isLoading }: SummaryCardsProps) {
       <StatCard
         title="Target Level"
         value={stats.targetLevel}
-        sub={`Next: ${stats.nextLevel}`}
+        sub={
+          stats.isOvershoot && NEXT_LEVEL[stats.targetLevel as TargetLevel]
+            ? `→ ${NEXT_LEVEL[stats.targetLevel as TargetLevel]}`
+            : stats.blockedBy
+            ? `Improve: ${stats.blockedBy}`
+            : ''
+        }
       />
       <StatCard
         title="Active Days"
