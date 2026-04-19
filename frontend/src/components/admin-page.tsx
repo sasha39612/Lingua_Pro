@@ -493,6 +493,8 @@ export function AdminPage() {
   const [period, setPeriod]   = useState<Period>('week');
   const [language, setLanguage] = useState('');
 
+  const { data, isLoading, error, refetch } = useAdminStats(period, language, token);
+
   // Guard — no API calls for non-admins
   if (!user || user.role !== 'admin') {
     return (
@@ -501,8 +503,6 @@ export function AdminPage() {
       </LabFrame>
     );
   }
-
-  const { data, isLoading, error, refetch } = useAdminStats(period, language, token);
 
   return (
     <LabFrame>

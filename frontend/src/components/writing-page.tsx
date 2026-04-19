@@ -183,7 +183,7 @@ export function WritingPage() {
     } finally {
       setLoadingAnalysis(false);
     }
-  }, [task, text, language, canSubmit]);
+  }, [task, text, language, canSubmit, user]);
 
   const overallPct = analysis ? Math.round(analysis.overallScore * 100) : null;
 

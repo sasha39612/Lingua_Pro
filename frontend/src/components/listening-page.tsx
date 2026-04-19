@@ -261,7 +261,6 @@ export function ListeningPage() {
               </div>
 
               {/* Hidden audio element — controlled programmatically */}
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
               <audio
                 ref={audioRef}
                 key={task.taskId}
