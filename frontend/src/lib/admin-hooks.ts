@@ -10,6 +10,7 @@ export function useAdminStats(period: Period, language: string, token: string | 
     queryKey: ['admin-stats', period, language],
     enabled: !!token,
     staleTime: 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const params = new URLSearchParams({ period });
       if (language) params.set('language', language);
@@ -30,6 +31,7 @@ export function useAdminUsers(limit = 100, offset = 0, token: string | null) {
     queryKey: ['admin-users', limit, offset],
     enabled: !!token,
     staleTime: 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const params = new URLSearchParams({
         limit: String(limit),
