@@ -25,6 +25,20 @@ const JWT_EXPIRY = process.env.JWT_EXPIRY || '7d'; // 7 days by default
 
 const ALLOWED_ROLES = new Set(['student', 'admin']);
 
+const INTERNAL_SERVICE_SECRET = process.env.INTERNAL_SERVICE_SECRET || '';
+const ALLOWED_INTERNAL_SERVICES = new Set(['stats-service', 'api-gateway']);
+
+function isInternalServiceCall(context: any): boolean {
+  if (!INTERNAL_SERVICE_SECRET) return false;
+  const token = context?.internalToken;
+  const service = context?.internalService;
+  if (!token || !service) return false;
+  if (token !== INTERNAL_SERVICE_SECRET) return false;
+  if (!ALLOWED_INTERNAL_SERVICES.has(service)) return false;
+  console.log(`[auth-service] internal access by service: ${service}`);
+  return true;
+}
+
 function validateEmail(email: string): void {
   // Basic RFC-like validation that rejects obvious malformed emails.
   const normalized = (email || '').trim().toLowerCase();
@@ -126,12 +140,16 @@ export const authTypeDefs = gql`
     email: String!
     role: String!
     language: String!
+    createdAt: String!
   }
 
   type Query {
     me: User
     user(id: ID!): User
     validateToken(token: String!): User
+    # cursor: reserved for future keyset pagination; currently unused
+    users(limit: Int, offset: Int, cursor: String): [User!]!
+    usersCount: Int!
   }
 
   type Mutation {
@@ -165,6 +183,25 @@ export const authSchema = buildSubgraphSchema([
             throw new Error('Forbidden');
           }
           return prisma.user.findUnique({ where: { id: targetId } });
+        },
+        users: async (_: any, { limit, offset }: any, context: any) => {
+          requireAdmin(context);
+          const take = Math.min(limit ?? 100, 200); // cap at 200
+          const skip = offset ?? 0;
+          return prisma.user.findMany({
+            // Stable sort: newest first; secondary sort by id prevents page drift when
+            // new users are created between page requests
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            take,
+            skip
+          });
+        },
+        usersCount: async (_: any, _args: any, context: any) => {
+          // Accessible by admin users OR by trusted internal services
+          if (!isInternalServiceCall(context)) {
+            requireAdmin(context);
+          }
+          return prisma.user.count();
         },
         validateToken: async (_: any, { token }: any) => {
           try {

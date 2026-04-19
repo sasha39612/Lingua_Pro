@@ -32,7 +32,7 @@ describe('OrchestratorController', () => {
 
       const result = await controller.analyzeText({ text: 'Hello', language: 'English' });
 
-      expect(mockService.analyzeText).toHaveBeenCalledWith('Hello', 'English');
+      expect(mockService.analyzeText).toHaveBeenCalledWith('Hello', 'English', expect.any(String));
       expect(result).toEqual(expected);
     });
 

@@ -17,7 +17,9 @@ async function makeService() {
   delete process.env.AI_API_KEY;
   vi.resetModules();
   const { TextAiService } = await import('./text-ai.service');
-  const svc = new TextAiService();
+  // Provide a no-op AiUsageService stub so logging doesn't throw
+  const aiUsageStub = { log: vi.fn().mockResolvedValue(undefined) } as any;
+  const svc = new TextAiService(aiUsageStub);
   if (orig !== undefined) process.env.AI_API_KEY = orig;
   return svc;
 }

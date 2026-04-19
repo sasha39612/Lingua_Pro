@@ -1,5 +1,6 @@
-import { Body, Controller, MessageEvent, Post, Query, Sse } from '@nestjs/common';
+import { Body, Controller, Headers, MessageEvent, Post, Query, Sse } from '@nestjs/common';
 import { IsObject, IsOptional, IsString } from 'class-validator';
+import { randomUUID } from 'crypto';
 import { Observable } from 'rxjs';
 import { OrchestratorService } from './orchestrator.service';
 
@@ -88,8 +89,12 @@ export class OrchestratorController {
   constructor(private readonly orchestratorService: OrchestratorService) {}
 
   @Post('text/analyze')
-  async analyzeText(@Body() body: AnalyzeTextDto) {
-    return this.orchestratorService.analyzeText(body.text, body.language);
+  async analyzeText(
+    @Body() body: AnalyzeTextDto,
+    @Headers('x-request-id') requestIdHeader?: string,
+  ) {
+    const requestId = requestIdHeader || randomUUID();
+    return this.orchestratorService.analyzeText(body.text, body.language, requestId);
   }
 
   @Post('tasks/generate')
@@ -132,8 +137,12 @@ export class OrchestratorController {
   }
 
   @Post('text/analyze-writing')
-  async analyzeWriting(@Body() body: AnalyzeWritingDto) {
-    return this.orchestratorService.analyzeWritingTask(body.text, body.language, body.taskContext as any);
+  async analyzeWriting(
+    @Body() body: AnalyzeWritingDto,
+    @Headers('x-request-id') requestIdHeader?: string,
+  ) {
+    const requestId = requestIdHeader || randomUUID();
+    return this.orchestratorService.analyzeWritingTask(body.text, body.language, body.taskContext as any, requestId);
   }
 
   @Sse('text/analyze/stream')

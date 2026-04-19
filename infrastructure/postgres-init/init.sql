@@ -7,8 +7,10 @@
 CREATE DATABASE auth_db;
 CREATE DATABASE text_db;
 CREATE DATABASE audio_db;
+CREATE DATABASE ai_orchestrator_db;
 
 -- Grant the app user full access to each database
 GRANT ALL PRIVILEGES ON DATABASE auth_db TO lingua;
 GRANT ALL PRIVILEGES ON DATABASE text_db TO lingua;
 GRANT ALL PRIVILEGES ON DATABASE audio_db TO lingua;
+GRANT ALL PRIVILEGES ON DATABASE ai_orchestrator_db TO lingua;

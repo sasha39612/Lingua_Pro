@@ -64,6 +64,15 @@ export const GRAPHQL_OPERATIONS = {
       createdAt
     }
   }`,
+  AdminUsers: `query AdminUsers($limit: Int, $offset: Int) {
+    users(limit: $limit, offset: $offset) {
+      id
+      email
+      role
+      language
+      createdAt
+    }
+  }`,
 } as const;
 
 export type OperationName = keyof typeof GRAPHQL_OPERATIONS;

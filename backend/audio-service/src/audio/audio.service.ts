@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
-import { AudioRepository } from './audio.repository';
+import { AudioRepository, audioPeriodToFromDate, type AudioPeriod } from './audio.repository';
 import { AiOrchestratorService, AudioAnalysisResult } from '../ai-orchestrator/ai-orchestrator.service';
 import axios from 'axios';
 
@@ -136,6 +136,56 @@ export class AudioService {
   async getListeningScoresByLanguage(language: string, from?: string, userId?: string) {
     const scores = await this.audioRepository.getListeningScoresByLanguage(language, from, userId);
     return { scores };
+  }
+
+  // ── Admin aggregation ────────────────────────────────────────────────────────
+
+  async getAdminSummary(period: AudioPeriod, language?: string) {
+    const fromDate = audioPeriodToFromDate(period);
+    const lang = language ? language.toLowerCase() : undefined;
+
+    const [
+      byLanguage,
+      topUsersSpeaking,
+      topUsersListening,
+      dailySpeaking,
+      dailyListening,
+      dailyActiveEst,
+      activeUserCount,
+    ] = await Promise.all([
+      this.audioRepository.adminByLanguage(fromDate, lang),
+      this.audioRepository.adminTopUsersSpeaking(fromDate, lang),
+      this.audioRepository.adminTopUsersListening(fromDate, lang),
+      this.audioRepository.adminDailySpeakingCounts(fromDate, lang),
+      this.audioRepository.adminDailyListeningCounts(fromDate, lang),
+      this.audioRepository.adminDailyActiveEstimate(fromDate, lang),
+      this.audioRepository.adminActiveUserCount(fromDate),
+    ]);
+
+    const totalSpeaking = byLanguage.reduce((s, r) => s + r.speaking_count, 0);
+    const totalListening = byLanguage.reduce((s, r) => s + r.listening_count, 0);
+
+    return {
+      period,
+      language: lang ?? null,
+      total_speaking_sessions: totalSpeaking,
+      total_listening_sessions: totalListening,
+      by_language: byLanguage,
+      top_users_speaking: topUsersSpeaking,
+      top_users_listening: topUsersListening,
+      time_series: {
+        daily_speaking: dailySpeaking,
+        daily_listening: dailyListening,
+        daily_active_user_estimate: dailyActiveEst,
+      },
+      funnel: {
+        with_audio_activity: activeUserCount,
+      },
+    };
+  }
+
+  async adminActiveUserIds(fromDate: Date, language?: string) {
+    return this.audioRepository.adminActiveUserIds(fromDate, language);
   }
 
   async evaluateComprehension(

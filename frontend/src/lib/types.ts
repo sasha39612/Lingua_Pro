@@ -40,6 +40,52 @@ export interface StatsData {
   };
 }
 
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: string;
+  language: string;
+  createdAt: string;
+}
+
+export interface AdminStatsOverview {
+  period: 'week' | 'month' | 'all';
+  language: string | null;
+  last_updated: string;
+  platform: {
+    total_text_sessions: number;
+    total_speaking_sessions: number;
+    total_listening_sessions: number;
+    total_sessions: number;
+    most_popular_language: string | null;
+  };
+  avg_scores: { reading: number; writing: number; speaking: number; listening: number };
+  by_language: Array<{
+    language: string;
+    text_count: number;
+    speaking_count: number;
+    avg_text_score: number;
+    avg_speaking_score: number;
+  }>;
+  top_users_by_activity: Array<{
+    userId: number;
+    total_sessions: number;
+    weighted_avg_score: number;
+    last_active: string;
+  }>;
+  session_counts_by_feature: { reading: number; writing: number; speaking: number; listening: number };
+  time_series: {
+    daily_sessions: Array<{ date: string; count: number }>;
+    daily_active_user_estimate: Array<{ date: string; count: number }>;
+  };
+  estimated_ai_usage: {
+    text_operations: number;
+    speech_operations: number;
+    listening_operations: number;
+  };
+  funnel: { registered: number; active_users_period: number; completed_task: number };
+}
+
 export interface LearningTask {
   id: string;
   language: string;

@@ -1,5 +1,14 @@
-import { Controller, Post, Body, BadRequestException, Get, Param, Query, Headers } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, ForbiddenException, Get, Param, Query, Headers } from '@nestjs/common';
 import { AudioService } from './audio.service';
+
+const AUDIO_INTERNAL_SECRET = process.env.INTERNAL_SERVICE_SECRET || '';
+const AUDIO_ALLOWED_SERVICES = new Set(['stats-service', 'api-gateway']);
+
+function requireAudioInternalToken(token: string | undefined, service: string | undefined): void {
+  if (!AUDIO_INTERNAL_SECRET || token !== AUDIO_INTERNAL_SECRET || !service || !AUDIO_ALLOWED_SERVICES.has(service)) {
+    throw new ForbiddenException('Internal access only');
+  }
+}
 
 interface CheckAudioRequest {
   userId: string;
@@ -171,5 +180,38 @@ export class AudioController {
       throw new BadRequestException('x-user-id header is required');
     }
     return this.audioService.submitListeningAnswers(userId, taskId, answers);
+  }
+
+  @Get('admin/summary')
+  async adminSummary(
+    @Query('period') period: string,
+    @Query('language') language: string,
+    @Query('exact') exact: string,
+    @Headers('x-internal-token') internalToken: string,
+    @Headers('x-internal-service') internalService: string,
+    @Headers('x-debug-mode') debugMode: string,
+  ) {
+    requireAudioInternalToken(internalToken, internalService);
+
+    const p = (period === 'week' || period === 'month' || period === 'all') ? period : 'week';
+    const isExact = exact === 'true';
+
+    if (isExact && p !== 'week') {
+      throw new BadRequestException('Exact mode is limited to period=week (max ~7 × userCount IDs)');
+    }
+    if (isExact && debugMode !== 'true') {
+      throw new BadRequestException('Exact mode requires x-debug-mode: true header');
+    }
+
+    const summary = await this.audioService.getAdminSummary(p as 'week' | 'month' | 'all', language || undefined);
+
+    if (isExact) {
+      const fromDate = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+      const lang = language || undefined;
+      const dailyActiveUserIds = await this.audioService.adminActiveUserIds(fromDate, lang);
+      return { ...summary, daily_active_user_ids: dailyActiveUserIds };
+    }
+
+    return summary;
   }
 }

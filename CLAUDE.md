@@ -28,10 +28,11 @@ pnpm build        # prisma generate && tsc → dist/  (auth, text, audio)
 pnpm typecheck    # tsc --noEmit (no output, fast type check)
 pnpm start:prod   # node dist/main.js  (node dist/server.js for stats-service)
 
-# Database (services with Prisma: auth, text, audio)
+# Database (services with Prisma: auth, text, audio, ai-orchestrator)
 pnpm prisma:generate   # Generate Prisma client manually
 pnpm prisma:migrate    # Create + apply migration (dev only)
 # Production migrations run automatically via entrypoint.sh on container startup
+# ai-orchestrator: run prisma:generate after adding DATABASE_URL_AI_ORCHESTRATOR to .env
 ```
 
 ### Tests
@@ -99,20 +100,21 @@ All frontend GraphQL goes through the Next.js `/api/graphql` route, which proxie
 
 | Service | Port | Framework | GraphQL subgraph? | Database | Notes |
 |---------|------|-----------|-------------------|----------|-------|
-| auth-service | 4001 | Raw Node.js `http` + `buildSubgraphSchema` | ✅ yes | `auth_db` | No NestJS, uses argon2, JWT via `jsonwebtoken` |
-| text-service | 4002 | NestJS + Apollo subgraph | ✅ yes | `text_db` | Calls ai-orchestrator for analysis |
-| audio-service | 4003 | NestJS | ❌ REST only | `audio_db` | Custom Prisma output path; frontend calls it directly |
-| stats-service | 4004 | NestJS | ❌ REST only | **none** | Aggregates via fetch to text-service + audio-service + audio-service listening scores |
-| ai-orchestrator | 4005 | NestJS | none | Azure Speech SDK + OpenAI (GPT + Whisper + TTS); local fallbacks when keys not set |
+| auth-service | 4001 | Raw Node.js `http` + `buildSubgraphSchema` | ✅ yes | `auth_db` | No NestJS, uses argon2, JWT via `jsonwebtoken`; exposes `users(limit,offset,cursor)` + `usersCount` queries (admin + internal-token gated) |
+| text-service | 4002 | NestJS + Apollo subgraph | ✅ yes | `text_db` | Calls ai-orchestrator for analysis; `GET /text/admin/summary` (internal-token gated) |
+| audio-service | 4003 | NestJS | ❌ REST only | `audio_db` | Custom Prisma output path; frontend calls it directly; `GET /audio/admin/summary` (internal-token gated) |
+| stats-service | 4004 | NestJS | ❌ REST only | **none** | Aggregates via fetch to text-service + audio-service; `GET /admin/stats` aggregates all services (internal-token gated) |
+| ai-orchestrator | 4005 | NestJS | ❌ REST only | `ai_orchestrator_db` | Azure Speech SDK + OpenAI (GPT + Whisper + TTS); local fallbacks when keys not set; logs usage to `ai_usage_events` |
 
 ### Database (database-per-service)
-One PostgreSQL container (`postgres:5432`) with three isolated databases:
+One PostgreSQL container (`postgres:5432`) with four isolated databases:
 
 | Database | Owner | Tables |
 |----------|-------|--------|
 | `auth_db` | auth-service | `users`, `sessions` |
 | `text_db` | text-service | `texts` (with `skill` column, default `'writing'`), `tasks` |
 | `audio_db` | audio-service | `audio_records`, `tasks`, `listening_scores` |
+| `ai_orchestrator_db` | ai-orchestrator | `ai_usage_events` (Phase 2 — accumulates token/cost/failure data) |
 
 Databases are created by `infrastructure/postgres-init/init.sql` on first Postgres startup. Prisma schemas contain only the tables each service owns — **no cross-service FK relations** (userId is a plain `Int`). Stats-service has no database: it calls `GET /text/by-language` and `GET /audio/by-language` on the respective services.
 
@@ -128,6 +130,8 @@ COPY --from=builder /app/backend/audio-service/src/generated ./src/generated
 - `GET http://audio-service:4003/audio/listening-by-language?language=&from=`
 
 Then aggregates scores (merging speaking + listening into `avg_pronunciation_score`), builds daily history, and categorises mistake types in-process. No Prisma, no database dependency. Each fetch is independently resilient — failure of one source returns partial stats from the remaining two.
+
+`AdminStatsService` provides the admin dashboard endpoint (`GET /admin/stats`) — calls text/audio/auth services in parallel (all with `x-internal-token + x-internal-service` headers), merges results into `AdminStatsOverview`. Weighted averages always carry raw `score_sum + count` pairs — never average pre-computed averages.
 
 ### AI Orchestrator
 `OrchestratorService` is a **thin facade** that composes five focused provider services:
@@ -165,6 +169,7 @@ type: 'correct' | 'missing' | 'extra' | 'mispronounced'
 - `POST /audio/pronunciation/analyze` — Azure scores + GPT feedback + word alignment
 - `POST /audio/tts` — TTS audio generation
 - `GET /text/analyze/stream` — SSE streaming text analysis
+- `GET /usage/admin` — AI usage event summary grouped by featureType/endpoint/model (admin `x-user-role` header required)
 
 ### Frontend (`frontend/`)
 - **Next.js 15 App Router** with TypeScript strict mode
@@ -191,7 +196,7 @@ Lingua_Pro/
 │   ├── health-check.sh              # Cron health monitor with optional Slack alerts
 │   └── e2e-test.sh                  # End-to-end smoke test (requires curl + jq, services running)
 ├── infrastructure/
-│   ├── postgres-init/init.sql       # Creates auth_db, text_db, audio_db on first boot
+│   ├── postgres-init/init.sql       # Creates auth_db, text_db, audio_db, ai_orchestrator_db on first boot
 │   └── README.md
 ├── .github/
 │   ├── workflows/deploy.yml          # CI/CD: parallel image builds → GHCR → SSH deploy
@@ -209,12 +214,16 @@ Lingua_Pro/
 │       │   │   ├── writing/task/route.ts  # GET ?language&level&userId → text-service GET /text/tasks?skill=writing; returns { taskId, writingTask }
 │       │   │   ├── writing/analyze/route.ts # POST { text, language, taskContext } → ai-orchestrator POST /text/analyze-writing; returns WritingAnalysisResult
 │       │   │   ├── stats/route.ts         # GET ?language&period → stats-service GET /stats; proxy with auth headers
+│       │   │   ├── admin/
+│       │   │   │   ├── stats/route.ts     # GET ?period&language → stats-service GET /admin/stats; JWT role=admin + x-internal-token
+│       │   │   │   └── users/route.ts     # GET ?limit&offset → api-gateway AdminUsers GQL query; JWT role=admin
 │       │   │   └── text/score/route.ts    # POST { userId, language, skill, score } → text-service POST /text/score; fire-and-forget score persistence
 │       │   └── [writing|reading|listening|speaking|stats|dashboard|admin|settings]/
 │       ├── components/
 │       │   ├── app-shell.tsx            # Layout wrapper (nav, sidebar)
 │       │   ├── audio-recorder.tsx       # MediaRecorder wrapper
 │       │   ├── streamed-feedback.tsx    # SSE feedback consumer
+│       │   ├── admin-page.tsx           # 4-tab admin dashboard (overview/users/learning/ai-usage); role guard → ForbiddenPanel
 │       │   └── stats/                   # Stats page sub-components
 │       │       ├── types.ts             # Period, SkillKey, SummaryStats, SkillScores, ChartData, WeakPoint
 │       │       ├── utils.ts             # getNextLevel, computeStreak, buildWeakPoints, formatMistakeLabel
@@ -227,10 +236,11 @@ Lingua_Pro/
 │       │       └── charts-section.tsx   # SVG line chart (progress over time) + bar chart (mistakes by type)
 │       ├── lib/
 │       │   ├── graphql-client.ts        # fetch wrapper (persisted queries + fallback)
-│       │   ├── graphql-operations.ts    # All GQL query/mutation strings
+│       │   ├── graphql-operations.ts    # All GQL query/mutation strings (includes AdminUsers)
 │       │   ├── graphql-hooks.ts         # TanStack Query hooks
+│       │   ├── admin-hooks.ts           # useAdminStats, useAdminUsers (staleTime: 60_000)
 │       │   ├── persisted-queries.ts     # SHA-256 hash map per operation name
-│       │   └── types.ts
+│       │   └── types.ts                 # Includes AdminUser, AdminStatsOverview
 │       └── store/app-store.ts           # Zustand (auth token, user, language)
 │
 └── backend/
@@ -242,43 +252,51 @@ Lingua_Pro/
     │
     ├── auth-service/                # Plain Node.js http, :4001 → auth_db
     │   ├── prisma/schema.prisma         # users, sessions only
-    │   └── src/graphql/auth.schema.ts   # register, login, me, logout
+    │   └── src/graphql/auth.schema.ts   # register, login, me, logout; users(limit,offset,cursor) + usersCount (admin JWT or x-internal-token + x-internal-service)
     │
     ├── text-service/                # NestJS + Apollo subgraph, :4002 → text_db
     │   ├── prisma/schema.prisma         # texts, tasks (no User model — userId is plain Int)
     │   └── src/
     │       ├── graphql/text.schema.ts
     │       └── text/
-    │           ├── text.service.ts      # analyzeText, getTextsByLanguage, getTasks, recordScore
-    │           └── text.controller.ts   # POST /text/check, POST /text/score, GET /text/tasks, GET /text/by-language
+    │           ├── text.service.ts      # analyzeText, getTextsByLanguage, getTasks, recordScore, getAdminSummary (raw SQL, UTC)
+    │           └── text.controller.ts   # POST /text/check, POST /text/score, GET /text/tasks, GET /text/by-language, GET /text/admin/summary
     │
     ├── audio-service/               # NestJS, :4003 → audio_db
     │   ├── prisma/schema.prisma         # audio_records, tasks (no User model)
     │   └── src/
     │       ├── audio/
-    │       │   ├── audio.controller.ts  # POST /check, POST /analyze-base64, GET /records/:id, GET /by-language, GET /listening-by-language, GET /listening-task, POST /listening-answers
-    │       │   ├── audio.service.ts
-    │       │   └── audio.repository.ts  # Prisma queries (uses src/generated/prisma); getListeningScoresByLanguage via raw SQL join
+    │       │   ├── audio.controller.ts  # POST /check, POST /analyze-base64, GET /records/:id, GET /by-language, GET /listening-by-language, GET /listening-task, POST /listening-answers, GET /audio/admin/summary
+    │       │   ├── audio.service.ts     # getAdminSummary, adminActiveUserIds (raw SQL, UTC)
+    │       │   └── audio.repository.ts  # Prisma queries (uses src/generated/prisma); admin SQL helpers (getDailyCounts, getTopUsers, etc.); exports AudioPeriod, audioPeriodToFromDate, audioSafeAvg
     │       └── generated/prisma/        # Custom Prisma output (committed type stubs only)
     │
     ├── stats-service/               # NestJS, :4004 — NO DATABASE
     │   └── src/
     │       ├── stats/
-    │       │   ├── stats.controller.ts  # GET /stats?language=&period=
-    │       │   └── stats.service.ts     # fetch() → text-service + audio-service
+    │       │   ├── stats.controller.ts    # GET /stats?language=&period=; GET /admin/stats (x-internal-token gated)
+    │       │   ├── stats.service.ts       # fetch() → text-service + audio-service
+    │       │   └── admin-stats.service.ts # Parallel fetch from text/audio/auth; merges AdminStatsOverview; weighted avg guards
     │       └── server.ts
     │
     └── ai-orchestrator/             # NestJS, :4005
+        ├── prisma/schema.prisma             # AiUsageEvent model → ai_usage_events table (ai_orchestrator_db)
         └── src/
             ├── types.ts                     # Shared types: PhonemeDetail, WordDetail, WordAlignment, PronunciationAnalysisResult, TtsResult, …
-            ├── util.ts                      # Pure helpers: withRetry, withTimeout, safeJsonParse, decodeBase64, normalizedEditDistance, enrichPhonemeContext, PHONEME_MAP, …
-            ├── orchestrator.controller.ts   # HTTP layer — 6 endpoints
+            ├── util.ts                      # Pure helpers: withRetry, withRetryTracked, withTimeout, safeJsonParse, decodeBase64, normalizedEditDistance, enrichPhonemeContext, PHONEME_MAP, …
+            ├── orchestrator.controller.ts   # HTTP layer — 7 endpoints; generates requestId per request (or reads x-request-id header)
             ├── orchestrator.service.ts      # Thin facade — composes the 5 providers below
             ├── speech.service.ts            # Azure transcription + phoneme extraction + word alignment; Whisper fallback
-            ├── text-ai.service.ts           # GPT-4o: text analysis (reading/writing domain)
+            ├── text-ai.service.ts           # GPT-4o: text analysis (reading/writing domain); logs usage events
             ├── task.service.ts              # GPT-4o-mini: CEFR task generation; skill='reading' generates 1 full exercise (passage + 16 questions across 5 types); generateListeningExercise() generates 8-question CEFR-graded exercise (v2 format)
             ├── pronunciation-ai.service.ts  # GPT-4o: feedback string + phoneme hints ONLY (no scores)
-            └── tts.service.ts               # gpt-4o-mini-tts: text → base64 MP3
+            ├── tts.service.ts               # gpt-4o-mini-tts: text → base64 MP3
+            ├── prisma/
+            │   └── prisma.service.ts        # Conditional require('../generated/prisma'); degrades gracefully if not yet generated
+            └── usage/
+                ├── ai-usage.service.ts      # log() — fire-and-forget; never throws; no-ops when Prisma unavailable
+                ├── error-type.ts            # ErrorType const + classifyError(err) — centralised error classification
+                └── usage.controller.ts      # GET /usage/admin — groups ai_usage_events (x-user-role: admin)
 ```
 
 ## Environment Variables
@@ -291,9 +309,13 @@ POSTGRES_PASSWORD=secret
 DATABASE_URL_AUTH=postgresql://lingua:secret@postgres:5432/auth_db
 DATABASE_URL_TEXT=postgresql://lingua:secret@postgres:5432/text_db
 DATABASE_URL_AUDIO=postgresql://lingua:secret@postgres:5432/audio_db
+DATABASE_URL_AI_ORCHESTRATOR=postgresql://lingua:secret@postgres:5432/ai_orchestrator_db
 
 JWT_SECRET=supersecretjwtkey
 JWT_EXPIRY=7d
+
+# Internal service auth (shared secret — never expose to browser)
+INTERNAL_SERVICE_SECRET=your-internal-service-secret-here
 
 AI_API_KEY=your-openai-api-key-here
 OPENAI_TEXT_MODEL=gpt-4o
@@ -312,6 +334,7 @@ Service-level env (with defaults):
 - `TEXT_SERVICE_URL` → `http://text-service:4002` (used by stats-service)
 - `AUDIO_SERVICE_URL` → `http://audio-service:4003` (used by stats-service)
 - `AI_ORCHESTRATOR_URL` → `http://ai-orchestrator:4005`
+- `API_GATEWAY_URL` → `http://api-gateway:8080` (used by frontend admin proxy)
 
 ## Key Conventions
 
@@ -323,3 +346,24 @@ Service-level env (with defaults):
 - Stats-service uses Node 20 native `fetch()` — no `@nestjs/axios` or Prisma dependency
 - CEFR levels: A0, A1, A2, B1, B2, C1, C2
 - Supported languages: English, German, Albanian, Polish, Ukrainian
+
+### Internal service authentication
+Admin endpoints (text/audio/stats-service) and the auth-service `usersCount` query are protected by two headers that **both** must be present and valid:
+- `x-internal-token` — value must match `INTERNAL_SERVICE_SECRET` env var (server-side only — never sent to browser)
+- `x-internal-service` — value must be in the service's allowlist (e.g. `['stats-service', 'api-gateway']`)
+
+This pattern is used instead of trusting `x-user-role` (which is forgeable by any service in the Docker network). The allowed-service list is logged on each call for auditability.
+
+**`x-user-role: admin`** is only trusted for endpoints where the gateway has already verified the JWT — never use it as the sole guard for internal service-to-service calls.
+
+### Admin data aggregation conventions
+- **All admin aggregations use raw SQL** (`prisma.$queryRaw`) — never `prisma.groupBy()`; this ensures `DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')` is applied consistently (Prisma `groupBy` ignores timezone transforms)
+- **Weighted averages** — always carry `score_sum` and `count` separately; compute `score_sum / count` at the final merge step with a `count > 0` guard; never average pre-computed averages
+- **DAU estimates** — per-service `COUNT(DISTINCT user_id)` is labeled `(est.)` in the UI; exact cross-service dedup via userId set union is available via `?exact=true` (hard-gated to `period=week` + `x-debug-mode: true` to prevent DoS)
+- **UTC date strings** — all `time_series.date` values are `YYYY-MM-DD` in UTC; frontend must parse as `new Date(date + 'T00:00:00Z')` — never `new Date(date)`
+
+### AI usage logging
+- `AiUsageService.log()` is **fire-and-forget** — always call with `void`, never `await`; it never throws and no-ops gracefully if Prisma is unavailable
+- `withRetryTracked()` returns `{ result, attempts }` — declare `let attempts = 0` **outside** the try block so the catch block can read it; `retryCount = attempts - 1` (0 = clean first-attempt success)
+- Log **after** the full retry sequence completes, never inside the retry callback — logging inside inflates counts and creates misleading failure data
+- `requestId` is generated once per incoming HTTP request (or read from `x-request-id` header) and passed through all service calls so multiple AI operations triggered by one user action can be correlated

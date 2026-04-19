@@ -1,0 +1,47 @@
+// Prisma schema for AI Orchestrator service
+// Owns: ai_usage_events
+// Database: ai_orchestrator_db
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_AI_ORCHESTRATOR")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+model AiUsageEvent {
+  id               Int      @id @default(autoincrement())
+  featureType      String   @map("feature_type")
+  // 'text_analyze' | 'writing_analyze' | 'task_generate' | 'listening_generate'
+  // | 'pronunciation' | 'tts' | 'transcribe'
+  endpoint         String?
+  // internal method name — enables cost-per-endpoint breakdown
+  requestType      String   @default("sync") @map("request_type")
+  // 'sync' | 'async' | 'fallback'
+  model            String
+  success          Boolean  @default(true)
+  errorType        String?  @map("error_type")
+  promptTokens     Int?     @map("prompt_tokens")
+  completionTokens Int?     @map("completion_tokens")
+  totalTokens      Int?     @map("total_tokens")
+  durationMs       Int?     @map("duration_ms")
+  // total lifecycle time including all retry attempts and backoff delays
+  retryCount       Int?     @map("retry_count")
+  // 0 = first-attempt success; >0 = retries were needed
+  requestId        String?  @map("request_id")
+  // caller-provided correlation ID — traces one user request across multiple AI calls
+  userId           Int?     @map("user_id")
+  language         String?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([featureType])
+  @@index([endpoint])
+  @@index([requestId])
+  @@index([createdAt])
+  @@index([success])
+  @@index([model])
+  @@map("ai_usage_events")
+}

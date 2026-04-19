@@ -8,10 +8,15 @@ import { TaskService } from './task.service';
 import { PronunciationAiService } from './pronunciation-ai.service';
 import { TtsService } from './tts.service';
 import { G2pService } from './g2p.service';
+import { PrismaService } from './prisma/prisma.service';
+import { AiUsageService } from './usage/ai-usage.service';
+import { UsageController } from './usage/usage.controller';
 
 @Module({
-  controllers: [HealthController, OrchestratorController],
+  controllers: [HealthController, OrchestratorController, UsageController],
   providers: [
+    PrismaService,
+    AiUsageService,
     OrchestratorService,
     G2pService,
     SpeechService,

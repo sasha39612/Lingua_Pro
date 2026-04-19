@@ -2,6 +2,23 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AudioRecord, Task } from '../generated/prisma';
 
+// ─── Admin aggregation module-level helpers ──────────────────────────────────
+// Mirrors the safeAvg / periodToFromDate helpers in text-service for a
+// consistent buildGroupByQuery interface across services.
+
+export type AudioPeriod = 'week' | 'month' | 'all';
+
+export function audioPeriodToFromDate(period: AudioPeriod): Date {
+  const now = new Date();
+  if (period === 'week')  return new Date(now.getTime() - 7  * 24 * 3600 * 1000);
+  if (period === 'month') return new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+  return new Date(0); // 'all' — from epoch
+}
+
+export function audioSafeAvg(scoreSum: number, count: number): number {
+  return count > 0 ? scoreSum / count : 0;
+}
+
 interface CreateAudioRecordInput {
   userId: number;
   language: string;
@@ -192,6 +209,248 @@ export class AudioRepository {
       where: { id: taskId },
       data: { audioUrl },
     });
+  }
+
+  // ── Admin aggregation helpers ───────────────────────────────────────────────
+  // All raw SQL uses DATE_TRUNC('day', created_at AT TIME ZONE 'UTC') for consistent
+  // UTC-day grouping. Never DATE(created_at) — that uses DB server local TZ.
+  // buildGroupByQuery interface (mirrors text-service for consistency):
+  //   config: { fromDate: Date; language?: string; limit?: number }
+  // Multi-branch raw SQL per filter combination — never concatenate user input into SQL.
+
+  async adminByLanguage(fromDate: Date, language?: string): Promise<Array<{
+    language: string;
+    speaking_count: number;
+    listening_count: number;
+    avg_pronunciation_score: number;
+  }>> {
+    type SpRow = { language: string; speaking_count: number; score_sum: number | null };
+    type LsRow = { language: string; listening_count: number };
+    let spRows: SpRow[];
+    let lsRows: LsRow[];
+
+    if (language) {
+      [spRows, lsRows] = await Promise.all([
+        this.prisma.$queryRaw<SpRow[]>`
+          SELECT language, COUNT(*)::int AS speaking_count,
+                 SUM(pronunciation_score)::float AS score_sum
+          FROM audio_records
+          WHERE created_at >= ${fromDate} AND language = ${language}
+          GROUP BY language
+        `,
+        this.prisma.$queryRaw<LsRow[]>`
+          SELECT t.language, COUNT(*)::int AS listening_count
+          FROM listening_scores ls
+          INNER JOIN tasks t ON t.id = ls.task_id
+          WHERE ls.created_at >= ${fromDate} AND t.language = ${language}
+          GROUP BY t.language
+        `,
+      ]);
+    } else {
+      [spRows, lsRows] = await Promise.all([
+        this.prisma.$queryRaw<SpRow[]>`
+          SELECT language, COUNT(*)::int AS speaking_count,
+                 SUM(pronunciation_score)::float AS score_sum
+          FROM audio_records
+          WHERE created_at >= ${fromDate}
+          GROUP BY language
+        `,
+        this.prisma.$queryRaw<LsRow[]>`
+          SELECT t.language, COUNT(*)::int AS listening_count
+          FROM listening_scores ls
+          INNER JOIN tasks t ON t.id = ls.task_id
+          WHERE ls.created_at >= ${fromDate}
+          GROUP BY t.language
+        `,
+      ]);
+    }
+
+    const lsMap = new Map(lsRows.map((r) => [r.language, r.listening_count]));
+    const allLangs = new Set([...spRows.map((r) => r.language), ...lsRows.map((r) => r.language)]);
+    return [...allLangs]
+      .map((lang) => {
+        const sp = spRows.find((r) => r.language === lang);
+        return {
+          language: lang,
+          speaking_count: sp?.speaking_count ?? 0,
+          listening_count: lsMap.get(lang) ?? 0,
+          avg_pronunciation_score: audioSafeAvg(sp?.score_sum ?? 0, sp?.speaking_count ?? 0),
+        };
+      })
+      .sort((a, b) => (b.speaking_count + b.listening_count) - (a.speaking_count + a.listening_count));
+  }
+
+  async adminTopUsersSpeaking(fromDate: Date, language?: string, limit = 20) {
+    type Row = { user_id: number; count: number; score_sum: number | null; last_active: Date };
+    let rows: Row[];
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT user_id, COUNT(*)::int AS count, SUM(pronunciation_score)::float AS score_sum,
+               MAX(created_at) AS last_active
+        FROM audio_records
+        WHERE created_at >= ${fromDate} AND language = ${language}
+        GROUP BY user_id ORDER BY count DESC LIMIT ${limit}
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT user_id, COUNT(*)::int AS count, SUM(pronunciation_score)::float AS score_sum,
+               MAX(created_at) AS last_active
+        FROM audio_records
+        WHERE created_at >= ${fromDate}
+        GROUP BY user_id ORDER BY count DESC LIMIT ${limit}
+      `;
+    }
+    return rows.map((r) => ({
+      userId: Number(r.user_id),
+      count: r.count,
+      score_sum: r.score_sum ?? 0,
+      avg_score: audioSafeAvg(r.score_sum ?? 0, r.count),
+      last_active: r.last_active instanceof Date ? r.last_active.toISOString() : String(r.last_active),
+    }));
+  }
+
+  async adminTopUsersListening(fromDate: Date, language?: string, limit = 20) {
+    type Row = { user_id: number; count: number; score_sum: number | null; last_active: Date };
+    let rows: Row[];
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT ls.user_id, COUNT(*)::int AS count, SUM(ls.score)::float AS score_sum,
+               MAX(ls.created_at) AS last_active
+        FROM listening_scores ls
+        INNER JOIN tasks t ON t.id = ls.task_id
+        WHERE ls.created_at >= ${fromDate} AND t.language = ${language}
+        GROUP BY ls.user_id ORDER BY count DESC LIMIT ${limit}
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT ls.user_id, COUNT(*)::int AS count, SUM(ls.score)::float AS score_sum,
+               MAX(ls.created_at) AS last_active
+        FROM listening_scores ls
+        WHERE ls.created_at >= ${fromDate}
+        GROUP BY ls.user_id ORDER BY count DESC LIMIT ${limit}
+      `;
+    }
+    return rows.map((r) => ({
+      userId: Number(r.user_id),
+      count: r.count,
+      score_sum: r.score_sum ?? 0,
+      avg_score: audioSafeAvg(r.score_sum ?? 0, r.count),
+      last_active: r.last_active instanceof Date ? r.last_active.toISOString() : String(r.last_active),
+    }));
+  }
+
+  async adminDailySpeakingCounts(fromDate: Date, language?: string) {
+    type Row = { date: Date; count: number };
+    let rows: Row[];
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               COUNT(*)::int AS count
+        FROM audio_records
+        WHERE created_at >= ${fromDate} AND language = ${language}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               COUNT(*)::int AS count
+        FROM audio_records
+        WHERE created_at >= ${fromDate}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    }
+    return rows.map((r) => ({
+      date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
+      count: r.count,
+    }));
+  }
+
+  async adminDailyListeningCounts(fromDate: Date, language?: string) {
+    type Row = { date: Date; count: number };
+    let rows: Row[];
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', ls.created_at AT TIME ZONE 'UTC')::date AS date,
+               COUNT(*)::int AS count
+        FROM listening_scores ls
+        INNER JOIN tasks t ON t.id = ls.task_id
+        WHERE ls.created_at >= ${fromDate} AND t.language = ${language}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', ls.created_at AT TIME ZONE 'UTC')::date AS date,
+               COUNT(*)::int AS count
+        FROM listening_scores ls
+        WHERE ls.created_at >= ${fromDate}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    }
+    return rows.map((r) => ({
+      date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
+      count: r.count,
+    }));
+  }
+
+  async adminDailyActiveEstimate(fromDate: Date, language?: string) {
+    type Row = { date: Date; count: number };
+    let rows: Row[];
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               COUNT(DISTINCT user_id)::int AS count
+        FROM audio_records
+        WHERE created_at >= ${fromDate} AND language = ${language}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               COUNT(DISTINCT user_id)::int AS count
+        FROM audio_records
+        WHERE created_at >= ${fromDate}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    }
+    return rows.map((r) => ({
+      date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
+      count: r.count,
+    }));
+  }
+
+  async adminActiveUserCount(fromDate: Date): Promise<number> {
+    const rows = await this.prisma.$queryRaw<[{ count: number }]>`
+      SELECT COUNT(DISTINCT user_id)::int AS count FROM audio_records WHERE created_at >= ${fromDate}
+    `;
+    return rows[0]?.count ?? 0;
+  }
+
+  async adminActiveUserIds(fromDate: Date, language?: string): Promise<Array<{ date: string; userIds: number[] }>> {
+    type Row = { date: Date; user_ids: number[] };
+    let rows: Row[];
+    // Exact mode: returns userId arrays per day for precise cross-service DAU dedup.
+    // Hard-gated to period=week at the controller level before this is called.
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               ARRAY_AGG(DISTINCT user_id) AS user_ids
+        FROM audio_records
+        WHERE created_at >= ${fromDate} AND language = ${language}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               ARRAY_AGG(DISTINCT user_id) AS user_ids
+        FROM audio_records
+        WHERE created_at >= ${fromDate}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    }
+    return rows.map((r) => ({
+      date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
+      userIds: (r.user_ids ?? []).map(Number),
+    }));
   }
 
   async getListeningScoresByLanguage(

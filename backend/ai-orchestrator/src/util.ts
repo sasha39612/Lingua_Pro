@@ -235,6 +235,23 @@ export async function withRetry<T>(
   throw lastError;
 }
 
+// Non-breaking addition alongside withRetry.
+// Returns result + number of attempts made (1 = no retries, 2+ = at least one retry).
+export async function withRetryTracked<T>(
+  fn: () => Promise<T>,
+  label: string,
+  logger: Logger,
+  attempts = 3,
+  baseMs = 400,
+): Promise<{ result: T; attempts: number }> {
+  let attemptCount = 0;
+  const result = await withRetry(async () => {
+    attemptCount++;
+    return fn();
+  }, label, logger, attempts, baseMs);
+  return { result, attempts: attemptCount };
+}
+
 export function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), ms);

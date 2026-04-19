@@ -12,6 +12,8 @@ type RequestContext = {
   token: string | null;
   userId: string | null;
   role: string | null;
+  internalToken: string | null;
+  internalService: string | null;
 };
 
 const PORT = parseInt(process.env.PORT || '4001', 10);
@@ -39,10 +41,18 @@ function getTokenFromRequest(req: IncomingMessage): string | null {
   return value.slice(7).trim() || null;
 }
 
+function getHeader(req: IncomingMessage, name: string): string | null {
+  const val = req.headers[name.toLowerCase()];
+  if (!val || Array.isArray(val)) return null;
+  return val.trim() || null;
+}
+
 async function buildContext(req: IncomingMessage): Promise<RequestContext> {
+  const internalToken = getHeader(req, 'x-internal-token');
+  const internalService = getHeader(req, 'x-internal-service');
   const token = getTokenFromRequest(req);
   if (!token) {
-    return { token: null, userId: null, role: null };
+    return { token: null, userId: null, role: null, internalToken, internalService };
   }
 
   try {
@@ -50,10 +60,12 @@ async function buildContext(req: IncomingMessage): Promise<RequestContext> {
     return {
       token,
       userId: String(payload?.id ?? ''),
-      role: String(payload?.role ?? '')
+      role: String(payload?.role ?? ''),
+      internalToken,
+      internalService
     };
   } catch {
-    return { token: null, userId: null, role: null };
+    return { token: null, userId: null, role: null, internalToken, internalService };
   }
 }
 

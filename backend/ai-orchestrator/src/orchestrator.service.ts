@@ -29,8 +29,8 @@ export class OrchestratorService {
 
   // ── Text (reading / writing domain) ───────────────────────────────────────
 
-  analyzeText(text: string, language: string): Promise<AnalyzeResult> {
-    return this.textAi.analyzeText(text, language);
+  analyzeText(text: string, language: string, requestId?: string): Promise<AnalyzeResult> {
+    return this.textAi.analyzeText(text, language, requestId);
   }
 
   streamTextAnalysis(text: string, language: string): Observable<{ data: any }> {
@@ -124,8 +124,8 @@ export class OrchestratorService {
 
   // ── Writing task analysis ──────────────────────────────────────────────────
 
-  analyzeWritingTask(text: string, language: string, taskContext: WritingTask): Promise<WritingAnalysisResult> {
-    return this.textAi.analyzeWritingTask(text, language, taskContext);
+  analyzeWritingTask(text: string, language: string, taskContext: WritingTask, requestId?: string): Promise<WritingAnalysisResult> {
+    return this.textAi.analyzeWritingTask(text, language, taskContext, requestId);
   }
 
   // ── TTS ────────────────────────────────────────────────────────────────────

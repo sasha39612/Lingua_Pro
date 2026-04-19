@@ -45,7 +45,7 @@ describe('OrchestratorService — facade delegation', () => {
 
     const result = await svc.analyzeText('Hi', 'English');
 
-    expect(mockTextAi.analyzeText).toHaveBeenCalledWith('Hi', 'English');
+    expect(mockTextAi.analyzeText).toHaveBeenCalledWith('Hi', 'English', undefined);
     expect(result).toEqual(expected);
   });
 

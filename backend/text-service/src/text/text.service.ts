@@ -208,6 +208,263 @@ export class TextService {
 
     return tasks;
   }
+
+  // ─── Admin aggregation ──────────────────────────────────────────────────────
+
+  async getAdminSummary(period: Period, language?: string) {
+    const fromDate = periodToFromDate(period);
+    const lang = language ? language.toLowerCase() : undefined;
+
+    const [
+      byLanguage,
+      bySkill,
+      topUsers,
+      dailySessions,
+      dailyActiveEst,
+      activeUserCount,
+      completedTaskCount,
+    ] = await Promise.all([
+      this.adminByLanguage(fromDate, lang),
+      this.adminBySkill(fromDate, lang),
+      this.adminTopUsers(fromDate, lang),
+      this.adminDailyCounts(fromDate, lang),
+      this.adminDailyActiveEstimate(fromDate, lang),
+      this.adminActiveUserCount(fromDate),
+      this.adminCompletedTaskCount(fromDate),
+    ]);
+
+    const totalSessions = byLanguage.reduce((s, r) => s + r.count, 0);
+
+    return {
+      period,
+      language: lang ?? null,
+      total_sessions: totalSessions,
+      by_language: byLanguage,
+      by_skill: bySkill,
+      top_users: topUsers,
+      time_series: {
+        daily_sessions: dailySessions,
+        daily_active_user_estimate: dailyActiveEst,
+      },
+      funnel: {
+        with_text_activity: activeUserCount,
+        completed_task: completedTaskCount,
+      },
+    };
+  }
+
+  // buildGroupByQuery interface (mirrors audio-service):
+  //   config: { fromDate: Date; language?: string; skill?: string; limit?: number }
+  // Multi-branch raw SQL — one branch per filter combination so we never
+  // concatenate user input into SQL strings.
+
+  private async adminByLanguage(fromDate: Date, language?: string) {
+    type Row = { language: string; count: number; score_sum: number | null };
+    let rows: Row[];
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT language, COUNT(*)::int AS count, SUM(text_score)::float AS score_sum
+        FROM texts
+        WHERE created_at >= ${fromDate} AND language = ${language}
+        GROUP BY language ORDER BY count DESC
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT language, COUNT(*)::int AS count, SUM(text_score)::float AS score_sum
+        FROM texts
+        WHERE created_at >= ${fromDate}
+        GROUP BY language ORDER BY count DESC
+      `;
+    }
+    return rows.map((r) => ({
+      language: r.language,
+      count: r.count,
+      avg_score: safeAvg(r.score_sum ?? 0, r.count),
+    }));
+  }
+
+  private async adminBySkill(fromDate: Date, language?: string) {
+    type Row = { skill: string; count: number; score_sum: number | null };
+    let rows: Row[];
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT skill, COUNT(*)::int AS count, SUM(text_score)::float AS score_sum
+        FROM texts
+        WHERE created_at >= ${fromDate} AND language = ${language}
+        GROUP BY skill
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT skill, COUNT(*)::int AS count, SUM(text_score)::float AS score_sum
+        FROM texts
+        WHERE created_at >= ${fromDate}
+        GROUP BY skill
+      `;
+    }
+    const result = {
+      reading: { count: 0, avg_score: 0 },
+      writing: { count: 0, avg_score: 0 },
+    };
+    for (const r of rows) {
+      if (r.skill === 'reading' || r.skill === 'writing') {
+        result[r.skill] = {
+          count: r.count,
+          avg_score: safeAvg(r.score_sum ?? 0, r.count),
+        };
+      }
+    }
+    return result;
+  }
+
+  private async adminTopUsers(fromDate: Date, language?: string, limit = 20) {
+    type Row = { user_id: number; count: number; score_sum: number | null; last_active: Date };
+    let rows: Row[];
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT user_id, COUNT(*)::int AS count, SUM(text_score)::float AS score_sum,
+               MAX(created_at) AS last_active
+        FROM texts
+        WHERE created_at >= ${fromDate} AND language = ${language}
+        GROUP BY user_id ORDER BY count DESC LIMIT ${limit}
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT user_id, COUNT(*)::int AS count, SUM(text_score)::float AS score_sum,
+               MAX(created_at) AS last_active
+        FROM texts
+        WHERE created_at >= ${fromDate}
+        GROUP BY user_id ORDER BY count DESC LIMIT ${limit}
+      `;
+    }
+    return rows.map((r) => ({
+      userId: Number(r.user_id),
+      count: r.count,
+      score_sum: r.score_sum ?? 0,
+      avg_score: safeAvg(r.score_sum ?? 0, r.count),
+      // UTC ISO string — all services must use this format for cross-service string comparison safety
+      last_active: r.last_active instanceof Date ? r.last_active.toISOString() : String(r.last_active),
+    }));
+  }
+
+  private async adminDailyCounts(fromDate: Date, language?: string) {
+    type Row = { date: Date; count: number };
+    let rows: Row[];
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               COUNT(*)::int AS count
+        FROM texts
+        WHERE created_at >= ${fromDate} AND language = ${language}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               COUNT(*)::int AS count
+        FROM texts
+        WHERE created_at >= ${fromDate}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    }
+    return rows.map((r) => ({
+      date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
+      count: r.count,
+    }));
+  }
+
+  private async adminDailyActiveEstimate(fromDate: Date, language?: string) {
+    type Row = { date: Date; count: number };
+    let rows: Row[];
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               COUNT(DISTINCT user_id)::int AS count
+        FROM texts
+        WHERE created_at >= ${fromDate} AND language = ${language}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               COUNT(DISTINCT user_id)::int AS count
+        FROM texts
+        WHERE created_at >= ${fromDate}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    }
+    return rows.map((r) => ({
+      date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
+      count: r.count,
+    }));
+  }
+
+  async adminActiveUserCount(fromDate: Date): Promise<number> {
+    const rows = await this.prisma.$queryRaw<[{ count: number }]>`
+      SELECT COUNT(DISTINCT user_id)::int AS count FROM texts WHERE created_at >= ${fromDate}
+    `;
+    return rows[0]?.count ?? 0;
+  }
+
+  async adminActiveUserIds(fromDate: Date, language?: string): Promise<Array<{ date: string; userIds: number[] }>> {
+    type Row = { date: Date; user_ids: number[] };
+    let rows: Row[];
+    // Exact mode: returns userId arrays per day for precise cross-service DAU dedup.
+    // Hard-gated to period=week at the controller level before this is ever called.
+    if (language) {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               ARRAY_AGG(DISTINCT user_id) AS user_ids
+        FROM texts
+        WHERE created_at >= ${fromDate} AND language = ${language}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    } else {
+      rows = await this.prisma.$queryRaw<Row[]>`
+        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
+               ARRAY_AGG(DISTINCT user_id) AS user_ids
+        FROM texts
+        WHERE created_at >= ${fromDate}
+        GROUP BY 1 ORDER BY 1 ASC
+      `;
+    }
+    return rows.map((r) => ({
+      date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
+      userIds: (r.user_ids ?? []).map(Number),
+    }));
+  }
+
+  private async adminCompletedTaskCount(fromDate: Date): Promise<number> {
+    const db = this.prisma as any;
+    try {
+      const rows = await db.$queryRaw`
+        SELECT COUNT(DISTINCT user_id)::int AS count FROM user_task_sets WHERE created_at >= ${fromDate}
+      `;
+      return rows[0]?.count ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+}
+
+// ─── Admin aggregation helpers ────────────────────────────────────────────────
+// All raw SQL uses DATE_TRUNC('day', created_at AT TIME ZONE 'UTC') for timezone-
+// consistent grouping. Never DATE(created_at) — that uses DB server local TZ.
+//
+// buildGroupByQuery interface (mirrors audio-service for consistency):
+//   config: { fromDate: Date; language?: string; skill?: string; limit?: number }
+// Actual SQL is multi-branch (same pattern as audio.repository.ts).
+
+type Period = 'week' | 'month' | 'all';
+
+function periodToFromDate(period: Period): Date {
+  const now = new Date();
+  if (period === 'week')  return new Date(now.getTime() - 7  * 24 * 3600 * 1000);
+  if (period === 'month') return new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+  return new Date(0); // 'all' — from epoch
+}
+
+function safeAvg(scoreSum: number, count: number): number {
+  return count > 0 ? scoreSum / count : 0;
 }
 
 // we need to import or redeclare simulateAIAnalysis and calculateTextScore

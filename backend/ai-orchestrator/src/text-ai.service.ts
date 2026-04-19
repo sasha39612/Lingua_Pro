@@ -3,7 +3,9 @@ import OpenAI from 'openai';
 import { Observable, concat, from, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import type { AnalyzeResult, WritingAnalysisResult, WritingTask } from './types';
-import { safeJsonParse, normalizeScore, withRetry, withTimeout } from './util';
+import { safeJsonParse, normalizeScore, withRetryTracked, withTimeout } from './util';
+import { AiUsageService } from './usage/ai-usage.service';
+import { classifyError } from './usage/error-type';
 
 @Injectable()
 export class TextAiService {
@@ -11,7 +13,7 @@ export class TextAiService {
   private readonly openai: OpenAI | null;
   private readonly textModel: string;
 
-  constructor() {
+  constructor(private readonly aiUsage: AiUsageService) {
     const apiKey = process.env.AI_API_KEY;
     this.openai = apiKey ? new OpenAI({ apiKey }) : null;
     this.textModel = process.env.OPENAI_TEXT_MODEL || 'gpt-4o';
@@ -19,7 +21,7 @@ export class TextAiService {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  async analyzeText(text: string, language: string): Promise<AnalyzeResult> {
+  async analyzeText(text: string, language: string, requestId?: string): Promise<AnalyzeResult> {
     const normalized = (text || '').trim();
     if (!normalized) {
       return {
@@ -33,8 +35,10 @@ export class TextAiService {
       return this.localTextAnalysis(normalized, language);
     }
 
+    const start = Date.now();
+    let attempts = 0;
     try {
-      const response = await withRetry(
+      const { result: response, attempts: a } = await withRetryTracked(
         () =>
           withTimeout(
             this.openai!.chat.completions.create({
@@ -61,6 +65,21 @@ export class TextAiService {
         'analyzeText',
         this.logger,
       );
+      attempts = a;
+
+      void this.aiUsage.log({
+        featureType: 'text_analyze',
+        endpoint: 'analyzeText',
+        model: this.textModel,
+        success: true,
+        durationMs: Date.now() - start,
+        retryCount: attempts - 1,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        requestId,
+        language,
+      });
 
       const content = response.choices?.[0]?.message?.content || '{}';
       const parsed = safeJsonParse<{ correctedText?: string; feedback?: string; textScore?: number }>(content);
@@ -72,6 +91,17 @@ export class TextAiService {
         textScore: normalizeScore(parsed.textScore, fallback.textScore),
       };
     } catch (error: any) {
+      void this.aiUsage.log({
+        featureType: 'text_analyze',
+        endpoint: 'analyzeText',
+        model: this.textModel,
+        success: false,
+        errorType: classifyError(error),
+        durationMs: Date.now() - start,
+        retryCount: attempts > 0 ? attempts - 1 : 0,
+        requestId,
+        language,
+      });
       this.logger.warn(`GPT text analysis failed, using fallback: ${error?.message ?? error}`);
       return this.localTextAnalysis(normalized, language);
     }
@@ -88,7 +118,7 @@ export class TextAiService {
 
   // ── Writing task analysis ──────────────────────────────────────────────────
 
-  async analyzeWritingTask(text: string, language: string, taskContext: WritingTask): Promise<WritingAnalysisResult> {
+  async analyzeWritingTask(text: string, language: string, taskContext: WritingTask, requestId?: string): Promise<WritingAnalysisResult> {
     const normalized = (text || '').trim();
 
     if (!this.openai) {
@@ -103,8 +133,10 @@ export class TextAiService {
       `Word count: ${taskContext.wordCountMin}–${taskContext.wordCountMax}`,
     ].join('\n');
 
+    const start = Date.now();
+    let attempts = 0;
     try {
-      const response = await withRetry(
+      const { result: response, attempts: a } = await withRetryTracked(
         () =>
           withTimeout(
             this.openai!.chat.completions.create({
@@ -138,6 +170,21 @@ export class TextAiService {
         'analyzeWritingTask',
         this.logger,
       );
+      attempts = a;
+
+      void this.aiUsage.log({
+        featureType: 'writing_analyze',
+        endpoint: 'analyzeWritingTask',
+        model: this.textModel,
+        success: true,
+        durationMs: Date.now() - start,
+        retryCount: attempts - 1,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        requestId,
+        language,
+      });
 
       const content = response.choices?.[0]?.message?.content || '{}';
       const parsed = safeJsonParse<Partial<WritingAnalysisResult>>(content);
@@ -164,7 +211,29 @@ export class TextAiService {
       }
 
       this.logger.warn('GPT returned invalid writing analysis structure, using fallback');
+      void this.aiUsage.log({
+        featureType: 'writing_analyze',
+        endpoint: 'analyzeWritingTask',
+        model: this.textModel,
+        success: false,
+        errorType: 'parse_error',
+        durationMs: Date.now() - start,
+        retryCount: attempts - 1,
+        requestId,
+        language,
+      });
     } catch (error: any) {
+      void this.aiUsage.log({
+        featureType: 'writing_analyze',
+        endpoint: 'analyzeWritingTask',
+        model: this.textModel,
+        success: false,
+        errorType: classifyError(error),
+        durationMs: Date.now() - start,
+        retryCount: attempts > 0 ? attempts - 1 : 0,
+        requestId,
+        language,
+      });
       this.logger.warn(`GPT writing analysis failed, using fallback: ${error?.message ?? error}`);
     }
 
