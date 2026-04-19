@@ -188,13 +188,14 @@ export const authSchema = buildSubgraphSchema([
           requireAdmin(context);
           const take = Math.min(limit ?? 100, 200); // cap at 200
           const skip = offset ?? 0;
-          return prisma.user.findMany({
+          const rows = await prisma.user.findMany({
             // Stable sort: newest first; secondary sort by id prevents page drift when
             // new users are created between page requests
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             take,
             skip
           });
+          return rows.map((u) => ({ ...u, createdAt: u.createdAt.toISOString() }));
         },
         usersCount: async (_: any, _args: any, context: any) => {
           // Accessible by admin users OR by trusted internal services
