@@ -18,6 +18,9 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://api-gateway:8080/graphql
+      - STATS_SERVICE_URL=http://stats-service:4004
+      - API_GATEWAY_URL=http://api-gateway:8080
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
       interval: 30s
@@ -73,6 +76,7 @@ services:
       - DATABASE_URL=${DATABASE_URL_AUTH}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRY=${JWT_EXPIRY:-7d}
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:4001/health || exit 1"]
       interval: 30s
@@ -98,6 +102,7 @@ services:
       - PORT=4002
       - DATABASE_URL=${DATABASE_URL_TEXT}
       - AI_ORCHESTRATOR_URL=http://ai-orchestrator:4005
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:4002/health || exit 1"]
       interval: 30s
@@ -126,6 +131,7 @@ services:
       - DATABASE_URL=${DATABASE_URL_AUDIO}
       - AI_ORCHESTRATOR_URL=http://ai-orchestrator:4005
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
     volumes:
       - audio_data:/var/app/uploads
     healthcheck:
@@ -156,6 +162,8 @@ services:
       - PORT=4004
       - TEXT_SERVICE_URL=http://text-service:4002
       - AUDIO_SERVICE_URL=http://audio-service:4003
+      - AUTH_SERVICE_URL=http://auth-service:4001/graphql
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:4004/health || exit 1"]
       interval: 30s
