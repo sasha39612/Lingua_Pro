@@ -162,7 +162,7 @@ services:
       - PORT=4004
       - TEXT_SERVICE_URL=http://text-service:4002
       - AUDIO_SERVICE_URL=http://audio-service:4003
-      - AUTH_SERVICE_URL=http://auth-service:4001/graphql
+      - AUTH_SERVICE_URL=http://auth-service:4001
       - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:4004/health || exit 1"]
