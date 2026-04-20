@@ -127,3 +127,15 @@ jobs:
             printf 'cd /opt/lingua-pro\n'
             printf 'bash scripts/deploy.sh %q\n'     "$GIT_SHA"
           } | ssh "$DEST" bash
+
+      - name: Dump container logs on failure
+        if: failure()
+        env:
+          DEST: "${{ secrets.HETZNER_USER }}@${{ secrets.SERVER_HOST }}"
+        run: |
+          ssh "$DEST" bash << 'EOF'
+            echo "=== ai-orchestrator logs ==="
+            docker logs lingua-pro-ai-orchestrator-1 --tail 100 2>&1 || true
+            echo "=== postgres logs ==="
+            docker logs lingua-pro-postgres-1 --tail 50 2>&1 || true
+          EOF

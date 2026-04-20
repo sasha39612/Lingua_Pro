@@ -12,10 +12,14 @@ ADMIN_URL="${DB_URL%/*}/postgres"
 
 echo "[ai-orchestrator] Ensuring database '${DB_NAME}' exists..."
 psql "${ADMIN_URL}" -c "CREATE DATABASE \"${DB_NAME}\";" 2>/dev/null \
-  || echo "[ai-orchestrator] Database already exists, continuing..."
+  || echo "[ai-orchestrator] Database already exists or unreachable, continuing..."
 
 echo "[ai-orchestrator] Running Prisma migrations..."
-npx prisma migrate deploy --schema=./prisma/schema.prisma
+if npx prisma migrate deploy --schema=./prisma/schema.prisma; then
+  echo "[ai-orchestrator] Migrations applied."
+else
+  echo "[ai-orchestrator] WARNING: migrations failed — service will start without DB (usage logging disabled)"
+fi
 
 echo "[ai-orchestrator] Starting service..."
 exec node dist/main.js
