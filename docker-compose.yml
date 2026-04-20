@@ -198,6 +198,7 @@ services:
       - OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
       - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY:-}
       - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION:-westeurope}
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:4005/health || exit 1"]
       interval: 30s
