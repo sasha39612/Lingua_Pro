@@ -15,7 +15,9 @@ psql "${ADMIN_URL}" -c "CREATE DATABASE \"${DB_NAME}\";" 2>/dev/null \
   || echo "[ai-orchestrator] Database already exists or unreachable, continuing..."
 
 echo "[ai-orchestrator] Running Prisma migrations..."
-if npx prisma migrate deploy --schema=./prisma/schema.prisma; then
+# Pass --datasource-url directly so Prisma never reads prisma.config.ts
+# (Prisma 7's WASM parser fails to parse our config file syntax at runtime)
+if npx prisma migrate deploy --schema=./prisma/schema.prisma --datasource-url "${DB_URL}"; then
   echo "[ai-orchestrator] Migrations applied."
 else
   echo "[ai-orchestrator] WARNING: migrations failed — service will start without DB (usage logging disabled)"
