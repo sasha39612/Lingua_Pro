@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import type { GeneratedTask, ListeningPassage, ListeningPassageV2, ListeningQuestionV2, ReadingQuestion, WritingTask } from './types';
-import { safeJsonParse, withRetry, withTimeout } from './util';
+import { safeJsonParse, withRetryTracked, withTimeout } from './util';
+import { AiUsageService } from './usage/ai-usage.service';
+import { classifyError } from './usage/error-type';
 
 @Injectable()
 export class TaskService {
@@ -9,7 +11,7 @@ export class TaskService {
   private readonly openai: OpenAI | null;
   private readonly taskModel: string;
 
-  constructor() {
+  constructor(private readonly aiUsage: AiUsageService) {
     const apiKey = process.env.AI_API_KEY;
     this.openai = apiKey ? new OpenAI({ apiKey }) : null;
     this.taskModel = process.env.OPENAI_TASK_MODEL || 'gpt-4o-mini';
@@ -17,18 +19,20 @@ export class TaskService {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  async generateTasks(language: string, level: string, skill?: string): Promise<GeneratedTask[]> {
+  async generateTasks(language: string, level: string, skill?: string, requestId?: string): Promise<GeneratedTask[]> {
     const safeLanguage = (language || 'English').trim() || 'English';
     const safeLevel = (level || 'A1').trim() || 'A1';
     const safeSkill = (skill || 'reading').trim() || 'reading';
 
     if (safeSkill === 'reading') {
-      const exercise = await this.generateReadingExercise(safeLanguage, safeLevel);
+      // Delegate — logging is done inside generateReadingExercise
+      const exercise = await this.generateReadingExercise(safeLanguage, safeLevel, requestId);
       return [exercise];
     }
 
     if (safeSkill === 'writing') {
-      const task = await this.generateWritingTask(safeLanguage, safeLevel);
+      // Delegate — logging is done inside generateWritingTask
+      const task = await this.generateWritingTask(safeLanguage, safeLevel, requestId);
       const promptJson = JSON.stringify(task);
       return [{
         language: safeLanguage,
@@ -48,9 +52,11 @@ export class TaskService {
     }
 
     const isSpeaking = safeSkill === 'speaking';
+    const start = Date.now();
+    let attempts = 0;
 
     try {
-      const response = await withRetry(
+      const { result: response, attempts: a } = await withRetryTracked(
         () =>
           withTimeout(
             this.openai!.chat.completions.create({
@@ -91,6 +97,21 @@ export class TaskService {
         'generateTasks',
         this.logger,
       );
+      attempts = a;
+
+      void this.aiUsage.log({
+        success: true,
+        featureType: 'task_generate',
+        endpoint: 'generateTasks',
+        model: this.taskModel,
+        durationMs: Date.now() - start,
+        retryCount: attempts - 1,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        requestId,
+        language: safeLanguage,
+      });
 
       const content = response.choices?.[0]?.message?.content || '{}';
       const parsed = safeJsonParse<{ tasks?: any[] }>(content);
@@ -113,6 +134,17 @@ export class TaskService {
         .slice(0, 3)
         .map((task, index) => this.normalizeTask(task, safeLanguage, safeLevel, safeSkill, index));
     } catch (error: any) {
+      void this.aiUsage.log({
+        success: false,
+        featureType: 'task_generate',
+        endpoint: 'generateTasks',
+        model: this.taskModel,
+        errorType: classifyError(error),
+        durationMs: Date.now() - start,
+        retryCount: attempts > 0 ? attempts - 1 : 0,
+        requestId,
+        language: safeLanguage,
+      });
       this.logger.warn(`GPT task generation failed, using fallback: ${error?.message ?? error}`);
       return this.localTaskGeneration(safeLanguage, safeLevel, safeSkill);
     }
@@ -120,7 +152,7 @@ export class TaskService {
 
   // ── Listening passage generation ───────────────────────────────────────────
 
-  async generateListeningPassage(language: string, level: string): Promise<ListeningPassage> {
+  async generateListeningPassage(language: string, level: string, requestId?: string): Promise<ListeningPassage> {
     const safeLanguage = (language || 'English').trim() || 'English';
     const safeLevel = (level || 'A1').trim() || 'A1';
 
@@ -128,8 +160,11 @@ export class TaskService {
       return this.localListeningPassage(safeLanguage, safeLevel);
     }
 
+    const start = Date.now();
+    let attempts = 0;
+
     try {
-      const response = await withRetry(
+      const { result: response, attempts: a } = await withRetryTracked(
         () =>
           withTimeout(
             this.openai!.chat.completions.create({
@@ -162,6 +197,21 @@ export class TaskService {
         'generateListeningPassage',
         this.logger,
       );
+      attempts = a;
+
+      void this.aiUsage.log({
+        success: true,
+        featureType: 'listening_generate',
+        endpoint: 'generateListeningPassage',
+        model: this.taskModel,
+        durationMs: Date.now() - start,
+        retryCount: attempts - 1,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        requestId,
+        language: safeLanguage,
+      });
 
       const content = response.choices?.[0]?.message?.content || '{}';
       const parsed = safeJsonParse<{ passageText?: string; questions?: any[] }>(content);
@@ -187,6 +237,17 @@ export class TaskService {
 
       this.logger.warn('GPT returned invalid listening passage structure, using fallback');
     } catch (error: any) {
+      void this.aiUsage.log({
+        success: false,
+        featureType: 'listening_generate',
+        endpoint: 'generateListeningPassage',
+        model: this.taskModel,
+        errorType: classifyError(error),
+        durationMs: Date.now() - start,
+        retryCount: attempts > 0 ? attempts - 1 : 0,
+        requestId,
+        language: safeLanguage,
+      });
       this.logger.warn(`GPT listening passage generation failed, using fallback: ${error?.message ?? error}`);
     }
 
@@ -195,7 +256,7 @@ export class TaskService {
 
   // ── Listening exercise v2 generation (8 questions, CEFR-graded) ───────────
 
-  async generateListeningExercise(language: string, level: string): Promise<ListeningPassageV2> {
+  async generateListeningExercise(language: string, level: string, requestId?: string): Promise<ListeningPassageV2> {
     const safeLanguage = (language || 'English').trim() || 'English';
     const safeLevel = (level || 'B1').trim() || 'B1';
 
@@ -203,8 +264,11 @@ export class TaskService {
       return this.localListeningExercise(safeLanguage, safeLevel);
     }
 
+    const start = Date.now();
+    let attempts = 0;
+
     try {
-      const response = await withRetry(
+      const { result: response, attempts: a } = await withRetryTracked(
         () =>
           withTimeout(
             this.openai!.chat.completions.create({
@@ -277,6 +341,21 @@ export class TaskService {
         'generateListeningExercise',
         this.logger,
       );
+      attempts = a;
+
+      void this.aiUsage.log({
+        success: true,
+        featureType: 'listening_generate',
+        endpoint: 'generateListeningExercise',
+        model: this.taskModel,
+        durationMs: Date.now() - start,
+        retryCount: attempts - 1,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        requestId,
+        language: safeLanguage,
+      });
 
       const content = response.choices?.[0]?.message?.content || '{}';
       const parsed = safeJsonParse<{ passageText?: string; questions?: any[] }>(content);
@@ -361,6 +440,17 @@ export class TaskService {
 
       this.logger.warn('GPT returned invalid listening exercise v2 structure, using fallback');
     } catch (error: any) {
+      void this.aiUsage.log({
+        success: false,
+        featureType: 'listening_generate',
+        endpoint: 'generateListeningExercise',
+        model: this.taskModel,
+        errorType: classifyError(error),
+        durationMs: Date.now() - start,
+        retryCount: attempts > 0 ? attempts - 1 : 0,
+        requestId,
+        language: safeLanguage,
+      });
       this.logger.warn(`GPT listening exercise v2 generation failed, using fallback: ${error?.message ?? error}`);
     }
 
@@ -369,13 +459,16 @@ export class TaskService {
 
   // ── Reading exercise generation ────────────────────────────────────────────
 
-  async generateReadingExercise(language: string, level: string): Promise<GeneratedTask> {
+  async generateReadingExercise(language: string, level: string, requestId?: string): Promise<GeneratedTask> {
     if (!this.openai) {
       return this.localReadingExercise(language, level);
     }
 
+    const start = Date.now();
+    let attempts = 0;
+
     try {
-      const response = await withRetry(
+      const { result: response, attempts: a } = await withRetryTracked(
         () =>
           withTimeout(
             this.openai!.chat.completions.create({
@@ -409,6 +502,21 @@ export class TaskService {
         'generateReadingExercise',
         this.logger,
       );
+      attempts = a;
+
+      void this.aiUsage.log({
+        success: true,
+        featureType: 'reading_generate',
+        endpoint: 'generateReadingExercise',
+        model: this.taskModel,
+        durationMs: Date.now() - start,
+        retryCount: attempts - 1,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        requestId,
+        language,
+      });
 
       const content = response.choices?.[0]?.message?.content || '{}';
       const parsed = safeJsonParse<{ passageText?: string; questions?: any[] }>(content);
@@ -455,6 +563,17 @@ export class TaskService {
 
       this.logger.warn('GPT returned invalid reading exercise structure, using fallback');
     } catch (error: any) {
+      void this.aiUsage.log({
+        success: false,
+        featureType: 'reading_generate',
+        endpoint: 'generateReadingExercise',
+        model: this.taskModel,
+        errorType: classifyError(error),
+        durationMs: Date.now() - start,
+        retryCount: attempts > 0 ? attempts - 1 : 0,
+        requestId,
+        language,
+      });
       this.logger.warn(`GPT reading exercise generation failed, using fallback: ${error?.message ?? error}`);
     }
 
@@ -463,13 +582,16 @@ export class TaskService {
 
   // ── Writing task generation ────────────────────────────────────────────────
 
-  async generateWritingTask(language: string, level: string): Promise<WritingTask> {
+  async generateWritingTask(language: string, level: string, requestId?: string): Promise<WritingTask> {
     if (!this.openai) {
       return this.localWritingTask(language, level);
     }
 
+    const start = Date.now();
+    let attempts = 0;
+
     try {
-      const response = await withRetry(
+      const { result: response, attempts: a } = await withRetryTracked(
         () =>
           withTimeout(
             this.openai!.chat.completions.create({
@@ -504,6 +626,21 @@ export class TaskService {
         'generateWritingTask',
         this.logger,
       );
+      attempts = a;
+
+      void this.aiUsage.log({
+        success: true,
+        featureType: 'writing_generate',
+        endpoint: 'generateWritingTask',
+        model: this.taskModel,
+        durationMs: Date.now() - start,
+        retryCount: attempts - 1,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        requestId,
+        language,
+      });
 
       const content = response.choices?.[0]?.message?.content || '{}';
       const parsed = safeJsonParse<Partial<WritingTask>>(content);
@@ -528,6 +665,17 @@ export class TaskService {
 
       this.logger.warn('GPT returned invalid writing task structure, using fallback');
     } catch (error: any) {
+      void this.aiUsage.log({
+        success: false,
+        featureType: 'writing_generate',
+        endpoint: 'generateWritingTask',
+        model: this.taskModel,
+        errorType: classifyError(error),
+        durationMs: Date.now() - start,
+        retryCount: attempts > 0 ? attempts - 1 : 0,
+        requestId,
+        language,
+      });
       this.logger.warn(`GPT writing task generation failed, using fallback: ${error?.message ?? error}`);
     }
 

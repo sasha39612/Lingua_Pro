@@ -58,6 +58,21 @@ interface TextAdminSummary {
   daily_active_user_ids?: Array<{ date: string; userIds: number[] }>;
 }
 
+interface AiUsageRow {
+  feature_type: string;
+  endpoint: string | null;
+  model: string;
+  request_type: string;
+  success: boolean;
+  event_count: number;
+  total_prompt_tokens: string | null;   // BigInt serialised as string by Prisma
+  total_completion_tokens: string | null;
+  total_tokens: string | null;
+  avg_duration_ms: number | null;
+  total_cost_usd: number | null;
+  total_retries: number | null;
+}
+
 interface AudioAdminSummary {
   period: AdminPeriod;
   language: string | null;
@@ -87,9 +102,10 @@ export class AdminStatsService {
   private readonly logger = new Logger(AdminStatsService.name);
 
   // Typed clients — URLs only; never hardcode in method bodies
-  private readonly textClient: { url: string };
+  private readonly textClient:  { url: string };
   private readonly audioClient: { url: string };
-  private readonly authClient: { url: string };
+  private readonly authClient:  { url: string };
+  private readonly aiClient:    { url: string };
 
   private readonly internalToken: string;
 
@@ -98,9 +114,10 @@ export class AdminStatsService {
   private readonly IN_FLIGHT_TTL_MS = 10_000;
 
   constructor() {
-    this.textClient  = { url: process.env.TEXT_SERVICE_URL  || 'http://text-service:4002' };
-    this.audioClient = { url: process.env.AUDIO_SERVICE_URL || 'http://audio-service:4003' };
-    this.authClient  = { url: process.env.AUTH_SERVICE_URL  || 'http://auth-service:4001' };
+    this.textClient  = { url: process.env.TEXT_SERVICE_URL       || 'http://text-service:4002' };
+    this.audioClient = { url: process.env.AUDIO_SERVICE_URL      || 'http://audio-service:4003' };
+    this.authClient  = { url: process.env.AUTH_SERVICE_URL       || 'http://auth-service:4001' };
+    this.aiClient    = { url: process.env.AI_ORCHESTRATOR_URL    || 'http://ai-orchestrator:4005' };
     this.internalToken = process.env.INTERNAL_SERVICE_SECRET || '';
   }
 
@@ -143,13 +160,14 @@ export class AdminStatsService {
     // Thread request ID through all downstream calls
     const internalHeaders = withRequestId(baseHeaders, requestId);
 
-    const [textSummary, audioSummary, registeredCount] = await Promise.all([
+    const [textSummary, audioSummary, registeredCount, aiUsageRaw] = await Promise.all([
       this.fetchText<TextAdminSummary>(`/text/admin/summary?${params}`, internalHeaders, signal),
       this.fetchAudio<AudioAdminSummary>(`/audio/admin/summary?${params}`, internalHeaders, signal),
       this.fetchUsersCount(internalHeaders, signal),
+      this.fetchAiUsage<{ rows: AiUsageRow[] }>(`/usage/admin?${params}`, internalHeaders, signal),
     ]);
 
-    return this.merge(period, language ?? null, textSummary, audioSummary, registeredCount, exact);
+    return this.merge(period, language ?? null, textSummary, audioSummary, registeredCount, exact, aiUsageRaw);
   }
 
   // ─── Merge logic ────────────────────────────────────────────────────────────
@@ -161,6 +179,7 @@ export class AdminStatsService {
     audio: AudioAdminSummary,
     registeredCount: number,
     exact: boolean,
+    aiUsageRaw: { rows: AiUsageRow[] } | null,
   ) {
     // by_language — merge text + audio arrays into a unified per-language map
     const langMap = new Map<string, {
@@ -315,6 +334,7 @@ export class AdminStatsService {
         active_users_cross_service_estimate: activePeriod,
         completed_task:                    text.funnel.completed_task,
       },
+      ai_cost: aiUsageRaw ? buildAiCost(aiUsageRaw.rows) : null,
     };
   }
 
@@ -339,6 +359,21 @@ export class AdminStatsService {
     } catch (err: any) {
       this.logger.error(`[AdminStatsService] audio-service fetch failed: ${err?.message ?? err}`);
       throw err;
+    }
+  }
+
+  // fetchAiUsage — returns null on any error; ai_cost is optional, never breaks the dashboard
+  private async fetchAiUsage<T>(path: string, headers: Record<string, string>, signal?: AbortSignal): Promise<T | null> {
+    try {
+      const res = await fetch(`${this.aiClient.url}${path}`, { headers, signal });
+      if (!res.ok) {
+        this.logger.warn(`[AdminStatsService] ai-orchestrator responded ${res.status}`);
+        return null;
+      }
+      return res.json() as Promise<T>;
+    } catch (err: any) {
+      this.logger.warn(`[AdminStatsService] ai-orchestrator fetch failed (non-fatal): ${err?.message ?? err}`);
+      return null;
     }
   }
 
@@ -373,6 +408,68 @@ function zeroLang(language: string) {
 
 function zeroUser() {
   return { text_count: 0, text_score_sum: 0, audio_count: 0, audio_score_sum: 0, last_active: '' };
+}
+
+function buildAiCost(rows: AiUsageRow[]) {
+  let totalTokens = 0;
+  let totalCostUsd = 0;
+  let totalEvents = 0;
+  let failedEvents = 0;
+  let retriedEvents = 0;
+
+  const byFeature = new Map<string, { eventCount: number; totalTokens: number; totalCostUsd: number; totalDurationMs: number }>();
+  const byModel   = new Map<string, { eventCount: number; totalTokens: number; totalCostUsd: number }>();
+
+  for (const row of rows) {
+    const count   = row.event_count;
+    const tokens  = Number(row.total_tokens ?? 0);
+    const cost    = row.total_cost_usd ?? 0;
+    const retries = row.total_retries ?? 0;
+    const durMs   = row.avg_duration_ms ?? 0;
+
+    totalEvents += count;
+    totalTokens += tokens;
+    totalCostUsd += cost;
+    if (!row.success) failedEvents += count;
+    if (retries > 0) retriedEvents += count;
+
+    // by_feature — group by feature_type
+    const ft = row.feature_type;
+    const existing = byFeature.get(ft) ?? { eventCount: 0, totalTokens: 0, totalCostUsd: 0, totalDurationMs: 0 };
+    existing.eventCount += count;
+    existing.totalTokens += tokens;
+    existing.totalCostUsd += cost;
+    existing.totalDurationMs += durMs * count;
+    byFeature.set(ft, existing);
+
+    // by_model
+    const m = row.model;
+    const existingM = byModel.get(m) ?? { eventCount: 0, totalTokens: 0, totalCostUsd: 0 };
+    existingM.eventCount += count;
+    existingM.totalTokens += tokens;
+    existingM.totalCostUsd += cost;
+    byModel.set(m, existingM);
+  }
+
+  return {
+    total_tokens: totalTokens,
+    total_cost_usd: totalCostUsd,
+    by_feature: [...byFeature.entries()].map(([featureType, v]) => ({
+      featureType,
+      eventCount: v.eventCount,
+      totalTokens: v.totalTokens,
+      totalCostUsd: v.totalCostUsd,
+      avgDurationMs: v.eventCount > 0 ? v.totalDurationMs / v.eventCount : 0,
+    })),
+    by_model: [...byModel.entries()].map(([model, v]) => ({
+      model,
+      eventCount: v.eventCount,
+      totalTokens: v.totalTokens,
+      totalCostUsd: v.totalCostUsd,
+    })),
+    failure_rate: totalEvents > 0 ? failedEvents / totalEvents : 0,
+    retry_rate: totalEvents > 0 ? retriedEvents / totalEvents : 0,
+  };
 }
 
 function mergeDailyByDate(

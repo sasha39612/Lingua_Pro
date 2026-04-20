@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import type { TtsResult } from './types';
-import { withRetry, withTimeout } from './util';
+import { withRetryTracked, withTimeout } from './util';
+import { AiUsageService } from './usage/ai-usage.service';
+import { classifyError } from './usage/error-type';
 
 @Injectable()
 export class TtsService {
@@ -9,7 +11,7 @@ export class TtsService {
   private readonly openai: OpenAI | null;
   private readonly ttsModel: string;
 
-  constructor() {
+  constructor(private readonly aiUsage: AiUsageService) {
     const apiKey = process.env.AI_API_KEY;
     this.openai = apiKey ? new OpenAI({ apiKey }) : null;
     this.ttsModel = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
@@ -17,17 +19,20 @@ export class TtsService {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  async synthesize(text: string, language: string): Promise<TtsResult> {
+  async synthesize(text: string, language: string, requestId?: string): Promise<TtsResult> {
     if (!this.openai || !text?.trim()) {
       return { audioBase64: null, mimeType: null, durationEstimateMs: null };
     }
+
+    const start = Date.now();
+    let attempts = 0;
 
     try {
       // Listening passages are ~400 words — TTS can take 50-70s for long input
       const textLength = text.trim().length;
       const ttsTimeout = textLength > 500 ? 90_000 : 30_000;
 
-      const audioBase64 = await withRetry(
+      const { result: audioBase64, attempts: a } = await withRetryTracked(
         () =>
           withTimeout(
             this.generateAudio(text, language),
@@ -39,6 +44,19 @@ export class TtsService {
         2,   // 2 attempts for TTS — it's non-critical
         400,
       );
+      attempts = a;
+
+      // TTS (audio API) does not expose token counts — costUsd will be null
+      void this.aiUsage.log({
+        success: true,
+        featureType: 'tts',
+        endpoint: 'synthesize',
+        model: this.ttsModel,
+        durationMs: Date.now() - start,
+        retryCount: attempts - 1,
+        requestId,
+        language,
+      });
 
       return {
         audioBase64,
@@ -46,6 +64,17 @@ export class TtsService {
         durationEstimateMs: this.estimateDuration(text),
       };
     } catch (error: any) {
+      void this.aiUsage.log({
+        success: false,
+        featureType: 'tts',
+        endpoint: 'synthesize',
+        model: this.ttsModel,
+        errorType: classifyError(error),
+        durationMs: Date.now() - start,
+        retryCount: attempts > 0 ? attempts - 1 : 0,
+        requestId,
+        language,
+      });
       this.logger.warn(`TTS generation failed, returning null: ${error?.message ?? error}`);
       return { audioBase64: null, mimeType: null, durationEstimateMs: null };
     }

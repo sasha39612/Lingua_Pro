@@ -4,6 +4,7 @@ import type { WordDetail } from './types';
 
 // Minimal G2pService stub — disables G2P code path in tests (espeak-ng not available in CI)
 const g2pStub = { isAvailable: () => false, wordToIpa: () => '', splitIpa: () => [], diffWords: () => ({ score: 1, errorPhonemes: [] }) };
+const mockAiUsage = { log: vi.fn() } as any;
 
 // ── computeWordAlignment (pure function — exhaustive tests) ───────────────────
 
@@ -120,7 +121,7 @@ describe('SpeechService — fallback when no keys', () => {
     });
 
     const { SpeechService } = await import('./speech.service');
-    const svc = new SpeechService(g2pStub as any);
+    const svc = new SpeechService(g2pStub as any, mockAiUsage);
     const result = await svc.transcribe('', 'audio/webm', 'English');
 
     expect(result.source).toBe('fallback');
@@ -130,7 +131,7 @@ describe('SpeechService — fallback when no keys', () => {
 
   it('returns source:fallback for invalid base64 with no keys', async () => {
     const { SpeechService } = await import('./speech.service');
-    const svc = new SpeechService(g2pStub as any);
+    const svc = new SpeechService(g2pStub as any, mockAiUsage);
     const result = await svc.transcribe('not-base64!!!', 'audio/webm', 'German');
 
     expect(result.source).toBe('fallback');
@@ -139,7 +140,7 @@ describe('SpeechService — fallback when no keys', () => {
 
   it('pronunciation fallback returns all four scores as equal numbers', async () => {
     const { SpeechService } = await import('./speech.service');
-    const svc = new SpeechService(g2pStub as any);
+    const svc = new SpeechService(g2pStub as any, mockAiUsage);
     const result = await svc.analyzePronunciation('', 'audio/webm', 'Hello world', 'English');
 
     expect(result.source).toBe('fallback');

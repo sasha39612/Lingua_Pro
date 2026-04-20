@@ -10,12 +10,14 @@ vi.mock('@nestjs/common', async (importOriginal) => {
   };
 });
 
+const mockAiUsage = { log: vi.fn() } as any;
+
 async function makeService() {
   const orig = process.env.AI_API_KEY;
   delete process.env.AI_API_KEY;
   vi.resetModules();
   const { TaskService } = await import('./task.service');
-  const svc = new TaskService();
+  const svc = new TaskService(mockAiUsage);
   if (orig !== undefined) process.env.AI_API_KEY = orig;
   return svc;
 }
@@ -86,7 +88,7 @@ describe('TaskService — local fallbacks (no AI_API_KEY)', () => {
     process.env.AI_API_KEY = 'test-key';
 
     const { TaskService: Fresh } = await import('./task.service');
-    const svc = new Fresh();
+    const svc = new Fresh(mockAiUsage);
     const tasks = await svc.generateTasks('English', 'A1', 'reading');
     expect(tasks).toHaveLength(1);
     expect(tasks[0].skill).toBe('reading');

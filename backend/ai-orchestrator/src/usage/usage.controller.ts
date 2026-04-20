@@ -1,6 +1,8 @@
 import { Controller, ForbiddenException, Get, Headers, Query } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+const ALLOWED_INTERNAL_SERVICES = new Set(['stats-service', 'api-gateway']);
+
 @Controller('usage')
 export class UsageController {
   constructor(private readonly prismaService: PrismaService) {}
@@ -9,9 +11,13 @@ export class UsageController {
   async getAdminUsage(
     @Query('period') period: string,
     @Headers('x-user-role') userRole: string,
+    @Headers('x-internal-token') internalToken: string,
+    @Headers('x-internal-service') internalService: string,
   ) {
-    if (userRole !== 'admin') {
-      throw new ForbiddenException('Admin role required');
+    const isInternal = internalToken === (process.env.INTERNAL_SERVICE_SECRET || '')
+      && ALLOWED_INTERNAL_SERVICES.has(internalService);
+    if (!isInternal && userRole !== 'admin') {
+      throw new ForbiddenException('Admin or internal access only');
     }
 
     const client = this.prismaService.prismaClient;
@@ -33,7 +39,10 @@ export class UsageController {
           SUM(prompt_tokens)::bigint AS total_prompt_tokens,
           SUM(completion_tokens)::bigint AS total_completion_tokens,
           SUM(total_tokens)::bigint AS total_tokens,
-          AVG(duration_ms)::float AS avg_duration_ms
+          AVG(duration_ms)::float AS avg_duration_ms,
+          SUM(cost_usd)::float AS total_cost_usd,
+          SUM(retry_count)::int AS total_retries,
+          MAX(pricing_version) AS pricing_version
         FROM ai_usage_events
         WHERE created_at >= ${fromDate}
         GROUP BY feature_type, endpoint, model, request_type, success

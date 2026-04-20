@@ -98,42 +98,64 @@ export class OrchestratorController {
   }
 
   @Post('tasks/generate')
-  async generateTasks(@Body() body: GenerateTasksDto) {
+  async generateTasks(
+    @Body() body: GenerateTasksDto,
+    @Headers('x-request-id') requestIdHeader?: string,
+  ) {
+    const requestId = requestIdHeader || randomUUID();
     return {
-      tasks: await this.orchestratorService.generateTasks(body.language, body.level, body.skill),
+      tasks: await this.orchestratorService.generateTasks(body.language, body.level, body.skill, requestId),
     };
   }
 
   @Post('tasks/generate-listening')
-  async generateListeningPassage(@Body() body: GenerateListeningDto) {
+  async generateListeningPassage(
+    @Body() body: GenerateListeningDto,
+    @Headers('x-request-id') requestIdHeader?: string,
+  ) {
+    const requestId = requestIdHeader || randomUUID();
     if (body.version === '2') {
-      return this.orchestratorService.generateListeningExercise(body.language, body.level);
+      return this.orchestratorService.generateListeningExercise(body.language, body.level, requestId);
     }
-    return this.orchestratorService.generateListeningPassage(body.language, body.level);
+    return this.orchestratorService.generateListeningPassage(body.language, body.level, requestId);
   }
 
   @Post('audio/transcribe')
-  async transcribeAudio(@Body() body: TranscribeAudioDto) {
+  async transcribeAudio(
+    @Body() body: TranscribeAudioDto,
+    @Headers('x-request-id') requestIdHeader?: string,
+  ) {
+    const requestId = requestIdHeader || randomUUID();
     return this.orchestratorService.transcribeAudio(
       body.audioBase64,
       body.mimeType || 'audio/webm',
       body.language || 'English',
+      requestId,
     );
   }
 
   @Post('audio/pronunciation/analyze')
-  async analyzePronunciation(@Body() body: PronunciationAnalyzeDto) {
+  async analyzePronunciation(
+    @Body() body: PronunciationAnalyzeDto,
+    @Headers('x-request-id') requestIdHeader?: string,
+  ) {
+    const requestId = requestIdHeader || randomUUID();
     return this.orchestratorService.analyzePronunciation(
       body.audioBase64 || '',
       body.mimeType || 'audio/webm',
       body.referenceText,
       body.language,
+      requestId,
     );
   }
 
   @Post('audio/tts')
-  async generateSpeech(@Body() body: GenerateSpeechDto) {
-    return this.orchestratorService.synthesizeSpeech(body.text, body.language);
+  async generateSpeech(
+    @Body() body: GenerateSpeechDto,
+    @Headers('x-request-id') requestIdHeader?: string,
+  ) {
+    const requestId = requestIdHeader || randomUUID();
+    return this.orchestratorService.synthesizeSpeech(body.text, body.language, requestId);
   }
 
   @Post('text/analyze-writing')

@@ -67,7 +67,7 @@ describe('OrchestratorService — facade delegation', () => {
 
     const result = await svc.generateTasks('English', 'A1', 'reading');
 
-    expect(mockTasks.generateTasks).toHaveBeenCalledWith('English', 'A1', 'reading');
+    expect(mockTasks.generateTasks).toHaveBeenCalledWith('English', 'A1', 'reading', undefined);
     expect(result).toEqual(tasks);
   });
 
@@ -78,7 +78,7 @@ describe('OrchestratorService — facade delegation', () => {
 
     const result = await svc.transcribeAudio('base64', 'audio/webm', 'English');
 
-    expect(mockSpeech.transcribe).toHaveBeenCalledWith('base64', 'audio/webm', 'English');
+    expect(mockSpeech.transcribe).toHaveBeenCalledWith('base64', 'audio/webm', 'English', undefined);
     expect(result).toEqual(transcription);
   });
 
@@ -89,7 +89,7 @@ describe('OrchestratorService — facade delegation', () => {
 
     const result = await svc.synthesizeSpeech('Hello world', 'English');
 
-    expect(mockTts.synthesize).toHaveBeenCalledWith('Hello world', 'English');
+    expect(mockTts.synthesize).toHaveBeenCalledWith('Hello world', 'English', undefined);
     expect(result).toEqual(ttsResult);
   });
 
@@ -112,7 +112,7 @@ describe('OrchestratorService — facade delegation', () => {
 
       const result = await svc.analyzePronunciation('base64', 'audio/webm', 'Hello world', 'English');
 
-      expect(mockSpeech.analyzePronunciation).toHaveBeenCalledWith('base64', 'audio/webm', 'Hello world', 'English');
+      expect(mockSpeech.analyzePronunciation).toHaveBeenCalledWith('base64', 'audio/webm', 'Hello world', 'English', undefined);
       expect(mockPronunciationAi.generateFeedback).toHaveBeenCalledWith(
         'Hello world',
         'Hello world',
@@ -121,6 +121,7 @@ describe('OrchestratorService — facade delegation', () => {
         [],
         [],
         'acoustic',
+        undefined,
       );
       expect(result.pronunciationScore).toBe(0.85);
       expect(result.feedback).toBe('Great job!');

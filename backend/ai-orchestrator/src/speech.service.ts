@@ -12,11 +12,14 @@ import {
   mapLanguageToLocale,
   mapLanguageToCode,
   withRetry,
+  withRetryTracked,
   withTimeout,
   computeWordAlignment,
   normalizedEditDistance,
 } from './util';
 import { G2pService } from './g2p.service';
+import { AiUsageService } from './usage/ai-usage.service';
+import { classifyError } from './usage/error-type';
 
 // Azure Speech SDK — imported dynamically to allow the service to run
 // without the SDK installed (e.g. in test environments)
@@ -50,7 +53,7 @@ export class SpeechService {
   private ffmpegAvailable = false;
   private sdk: SpeechSDK | null = null;
 
-  constructor(private readonly g2p: G2pService) {
+  constructor(private readonly g2p: G2pService, private readonly aiUsage: AiUsageService) {
     this.azureKey = process.env.AZURE_SPEECH_KEY || null;
     this.azureRegion = process.env.AZURE_SPEECH_REGION || null;
     const apiKey = process.env.AI_API_KEY;
@@ -69,6 +72,7 @@ export class SpeechService {
     audioBase64: string,
     mimeType: string,
     language: string,
+    requestId?: string,
   ): Promise<TranscriptionResult> {
     const safeLanguage = (language || 'English').trim() || 'English';
     const buffer = decodeBase64(audioBase64);
@@ -79,29 +83,83 @@ export class SpeechService {
 
     // Try Azure path
     if (this.azureKey && this.azureRegion && this.sdk) {
+      const start = Date.now();
+      let attempts = 0;
       try {
         const wavBuffer = this.ffmpegAvailable
           ? await this.convertToWav(buffer)
           : buffer;
-        return await withRetry(
+        const { result, attempts: a } = await withRetryTracked(
           () => this.transcribeWithAzure(wavBuffer, safeLanguage),
           'transcribeAudio',
           this.logger,
         );
+        attempts = a;
+        void this.aiUsage.log({
+          success: true,
+          featureType: 'transcribe',
+          endpoint: 'transcribeWithAzure',
+          model: 'azure-speech',
+          requestType: 'sync',
+          durationMs: Date.now() - start,
+          retryCount: attempts - 1,
+          requestId,
+          language: safeLanguage,
+        });
+        return result;
       } catch (err) {
+        void this.aiUsage.log({
+          success: false,
+          featureType: 'transcribe',
+          endpoint: 'transcribeWithAzure',
+          model: 'azure-speech',
+          requestType: 'sync',
+          errorType: classifyError(err),
+          durationMs: Date.now() - start,
+          retryCount: attempts > 0 ? attempts - 1 : 0,
+          requestId,
+          language: safeLanguage,
+        });
         this.logger.warn(`Azure transcription failed, falling back to Whisper: ${(err as Error).message}`);
       }
     }
 
     // Whisper fallback
     if (this.openai) {
+      const start = Date.now();
+      let attempts = 0;
       try {
-        return await withRetry(
+        const { result, attempts: a } = await withRetryTracked(
           () => this.transcribeWithWhisper(buffer, mimeType, safeLanguage),
           'transcribeAudio:whisper',
           this.logger,
         );
+        attempts = a;
+        void this.aiUsage.log({
+          success: true,
+          featureType: 'transcribe',
+          endpoint: 'transcribeWithWhisper',
+          model: this.transcriptionModel,
+          requestType: 'fallback',  // Azure failed or unavailable → Whisper ran
+          durationMs: Date.now() - start,
+          retryCount: attempts - 1,
+          requestId,
+          language: safeLanguage,
+        });
+        return result;
       } catch (err) {
+        void this.aiUsage.log({
+          success: false,
+          featureType: 'transcribe',
+          endpoint: 'transcribeWithWhisper',
+          model: this.transcriptionModel,
+          requestType: 'fallback',
+          errorType: classifyError(err),
+          durationMs: Date.now() - start,
+          retryCount: attempts > 0 ? attempts - 1 : 0,
+          requestId,
+          language: safeLanguage,
+        });
         this.logger.warn(`Whisper transcription failed: ${(err as Error).message}`);
       }
     }
@@ -114,6 +172,7 @@ export class SpeechService {
     mimeType: string,
     referenceText: string,
     language: string,
+    requestId?: string,
   ): Promise<PronunciationAnalysisRaw> {
     const safeLanguage = (language || 'English').trim() || 'English';
     const buffer = decodeBase64(audioBase64);
@@ -123,17 +182,43 @@ export class SpeechService {
     }
 
     if (this.azureKey && this.azureRegion && this.sdk) {
+      const start = Date.now();
+      let attempts = 0;
       try {
         const wavBuffer = this.ffmpegAvailable
           ? await this.convertToWav(buffer)
           : buffer;
-        const result = await withRetry(
+        const { result, attempts: a } = await withRetryTracked(
           () => this.analyzePronunciationWithAzure(wavBuffer, referenceText, safeLanguage),
           'analyzePronunciation',
           this.logger,
         );
+        attempts = a;
+        void this.aiUsage.log({
+          success: true,
+          featureType: 'pronunciation',
+          endpoint: 'analyzePronunciationWithAzure',
+          model: 'azure-speech',
+          requestType: 'sync',
+          durationMs: Date.now() - start,
+          retryCount: attempts - 1,
+          requestId,
+          language: safeLanguage,
+        });
         return result;
       } catch (err) {
+        void this.aiUsage.log({
+          success: false,
+          featureType: 'pronunciation',
+          endpoint: 'analyzePronunciationWithAzure',
+          model: 'azure-speech',
+          requestType: 'sync',
+          errorType: classifyError(err),
+          durationMs: Date.now() - start,
+          retryCount: attempts > 0 ? attempts - 1 : 0,
+          requestId,
+          language: safeLanguage,
+        });
         this.logger.warn(`Azure pronunciation analysis failed, using fallback: ${(err as Error).message}`);
       }
     }
@@ -141,10 +226,41 @@ export class SpeechService {
     // No Azure — get a transcript via Whisper, compute local scores
     let transcript = '';
     if (this.openai) {
+      const start = Date.now();
+      let attempts = 0;
       try {
-        const result = await this.transcribeWithWhisper(buffer, mimeType, safeLanguage);
+        const { result, attempts: a } = await withRetryTracked(
+          () => this.transcribeWithWhisper(buffer, mimeType, safeLanguage),
+          'pronunciationWhisperFallback',
+          this.logger,
+          1,  // 1 attempt — non-critical path
+        );
+        attempts = a;
         transcript = result.transcript;
-      } catch {
+        void this.aiUsage.log({
+          success: true,
+          featureType: 'transcribe',
+          endpoint: 'transcribeWithWhisper',
+          model: this.transcriptionModel,
+          requestType: 'fallback',
+          durationMs: Date.now() - start,
+          retryCount: attempts - 1,
+          requestId,
+          language: safeLanguage,
+        });
+      } catch (err) {
+        void this.aiUsage.log({
+          success: false,
+          featureType: 'transcribe',
+          endpoint: 'transcribeWithWhisper',
+          model: this.transcriptionModel,
+          requestType: 'fallback',
+          errorType: classifyError(err),
+          durationMs: Date.now() - start,
+          retryCount: attempts > 0 ? attempts - 1 : 0,
+          requestId,
+          language: safeLanguage,
+        });
         // ignore — use empty transcript for fallback scoring
       }
     }

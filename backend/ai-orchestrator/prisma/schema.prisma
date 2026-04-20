@@ -35,6 +35,12 @@ model AiUsageEvent {
   // caller-provided correlation ID — traces one user request across multiple AI calls
   userId           Int?     @map("user_id")
   language         String?
+  costUsd          Float?   @map("cost_usd")
+  // Computed at log time using MODEL_RATES — stored so historical accuracy is
+  // preserved when pricing changes. null when token data unavailable (TTS, Azure).
+  pricingVersion   String?  @map("pricing_version")
+  // e.g. "2026-04" — identifies which MODEL_RATES snapshot computed costUsd.
+  // Set from PRICING_VERSION env var (default: current YYYY-MM).
   createdAt        DateTime @default(now()) @map("created_at")
 
   @@index([featureType])

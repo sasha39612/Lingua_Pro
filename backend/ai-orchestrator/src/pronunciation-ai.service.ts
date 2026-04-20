@@ -2,7 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import type { WordDetail, WordAlignment, PronunciationAnalysisResult } from './types';
 import type { AzurePronunciationScores } from './speech.service';
-import { safeJsonParse, withRetry, withTimeout, enrichPhonemeContext, phonemeHintsByLanguage } from './util';
+import { safeJsonParse, withRetryTracked, withTimeout, enrichPhonemeContext, phonemeHintsByLanguage } from './util';
+import { AiUsageService } from './usage/ai-usage.service';
+import { classifyError } from './usage/error-type';
 
 export type PronunciationFeedback = {
   feedback: string;
@@ -17,7 +19,7 @@ export class PronunciationAiService {
   private readonly openai: OpenAI | null;
   private readonly evalModel: string;
 
-  constructor() {
+  constructor(private readonly aiUsage: AiUsageService) {
     const apiKey = process.env.AI_API_KEY;
     this.openai = apiKey ? new OpenAI({ apiKey }) : null;
     this.evalModel = process.env.OPENAI_EVAL_MODEL || 'gpt-4o';
@@ -37,10 +39,12 @@ export class PronunciationAiService {
     words: WordDetail[],
     alignment: WordAlignment[],
     phonemeSource: PhonemeSource = 'none',
+    requestId?: string,
   ): Promise<PronunciationFeedback> {
     // ── Perfect result short-circuit ─────────────────────────────────────────
     // All words correct + no phoneme data → return a clean success message
     // without calling GPT (avoids hallucinated phoneme corrections).
+    // DO NOT log here — no API call was made.
     const allCorrect = alignment.length > 0 && alignment.every((e) => e.type === 'correct');
     if (allCorrect && phonemeSource === 'none') {
       return {
@@ -56,6 +60,9 @@ export class PronunciationAiService {
       return this.localFeedback(azureScores.pronunciationScore, phonemeSource, language);
     }
 
+    const start = Date.now();
+    let attempts = 0;
+
     try {
       const wordContext = this.buildWordContext(words, alignment, phonemeSource);
       const prosodyLine = azureScores.prosodyScore != null
@@ -65,7 +72,7 @@ export class PronunciationAiService {
       // System prompt is gated by phonemeSource — prevents hallucinated phoneme advice.
       const systemPrompt = this.buildSystemPrompt(phonemeSource);
 
-      const response = await withRetry(
+      const { result: response, attempts: a } = await withRetryTracked(
         () =>
           withTimeout(
             this.openai!.chat.completions.create({
@@ -98,6 +105,21 @@ export class PronunciationAiService {
         'generateFeedback',
         this.logger,
       );
+      attempts = a;
+
+      void this.aiUsage.log({
+        success: true,
+        featureType: 'pronunciation',
+        endpoint: 'generateFeedback',
+        model: this.evalModel,
+        durationMs: Date.now() - start,
+        retryCount: attempts - 1,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+        requestId,
+        language,
+      });
 
       const content = response.choices?.[0]?.message?.content || '{}';
       const parsed = safeJsonParse<{ feedback?: string; phonemeHints?: string[] }>(content);
@@ -109,6 +131,17 @@ export class PronunciationAiService {
         phonemeHints: phonemeSource !== 'none' ? hints : [],
       };
     } catch (error: any) {
+      void this.aiUsage.log({
+        success: false,
+        featureType: 'pronunciation',
+        endpoint: 'generateFeedback',
+        model: this.evalModel,
+        errorType: classifyError(error),
+        durationMs: Date.now() - start,
+        retryCount: attempts > 0 ? attempts - 1 : 0,
+        requestId,
+        language,
+      });
       this.logger.warn(`GPT pronunciation feedback failed, using fallback: ${error?.message ?? error}`);
       return this.localFeedback(azureScores.pronunciationScore, phonemeSource, language);
     }

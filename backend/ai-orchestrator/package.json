@@ -3,16 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "prisma generate && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start:prod": "node dist/main.js",
     "start": "ts-node -r tsconfig-paths/register src/main.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
     "@nestjs/common": "*",
     "@nestjs/core": "*",
     "@nestjs/platform-express": "*",
+    "@prisma/client": "^7.4.2",
     "class-transformer": "*",
     "class-validator": "*",
     "microsoft-cognitiveservices-speech-sdk": "*",
@@ -22,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "*",
+    "prisma": "^7.4.2",
     "ts-node": "*",
     "tsconfig-paths": "*",
     "typescript": "*",

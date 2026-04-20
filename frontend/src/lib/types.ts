@@ -91,6 +91,26 @@ export interface AdminStatsOverview {
     active_users_cross_service_estimate: number;
     completed_task: number;
   };
+  /** Real AI usage data from ai-orchestrator. null until logging is active. */
+  ai_cost: {
+    total_tokens: number;
+    total_cost_usd: number;
+    by_feature: Array<{
+      featureType: string;
+      eventCount: number;
+      totalTokens: number;
+      totalCostUsd: number;
+      avgDurationMs: number;
+    }>;
+    by_model: Array<{
+      model: string;
+      totalTokens: number;
+      totalCostUsd: number;
+      eventCount: number;
+    }>;
+    failure_rate: number;
+    retry_rate: number;
+  } | null;
 }
 
 export interface LearningTask {

@@ -39,16 +39,16 @@ export class OrchestratorService {
 
   // ── Tasks ──────────────────────────────────────────────────────────────────
 
-  generateTasks(language: string, level: string, skill?: string): Promise<GeneratedTask[]> {
-    return this.tasks.generateTasks(language, level, skill);
+  generateTasks(language: string, level: string, skill?: string, requestId?: string): Promise<GeneratedTask[]> {
+    return this.tasks.generateTasks(language, level, skill, requestId);
   }
 
-  generateListeningPassage(language: string, level: string): Promise<ListeningPassage> {
-    return this.tasks.generateListeningPassage(language, level);
+  generateListeningPassage(language: string, level: string, requestId?: string): Promise<ListeningPassage> {
+    return this.tasks.generateListeningPassage(language, level, requestId);
   }
 
-  generateListeningExercise(language: string, level: string): Promise<ListeningPassageV2> {
-    return this.tasks.generateListeningExercise(language, level);
+  generateListeningExercise(language: string, level: string, requestId?: string): Promise<ListeningPassageV2> {
+    return this.tasks.generateListeningExercise(language, level, requestId);
   }
 
   // ── Audio transcription ────────────────────────────────────────────────────
@@ -57,8 +57,9 @@ export class OrchestratorService {
     audioBase64: string,
     mimeType: string,
     language: string,
+    requestId?: string,
   ): Promise<TranscriptionResult> {
-    return this.speech.transcribe(audioBase64, mimeType, language);
+    return this.speech.transcribe(audioBase64, mimeType, language, requestId);
   }
 
   // ── Pronunciation analysis ─────────────────────────────────────────────────
@@ -69,6 +70,7 @@ export class OrchestratorService {
     mimeType: string,
     referenceText: string,
     language: string,
+    requestId?: string,
   ): Promise<PronunciationAnalysisResult> {
     const safeLanguage = (language || 'English').trim() || 'English';
 
@@ -77,6 +79,7 @@ export class OrchestratorService {
       mimeType,
       referenceText,
       safeLanguage,
+      requestId,
     );
 
     let feedback = '';
@@ -92,6 +95,7 @@ export class OrchestratorService {
         raw.words,
         raw.alignment,
         raw.phonemeSource,
+        requestId,
       );
       feedback = gpt.feedback;
       phonemeHints = gpt.phonemeHints;
@@ -130,7 +134,7 @@ export class OrchestratorService {
 
   // ── TTS ────────────────────────────────────────────────────────────────────
 
-  synthesizeSpeech(text: string, language: string): Promise<TtsResult> {
-    return this.tts.synthesize(text, language);
+  synthesizeSpeech(text: string, language: string, requestId?: string): Promise<TtsResult> {
+    return this.tts.synthesize(text, language, requestId);
   }
 }

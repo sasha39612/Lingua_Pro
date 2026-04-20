@@ -485,17 +485,42 @@ function AiUsageTab({ data, onRetry, isLoading, error }: {
         />
       </div>
 
-      {/* Cost & Tokens — populated when AI usage logging is active (Phase 2) */}
+      {/* Cost & Tokens — populated when AI usage logging is active */}
       <div className="rounded-2xl bg-white p-5 shadow-float">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
           Cost &amp; Tokens
         </h2>
-        <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-          <svg className="h-5 w-5 shrink-0 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          No cost data available yet. Token-level analytics will appear here once AI usage logging is active.
-        </div>
+        {data.ai_cost === null ? (
+          <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+            <svg className="h-5 w-5 shrink-0 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            No cost data yet. Token-level analytics accumulate after AI usage logging is active.
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCard
+              label="Total Tokens"
+              value={data.ai_cost.total_tokens.toLocaleString()}
+              sub="all AI operations"
+            />
+            <KpiCard
+              label="Est. Cost (USD)"
+              value={`$${data.ai_cost.total_cost_usd.toFixed(4)}`}
+              sub="GPT models only"
+            />
+            <KpiCard
+              label="Failure Rate"
+              value={`${(data.ai_cost.failure_rate * 100).toFixed(1)}%`}
+              sub="hard errors"
+            />
+            <KpiCard
+              label="Retry Rate"
+              value={`${(data.ai_cost.retry_rate * 100).toFixed(1)}%`}
+              sub="provider degradation"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

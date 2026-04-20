@@ -10,12 +10,14 @@ vi.mock('@nestjs/common', async (importOriginal) => {
   };
 });
 
+const mockAiUsage = { log: vi.fn() } as any;
+
 async function makeService() {
   const orig = process.env.AI_API_KEY;
   delete process.env.AI_API_KEY;
   vi.resetModules();
   const { TtsService } = await import('./tts.service');
-  const svc = new TtsService();
+  const svc = new TtsService(mockAiUsage);
   if (orig !== undefined) process.env.AI_API_KEY = orig;
   return svc;
 }
@@ -59,7 +61,7 @@ describe('TtsService — with mocked OpenAI', () => {
     process.env.AI_API_KEY = 'test-key';
 
     const { TtsService: Fresh } = await import('./tts.service');
-    const svc = new Fresh();
+    const svc = new Fresh(mockAiUsage);
     const result = await svc.synthesize('Hello world', 'English');
 
     expect(typeof result.audioBase64).toBe('string');
@@ -84,7 +86,7 @@ describe('TtsService — with mocked OpenAI', () => {
     process.env.AI_API_KEY = 'test-key';
 
     const { TtsService: Fresh } = await import('./tts.service');
-    const svc = new Fresh();
+    const svc = new Fresh(mockAiUsage);
     const result = await svc.synthesize('one two three four five', 'English');
 
     // 5 words / 2.5 words per second = 2000ms
@@ -105,7 +107,7 @@ describe('TtsService — with mocked OpenAI', () => {
     process.env.AI_API_KEY = 'test-key';
 
     const { TtsService: Fresh } = await import('./tts.service');
-    const svc = new Fresh();
+    const svc = new Fresh(mockAiUsage);
     const result = await svc.synthesize('Hello', 'English');
 
     expect(result.audioBase64).toBeNull();

@@ -54,7 +54,7 @@ describe('OrchestratorController', () => {
 
       const result = await controller.generateTasks({ language: 'English', level: 'A1' });
 
-      expect(mockService.generateTasks).toHaveBeenCalledWith('English', 'A1', undefined);
+      expect(mockService.generateTasks).toHaveBeenCalledWith('English', 'A1', undefined, expect.any(String));
       expect(result).toEqual({ tasks });
     });
 
@@ -64,7 +64,7 @@ describe('OrchestratorController', () => {
 
       await controller.generateTasks({ language: 'German', level: 'B1', skill: 'writing' });
 
-      expect(mockService.generateTasks).toHaveBeenCalledWith('German', 'B1', 'writing');
+      expect(mockService.generateTasks).toHaveBeenCalledWith('German', 'B1', 'writing', expect.any(String));
     });
   });
 
@@ -82,7 +82,7 @@ describe('OrchestratorController', () => {
         language: 'English',
       });
 
-      expect(mockService.transcribeAudio).toHaveBeenCalledWith('base64data', 'audio/mp3', 'English');
+      expect(mockService.transcribeAudio).toHaveBeenCalledWith('base64data', 'audio/mp3', 'English', expect.any(String));
       expect(result).toEqual(transcription);
     });
 
@@ -92,7 +92,7 @@ describe('OrchestratorController', () => {
 
       await controller.transcribeAudio({ audioBase64: 'data' });
 
-      expect(mockService.transcribeAudio).toHaveBeenCalledWith('data', 'audio/webm', 'English');
+      expect(mockService.transcribeAudio).toHaveBeenCalledWith('data', 'audio/webm', 'English', expect.any(String));
     });
 
     it('defaults language to English when not provided', async () => {
@@ -101,7 +101,7 @@ describe('OrchestratorController', () => {
 
       await controller.transcribeAudio({ audioBase64: 'data', mimeType: 'audio/mp3' });
 
-      expect(mockService.transcribeAudio).toHaveBeenCalledWith('data', 'audio/mp3', 'English');
+      expect(mockService.transcribeAudio).toHaveBeenCalledWith('data', 'audio/mp3', 'English', expect.any(String));
     });
   });
 
@@ -136,6 +136,7 @@ describe('OrchestratorController', () => {
         'audio/mp3',
         'Hello world',
         'English',
+        expect.any(String),
       );
       expect(result).toEqual(analysisResult);
     });
@@ -151,6 +152,7 @@ describe('OrchestratorController', () => {
         'audio/webm',
         'Hi',
         'English',
+        expect.any(String),
       );
     });
   });
@@ -165,7 +167,7 @@ describe('OrchestratorController', () => {
 
       const result = await controller.generateSpeech({ text: 'Hello', language: 'English' });
 
-      expect(mockService.synthesizeSpeech).toHaveBeenCalledWith('Hello', 'English');
+      expect(mockService.synthesizeSpeech).toHaveBeenCalledWith('Hello', 'English', expect.any(String));
       expect(result).toEqual(ttsResult);
     });
 

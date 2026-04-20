@@ -18,12 +18,14 @@ const mockScores = {
   prosodyScore: null,
 };
 
+const mockAiUsage = { log: vi.fn() } as any;
+
 async function makeService() {
   const orig = process.env.AI_API_KEY;
   delete process.env.AI_API_KEY;
   vi.resetModules();
   const { PronunciationAiService } = await import('./pronunciation-ai.service');
-  const svc = new PronunciationAiService();
+  const svc = new PronunciationAiService(mockAiUsage);
   if (orig !== undefined) process.env.AI_API_KEY = orig;
   return svc;
 }
@@ -132,7 +134,7 @@ describe('PronunciationAiService — GPT mock', () => {
     process.env.AI_API_KEY = 'test-key';
 
     const { PronunciationAiService: Fresh } = await import('./pronunciation-ai.service');
-    const svc = new Fresh();
+    const svc = new Fresh(mockAiUsage);
     const result = await svc.generateFeedback('Hello', 'Hello', 'English', mockScores, [], [], 'acoustic');
 
     expect(result.feedback).toBe('Great job!');
@@ -156,7 +158,7 @@ describe('PronunciationAiService — GPT mock', () => {
     process.env.AI_API_KEY = 'test-key';
 
     const { PronunciationAiService: Fresh } = await import('./pronunciation-ai.service');
-    const svc = new Fresh();
+    const svc = new Fresh(mockAiUsage);
     const result = await svc.generateFeedback('Hello', 'Hello', 'English', mockScores, [], [], 'none');
 
     expect(result.phonemeHints).toEqual([]);
@@ -176,7 +178,7 @@ describe('PronunciationAiService — GPT mock', () => {
     process.env.AI_API_KEY = 'test-key';
 
     const { PronunciationAiService: Fresh } = await import('./pronunciation-ai.service');
-    const svc = new Fresh();
+    const svc = new Fresh(mockAiUsage);
     const result = await svc.generateFeedback('Hello', 'Hello', 'English', mockScores, [], [], 'acoustic');
 
     expect(typeof result.feedback).toBe('string');
