@@ -1,6 +1,42 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 type AdminPeriod = 'week' | 'month' | 'all';
+
+// ─── Stable canonical language map ───────────────────────────────────────────
+// Extend this when adding new supported languages.
+const LANG_CANONICAL: Record<string, string> = {
+  english:  'english', en: 'english',
+  german:   'german',  de: 'german',
+  albanian: 'albanian', sq: 'albanian',
+  polish:   'polish',  pl: 'polish',
+  ukrainian: 'ukrainian', uk: 'ukrainian',
+};
+
+function normLang(l?: string): string {
+  if (!l) return 'other';
+  const v = l.toLowerCase().trim();
+  const canonical = LANG_CANONICAL[v];
+  if (!canonical) {
+    // Log unmapped values so they can be added to LANG_CANONICAL later.
+    // Do NOT return v — unbounded strings in analytics keys degrade grouping over time.
+    console.warn(`[admin-stats] unknown language value: "${v}" — mapped to "other"`);
+    return 'other';
+  }
+  return canonical;
+}
+
+// ─── Request ID helper ────────────────────────────────────────────────────────
+// Always use this — never construct headers with x-request-id manually.
+export function withRequestId(
+  baseHeaders: Record<string, string>,
+  requestId?: string,
+): Record<string, string> {
+  return {
+    ...baseHeaders,
+    'x-request-id': requestId ?? randomUUID(),
+  };
+}
 
 // ─── Typed downstream response shapes ────────────────────────────────────────
 
@@ -57,6 +93,10 @@ export class AdminStatsService {
 
   private readonly internalToken: string;
 
+  // In-flight deduplication — prevents fan-out storm when multiple admins load simultaneously
+  private readonly inFlight = new Map<string, Promise<ReturnType<typeof this.merge>>>();
+  private readonly IN_FLIGHT_TTL_MS = 10_000;
+
   constructor() {
     this.textClient  = { url: process.env.TEXT_SERVICE_URL  || 'http://text-service:4002' };
     this.audioClient = { url: process.env.AUDIO_SERVICE_URL || 'http://audio-service:4003' };
@@ -64,21 +104,49 @@ export class AdminStatsService {
     this.internalToken = process.env.INTERNAL_SERVICE_SECRET || '';
   }
 
-  async getAdminStats(period: AdminPeriod, language?: string, exact = false, debugMode = false) {
+  async getAdminStats(period: AdminPeriod, language?: string, exact = false, debugMode = false, requestId?: string) {
+    // Stable cache key — JSON.stringify is key-order-dependent and must not be used
+    const key = `${period}:${language ?? ''}:${exact}:${debugMode}`;
+
+    if (this.inFlight.has(key)) return this.inFlight.get(key)!;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.IN_FLIGHT_TTL_MS);
+
+    const p = this.fetchAndMerge(period, language, exact, debugMode, requestId, controller.signal)
+      .finally(() => {
+        clearTimeout(timeout);
+        this.inFlight.delete(key);
+      });
+
+    this.inFlight.set(key, p);
+    return p;
+  }
+
+  private async fetchAndMerge(
+    period: AdminPeriod,
+    language?: string,
+    exact = false,
+    debugMode = false,
+    requestId?: string,
+    signal?: AbortSignal,
+  ) {
     const params = new URLSearchParams({ period });
     if (language) params.set('language', language);
     if (exact)    params.set('exact', 'true');
 
-    const internalHeaders: Record<string, string> = {
+    const baseHeaders: Record<string, string> = {
       'x-internal-token':   this.internalToken,
       'x-internal-service': 'stats-service',
     };
-    if (debugMode) internalHeaders['x-debug-mode'] = 'true';
+    if (debugMode) baseHeaders['x-debug-mode'] = 'true';
+    // Thread request ID through all downstream calls
+    const internalHeaders = withRequestId(baseHeaders, requestId);
 
     const [textSummary, audioSummary, registeredCount] = await Promise.all([
-      this.fetchText<TextAdminSummary>(`/text/admin/summary?${params}`, internalHeaders),
-      this.fetchAudio<AudioAdminSummary>(`/audio/admin/summary?${params}`, internalHeaders),
-      this.fetchUsersCount(),
+      this.fetchText<TextAdminSummary>(`/text/admin/summary?${params}`, internalHeaders, signal),
+      this.fetchAudio<AudioAdminSummary>(`/audio/admin/summary?${params}`, internalHeaders, signal),
+      this.fetchUsersCount(internalHeaders, signal),
     ]);
 
     return this.merge(period, language ?? null, textSummary, audioSummary, registeredCount, exact);
@@ -105,17 +173,19 @@ export class AdminStatsService {
     }>();
 
     for (const t of text.by_language) {
-      const existing = langMap.get(t.language) ?? zeroLang(t.language);
+      const key = normLang(t.language);
+      const existing = langMap.get(key) ?? zeroLang(key);
       existing.text_count += t.count;
       existing.text_score_sum += t.count > 0 ? t.avg_score * t.count : 0;
-      langMap.set(t.language, existing);
+      langMap.set(key, existing);
     }
     for (const a of audio.by_language) {
-      const existing = langMap.get(a.language) ?? zeroLang(a.language);
+      const key = normLang(a.language);
+      const existing = langMap.get(key) ?? zeroLang(key);
       existing.speaking_count += a.speaking_count;
       existing.listening_count += a.listening_count;
       existing.speaking_score_sum += a.avg_pronunciation_score * a.speaking_count;
-      langMap.set(a.language, existing);
+      langMap.set(key, existing);
     }
 
     const byLanguage = [...langMap.values()].map((l) => ({
@@ -232,25 +302,27 @@ export class AdminStatsService {
         daily_sessions:              dailySessions,
         daily_active_user_estimate:  finalDailyActiveEst,
       },
-      estimated_ai_usage: {
-        // session counts as proxy for AI call counts — not actual API calls
+      feature_usage_proxy: {
+        // session counts as proxy for AI load — not actual API call counts
         text_operations:      text.total_sessions,
         speech_operations:    audio.total_speaking_sessions,
         listening_operations: audio.total_listening_sessions,
       },
       funnel: {
-        registered:          registeredCount,
-        active_users_period: activePeriod,
-        completed_task:      text.funnel.completed_task,
+        registered:                        registeredCount,
+        // Systematic overcount: text distinct + audio distinct users, summed.
+        // Users active on both services the same day are counted twice.
+        active_users_cross_service_estimate: activePeriod,
+        completed_task:                    text.funnel.completed_task,
       },
     };
   }
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
-  private async fetchText<T>(path: string, headers: Record<string, string>): Promise<T> {
+  private async fetchText<T>(path: string, headers: Record<string, string>, signal?: AbortSignal): Promise<T> {
     try {
-      const res = await fetch(`${this.textClient.url}${path}`, { headers });
+      const res = await fetch(`${this.textClient.url}${path}`, { headers, signal });
       if (!res.ok) throw new Error(`text-service responded ${res.status}`);
       return res.json() as Promise<T>;
     } catch (err: any) {
@@ -259,9 +331,9 @@ export class AdminStatsService {
     }
   }
 
-  private async fetchAudio<T>(path: string, headers: Record<string, string>): Promise<T> {
+  private async fetchAudio<T>(path: string, headers: Record<string, string>, signal?: AbortSignal): Promise<T> {
     try {
-      const res = await fetch(`${this.audioClient.url}${path}`, { headers });
+      const res = await fetch(`${this.audioClient.url}${path}`, { headers, signal });
       if (!res.ok) throw new Error(`audio-service responded ${res.status}`);
       return res.json() as Promise<T>;
     } catch (err: any) {
@@ -270,17 +342,14 @@ export class AdminStatsService {
     }
   }
 
-  private async fetchUsersCount(): Promise<number> {
+  private async fetchUsersCount(headers: Record<string, string>, signal?: AbortSignal): Promise<number> {
     const query = '{ usersCount }';
     try {
       const res = await fetch(`${this.authClient.url}/graphql`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-internal-token':   this.internalToken,
-          'x-internal-service': 'stats-service',
-        },
+        headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({ query }),
+        signal,
       });
       if (!res.ok) throw new Error(`auth-service responded ${res.status}`);
       const json = (await res.json()) as { data?: { usersCount?: number } };

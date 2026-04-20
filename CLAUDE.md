@@ -131,7 +131,7 @@ COPY --from=builder /app/backend/audio-service/src/generated ./src/generated
 
 Then aggregates scores (merging speaking + listening into `avg_pronunciation_score`), builds daily history, and categorises mistake types in-process. No Prisma, no database dependency. Each fetch is independently resilient — failure of one source returns partial stats from the remaining two.
 
-`AdminStatsService` provides the admin dashboard endpoint (`GET /admin/stats`) — calls text/audio/auth services in parallel (all with `x-internal-token + x-internal-service` headers), merges results into `AdminStatsOverview`. Weighted averages always carry raw `score_sum + count` pairs — never average pre-computed averages.
+`AdminStatsService` provides the admin dashboard endpoint (`GET /admin/stats`) — calls text/audio/auth services in parallel (all with `x-internal-token + x-internal-service + x-request-id` headers), merges results into `AdminStatsOverview`. Weighted averages always carry raw `score_sum + count` pairs — never average pre-computed averages. Key fields: `feature_usage_proxy` (session-derived AI load proxies, not actual API call counts), `funnel.active_users_cross_service_estimate` (systematic overcount — see Admin data aggregation conventions).
 
 ### AI Orchestrator
 `OrchestratorService` is a **thin facade** that composes five focused provider services:
@@ -223,7 +223,7 @@ Lingua_Pro/
 │       │   ├── app-shell.tsx            # Layout wrapper (nav, sidebar)
 │       │   ├── audio-recorder.tsx       # MediaRecorder wrapper
 │       │   ├── streamed-feedback.tsx    # SSE feedback consumer
-│       │   ├── admin-page.tsx           # 4-tab admin dashboard (overview/users/learning/ai-usage); role guard → ForbiddenPanel
+│       │   ├── admin-page.tsx           # 4-tab admin dashboard (overview/users/learning/ai-usage "AI Load (Proxy)"); role guard → ForbiddenPanel
 │       │   └── stats/                   # Stats page sub-components
 │       │       ├── types.ts             # Period, SkillKey, SummaryStats, SkillScores, ChartData, WeakPoint
 │       │       ├── utils.ts             # getNextLevel, computeStreak, buildWeakPoints, formatMistakeLabel
@@ -359,8 +359,10 @@ This pattern is used instead of trusting `x-user-role` (which is forgeable by an
 ### Admin data aggregation conventions
 - **All admin aggregations use raw SQL** (`prisma.$queryRaw`) — never `prisma.groupBy()`; this ensures `DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')` is applied consistently (Prisma `groupBy` ignores timezone transforms)
 - **Weighted averages** — always carry `score_sum` and `count` separately; compute `score_sum / count` at the final merge step with a `count > 0` guard; never average pre-computed averages
-- **DAU estimates** — per-service `COUNT(DISTINCT user_id)` is labeled `(est.)` in the UI; exact cross-service dedup via userId set union is available via `?exact=true` (hard-gated to `period=week` + `x-debug-mode: true` to prevent DoS)
-- **UTC date strings** — all `time_series.date` values are `YYYY-MM-DD` in UTC; frontend must parse as `new Date(date + 'T00:00:00Z')` — never `new Date(date)`
+- **DAU estimates** — field is `active_users_cross_service_estimate` (systematic overcount: per-service distinct user counts summed; users active on both text and audio the same day are counted twice); exact dedup via `?exact=true` (hard-gated to `period=week` + `x-debug-mode: true`); exact-mode SQL applies `LIMIT` inside a subquery **before** any `DISTINCT` so Postgres never builds a large hash-dedup set in memory; limits are env-configurable (`MAX_EXACT_IDS_PER_DAY`, `MAX_EXACT_IDS_TOTAL`)
+- **Language normalisation** — `normLang()` in `admin-stats.service.ts` maps all variants to canonical keys (`'en'`/`'english'` → `'english'`, etc.) via `LANG_CANONICAL`; unknown values map to `'other'` and emit a `console.warn` for future mapping — never use raw strings as analytics keys
+- **In-flight deduplication** — `AdminStatsService.getAdminStats()` deduplicates concurrent requests with a stable key (`period:language:exact:debug`) and an `AbortController` timeout that cancels all upstream fetches if they hang; prevents fan-out storms when multiple admins load simultaneously
+- **UTC date strings** — all `time_series.date` values are `YYYY-MM-DD` in UTC; use `parseUtcDate(dateStr)` (defined in `admin-page.tsx`) — never `new Date(dateStr)` which applies local timezone offset
 
 ### AI usage logging
 - `AiUsageService.log()` is **fire-and-forget** — always call with `void`, never `await`; it never throws and no-ops gracefully if Prisma is unavailable

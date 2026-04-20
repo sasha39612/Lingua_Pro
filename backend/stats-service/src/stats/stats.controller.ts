@@ -26,6 +26,7 @@ export class StatsController {
     @Headers('x-internal-token') internalToken: string,
     @Headers('x-internal-service') internalService: string,
     @Headers('x-debug-mode') debugMode: string,
+    @Headers('x-request-id') requestId: string,
   ) {
     if (!STATS_INTERNAL_SECRET || internalToken !== STATS_INTERNAL_SECRET ||
         !internalService || !STATS_ALLOWED_SERVICES.has(internalService)) {
@@ -36,6 +37,6 @@ export class StatsController {
     const isExact = exact === 'true';
     const isDebug = debugMode === 'true';
 
-    return this.adminStatsService.getAdminStats(p, language || undefined, isExact, isDebug);
+    return this.adminStatsService.getAdminStats(p, language || undefined, isExact, isDebug, requestId || undefined);
   }
 }

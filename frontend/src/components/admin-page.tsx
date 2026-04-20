@@ -7,6 +7,17 @@ import { useAppStore } from '@/store/app-store';
 import { useAdminStats, useAdminUsers } from '@/lib/admin-hooks';
 import type { AdminStatsOverview, AdminUser } from '@/lib/types';
 
+// ─── Date utilities ───────────────────────────────────────────────────────────
+
+/**
+ * Parse a YYYY-MM-DD string as UTC midnight.
+ * Never use new Date(dateStr) for time-series dates — it applies the local
+ * timezone offset and can shift dates by ±1 day depending on the browser locale.
+ */
+function parseUtcDate(dateStr: string): Date {
+  return new Date(dateStr + 'T00:00:00Z');
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type AdminTab = 'overview' | 'users' | 'learning' | 'ai-usage';
@@ -157,8 +168,7 @@ function DailyLineChart({ data }: { data: Array<{ date: string; count: number }>
       <polyline points={pts} fill="none" stroke="#6366f1" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
       {[...labelIdxs].map((i) => (
         <text key={i} x={toX(i)} y={H - 4} fontSize={8} textAnchor="middle" fill="#94a3b8">
-          {/* Parse with T00:00:00Z to avoid local timezone shift */}
-          {new Date(data[i].date + 'T00:00:00Z').toLocaleDateString('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+          {parseUtcDate(data[i].date).toLocaleDateString('en', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
         </text>
       ))}
     </svg>
@@ -179,7 +189,7 @@ function FunnelRow({ registered, activePeriod, completedTask }: {
     <div className="flex flex-wrap items-center gap-3">
       {[
         { label: 'Registered', value: registered },
-        { label: `Active (period, est.)`, value: activePeriod, rate: activeRate },
+        { label: `Active (cross-service est.)`, value: activePeriod, rate: activeRate },
         { label: 'Completed task',  value: completedTask, rate: taskRate },
       ].map((step, i) => (
         <div key={i} className="flex items-center gap-3">
@@ -203,7 +213,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'overview',  label: 'Overview' },
   { id: 'users',     label: 'Users' },
   { id: 'learning',  label: 'Learning' },
-  { id: 'ai-usage',  label: 'AI Usage' },
+  { id: 'ai-usage',  label: 'AI Load (Proxy)' },
 ];
 
 // ─── Overview tab ─────────────────────────────────────────────────────────────
@@ -229,7 +239,7 @@ function OverviewTab({ data, onRetry, isLoading, error }: {
         </h2>
         <FunnelRow
           registered={funnel.registered}
-          activePeriod={funnel.active_users_period}
+          activePeriod={funnel.active_users_cross_service_estimate}
           completedTask={funnel.completed_task}
         />
       </div>
@@ -442,24 +452,19 @@ function AiUsageTab({ data, onRetry, isLoading, error }: {
   if (error)     return <AdminErrorBanner message={error.message} onRetry={onRetry} />;
   if (!data)     return <AdminEmptyState />;
 
-  const { estimated_ai_usage, session_counts_by_feature } = data;
-  const totalProxy = estimated_ai_usage.text_operations +
-    estimated_ai_usage.speech_operations +
-    estimated_ai_usage.listening_operations;
+  const { feature_usage_proxy, session_counts_by_feature } = data;
+  const totalProxy = feature_usage_proxy.text_operations +
+    feature_usage_proxy.speech_operations +
+    feature_usage_proxy.listening_operations;
 
   return (
     <div className="space-y-5">
-      {/* Phase 2 banner */}
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-        Token-level cost analytics available after Phase 2 rollout. Counts below are session proxies, not actual API call counts.
-      </div>
-
-      {/* Proxy KPIs */}
+      {/* Session-derived AI load proxies */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Text ops (proxy)" value={estimated_ai_usage.text_operations.toLocaleString()} sub="reading + writing sessions" />
-        <KpiCard label="Speech ops (proxy)" value={estimated_ai_usage.speech_operations.toLocaleString()} sub="speaking sessions" />
-        <KpiCard label="Listening ops (proxy)" value={estimated_ai_usage.listening_operations.toLocaleString()} sub="listening sessions" />
-        <KpiCard label="Total ops (proxy)" value={totalProxy.toLocaleString()} />
+        <KpiCard label="Text ops" value={feature_usage_proxy.text_operations.toLocaleString()} sub="reading + writing sessions" />
+        <KpiCard label="Speech ops" value={feature_usage_proxy.speech_operations.toLocaleString()} sub="speaking sessions" />
+        <KpiCard label="Listening ops" value={feature_usage_proxy.listening_operations.toLocaleString()} sub="listening sessions" />
+        <KpiCard label="Total ops" value={totalProxy.toLocaleString()} sub="session-based proxy" />
       </div>
 
       {/* Sessions by feature */}
@@ -478,6 +483,19 @@ function AiUsageTab({ data, onRetry, isLoading, error }: {
           valueKey="count"
           color="bg-violet-500"
         />
+      </div>
+
+      {/* Cost & Tokens — populated when AI usage logging is active (Phase 2) */}
+      <div className="rounded-2xl bg-white p-5 shadow-float">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Cost &amp; Tokens
+        </h2>
+        <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+          <svg className="h-5 w-5 shrink-0 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          No cost data available yet. Token-level analytics will appear here once AI usage logging is active.
+        </div>
       </div>
     </div>
   );
@@ -515,21 +533,24 @@ export function AdminPage() {
               Platform health, user growth, and learning effectiveness.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-36">
-              <SelectDropdown
-                value={language}
-                options={LANGUAGE_OPTIONS}
-                onChange={(v) => setLanguage(v)}
-              />
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              <div className="w-36">
+                <SelectDropdown
+                  value={language}
+                  options={LANGUAGE_OPTIONS}
+                  onChange={(v) => setLanguage(v)}
+                />
+              </div>
+              <div className="w-36">
+                <SelectDropdown
+                  value={period}
+                  options={PERIOD_OPTIONS}
+                  onChange={(v) => setPeriod(v as Period)}
+                />
+              </div>
             </div>
-            <div className="w-36">
-              <SelectDropdown
-                value={period}
-                options={PERIOD_OPTIONS}
-                onChange={(v) => setPeriod(v as Period)}
-              />
-            </div>
+            <p className="text-xs text-slate-400">Filters apply to analytics tabs only</p>
           </div>
         </section>
 

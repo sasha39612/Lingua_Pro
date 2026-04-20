@@ -78,12 +78,19 @@ export interface AdminStatsOverview {
     daily_sessions: Array<{ date: string; count: number }>;
     daily_active_user_estimate: Array<{ date: string; count: number }>;
   };
-  estimated_ai_usage: {
+  /** Session-derived proxies for AI load (not actual API call counts). */
+  feature_usage_proxy: {
     text_operations: number;
     speech_operations: number;
     listening_operations: number;
   };
-  funnel: { registered: number; active_users_period: number; completed_task: number };
+  funnel: {
+    registered: number;
+    /** Systematic overcount: per-service distinct user counts summed.
+     *  Users active on both text and audio the same day are counted twice. */
+    active_users_cross_service_estimate: number;
+    completed_task: number;
+  };
 }
 
 export interface LearningTask {

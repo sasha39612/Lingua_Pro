@@ -426,31 +426,67 @@ export class AudioRepository {
   }
 
   async adminActiveUserIds(fromDate: Date, language?: string): Promise<Array<{ date: string; userIds: number[] }>> {
+    // Exact mode: returns userId arrays per day for precise cross-service DAU dedup.
+    // Hard-gated to period=week + x-debug-mode header at the controller level.
+    //
+    // LIMIT is applied before the subquery collects rows — not after DISTINCT — so Postgres
+    // never builds a large dedup hash set in memory. Result may contain duplicates within
+    // the per-day cap window; acceptable for a debug/verification tool.
+    const maxPerDay = Number(process.env.MAX_EXACT_IDS_PER_DAY ?? 5_000);
+    const maxTotal  = Number(process.env.MAX_EXACT_IDS_TOTAL   ?? 50_000);
+
     type Row = { date: Date; user_ids: number[] };
     let rows: Row[];
-    // Exact mode: returns userId arrays per day for precise cross-service DAU dedup.
-    // Hard-gated to period=week at the controller level before this is called.
     if (language) {
       rows = await this.prisma.$queryRaw<Row[]>`
-        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
-               ARRAY_AGG(DISTINCT user_id) AS user_ids
-        FROM audio_records
-        WHERE created_at >= ${fromDate} AND language = ${language}
-        GROUP BY 1 ORDER BY 1 ASC
+        SELECT d.date,
+               ARRAY(
+                 SELECT user_id FROM (
+                   SELECT user_id FROM audio_records
+                   WHERE created_at >= ${fromDate}
+                     AND language = ${language}
+                     AND DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date = d.date
+                   LIMIT ${maxPerDay}
+                 ) t
+               ) AS user_ids
+        FROM (
+          SELECT DISTINCT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date
+          FROM audio_records WHERE created_at >= ${fromDate} AND language = ${language}
+        ) d
+        ORDER BY d.date ASC
       `;
     } else {
       rows = await this.prisma.$queryRaw<Row[]>`
-        SELECT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date,
-               ARRAY_AGG(DISTINCT user_id) AS user_ids
-        FROM audio_records
-        WHERE created_at >= ${fromDate}
-        GROUP BY 1 ORDER BY 1 ASC
+        SELECT d.date,
+               ARRAY(
+                 SELECT user_id FROM (
+                   SELECT user_id FROM audio_records
+                   WHERE created_at >= ${fromDate}
+                     AND DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date = d.date
+                   LIMIT ${maxPerDay}
+                 ) t
+               ) AS user_ids
+        FROM (
+          SELECT DISTINCT DATE_TRUNC('day', created_at AT TIME ZONE 'UTC')::date AS date
+          FROM audio_records WHERE created_at >= ${fromDate}
+        ) d
+        ORDER BY d.date ASC
       `;
     }
-    return rows.map((r) => ({
+
+    const result = rows.map((r) => ({
       date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
       userIds: (r.user_ids ?? []).map(Number),
     }));
+
+    const totalIds = result.reduce((sum, r) => sum + r.userIds.length, 0);
+    if (totalIds > maxTotal) {
+      throw new Error(
+        `Exact mode returned ${totalIds} IDs — exceeds MAX_EXACT_IDS_TOTAL=${maxTotal}. Lower MAX_EXACT_IDS_PER_DAY or use estimated mode.`,
+      );
+    }
+
+    return result;
   }
 
   async getListeningScoresByLanguage(
