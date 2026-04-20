@@ -14,14 +14,20 @@ echo "[ai-orchestrator] Ensuring database '${DB_NAME}' exists..."
 psql "${ADMIN_URL}" -c "CREATE DATABASE \"${DB_NAME}\";" 2>/dev/null \
   || echo "[ai-orchestrator] Database already exists or unreachable, continuing..."
 
-echo "[ai-orchestrator] Running Prisma migrations..."
-# Pass --datasource-url directly so Prisma never reads prisma.config.ts
-# (Prisma 7's WASM parser fails to parse our config file syntax at runtime)
-if npx prisma migrate deploy --schema=./prisma/schema.prisma --datasource-url "${DB_URL}"; then
-  echo "[ai-orchestrator] Migrations applied."
-else
-  echo "[ai-orchestrator] WARNING: migrations failed — service will start without DB (usage logging disabled)"
-fi
+echo "[ai-orchestrator] Applying migrations..."
+# Apply each migration SQL file directly — bypasses prisma migrate deploy which
+# requires prisma.config.ts (Prisma 7 WASM parser rejects all our config formats).
+MIGRATIONS_DIR="./prisma/migrations"
+for sql_file in "${MIGRATIONS_DIR}"/*/migration.sql; do
+  if [ -f "${sql_file}" ]; then
+    echo "[ai-orchestrator] Applying ${sql_file}..."
+    if psql "${DB_URL}" -f "${sql_file}"; then
+      echo "[ai-orchestrator] Applied ${sql_file}"
+    else
+      echo "[ai-orchestrator] WARNING: ${sql_file} failed (table may already exist) — continuing"
+    fi
+  fi
+done
 
 echo "[ai-orchestrator] Starting service..."
 exec node dist/main.js
