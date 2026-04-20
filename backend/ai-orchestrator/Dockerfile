@@ -44,7 +44,6 @@ COPY --from=builder /app/backend/ai-orchestrator/dist ./dist
 COPY --from=builder /app/backend/ai-orchestrator/src/generated ./dist/generated
 # Schema + migrations needed for prisma migrate deploy in entrypoint
 COPY --from=builder /app/backend/ai-orchestrator/prisma ./prisma
-COPY backend/ai-orchestrator/prisma.config.ts ./prisma.config.ts
 
 COPY backend/ai-orchestrator/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh

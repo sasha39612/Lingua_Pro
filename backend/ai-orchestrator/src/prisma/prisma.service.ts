@@ -24,9 +24,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     try {
-      this.client = new PrismaClientCtor({
-        datasourceUrl: process.env.DATABASE_URL,
-      });
+      this.client = new PrismaClientCtor();
       await this.client.$connect();
     } catch (err: any) {
       this.logger.warn(`[PrismaService] connect failed (non-fatal): ${err?.message ?? err}`);
