@@ -25,7 +25,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     }
     try {
       this.client = new PrismaClientCtor({
-        datasources: { db: { url: process.env.DATABASE_URL_AI_ORCHESTRATOR } },
+        datasources: { db: { url: process.env.DATABASE_URL } },
       });
       await this.client.$connect();
     } catch (err: any) {

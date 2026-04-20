@@ -35,6 +35,15 @@ ENV PORT=4005
 # Node resolves node_modules up the directory tree — copy root workspace node_modules
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/backend/ai-orchestrator/dist ./dist
+# Prisma generates to src/generated/prisma; compiled dist/prisma/prisma.service.js
+# requires('../generated/prisma') which resolves to dist/generated/prisma at runtime
+COPY --from=builder /app/backend/ai-orchestrator/src/generated ./dist/generated
+# Schema + migrations needed for prisma migrate deploy in entrypoint
+COPY --from=builder /app/backend/ai-orchestrator/prisma ./prisma
+COPY backend/ai-orchestrator/prisma.config.ts ./prisma.config.ts
+
+COPY backend/ai-orchestrator/entrypoint.sh ./entrypoint.sh
+RUN chmod +x entrypoint.sh
 
 EXPOSE 4005
-CMD ["node", "dist/main.js"]
+ENTRYPOINT ["./entrypoint.sh"]
