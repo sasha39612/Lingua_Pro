@@ -16,6 +16,12 @@ async function makeService() {
   const orig = process.env.AI_API_KEY;
   delete process.env.AI_API_KEY;
   vi.resetModules();
+  // Prevent Prisma WASM from loading in tests — AiUsageService is already
+  // passed as a mock constructor arg; blocking the real module import avoids
+  // a >5s WASM initialisation penalty on first fresh module load.
+  vi.doMock('./usage/ai-usage.service', () => ({
+    AiUsageService: class { log = vi.fn(); },
+  }));
   const { TtsService } = await import('./tts.service');
   const svc = new TtsService(mockAiUsage);
   if (orig !== undefined) process.env.AI_API_KEY = orig;

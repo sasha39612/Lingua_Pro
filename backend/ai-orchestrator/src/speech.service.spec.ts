@@ -119,6 +119,11 @@ describe('SpeechService — fallback when no keys', () => {
       const actual = (await importOriginal()) as any;
       return { ...actual, Logger: vi.fn(() => ({ warn: vi.fn(), log: vi.fn(), error: vi.fn() })) };
     });
+    // Prevent Prisma WASM from loading on first import of speech.service —
+    // AiUsageService is already passed as a mock constructor arg.
+    vi.doMock('./usage/ai-usage.service', () => ({
+      AiUsageService: class { log = vi.fn(); },
+    }));
 
     const { SpeechService } = await import('./speech.service');
     const svc = new SpeechService(g2pStub as any, mockAiUsage);
