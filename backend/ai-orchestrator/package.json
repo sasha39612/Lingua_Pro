@@ -15,7 +15,7 @@
     "@nestjs/common": "*",
     "@nestjs/core": "*",
     "@nestjs/platform-express": "*",
-    "@prisma/client": "^6.0.0",
+    "@prisma/client": "^7.4.2",
     "class-transformer": "*",
     "class-validator": "*",
     "microsoft-cognitiveservices-speech-sdk": "*",
@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "*",
-    "prisma": "^6.0.0",
+    "prisma": "^7.4.2",
     "ts-node": "*",
     "tsconfig-paths": "*",
     "typescript": "*",
