@@ -47,7 +47,10 @@ export class AiUsageService {
   // Call sites must use: void this.aiUsageService.log({ ... });
   async log(event: AiUsageEventInput): Promise<void> {
     const client = this.prismaService.prismaClient;
-    if (!client) return; // Prisma not yet available (pending generate/migration)
+    if (!client) {
+      this.logger.warn('[AiUsageService] prismaClient is null — skipping log (feature: ' + event.featureType + ')');
+      return;
+    }
     try {
       const costUsd = computeCost(event.model, event.promptTokens, event.completionTokens);
       await client.aiUsageEvent.create({

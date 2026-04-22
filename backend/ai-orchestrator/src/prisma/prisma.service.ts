@@ -38,6 +38,7 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       const adapter = new PrismaPgCtor(this.pool);
       this.client = new PrismaClientCtor({ adapter });
       await this.client.$connect();
+      this.logger.log('[PrismaService] connected to ai_orchestrator_db');
     } catch (err: any) {
       this.logger.warn(`[PrismaService] connect failed (non-fatal): ${err?.message ?? err}`);
       this.client = null;
