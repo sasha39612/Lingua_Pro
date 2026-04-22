@@ -17,7 +17,7 @@ COPY backend/ai-orchestrator/package.json ./backend/ai-orchestrator/
 
 RUN pnpm install --frozen-lockfile
 
-# Copy service source — prisma generate reads DATABASE_URL from schema datasource (Prisma 6)
+# Copy service source — prisma generate reads schema structure only (no URL needed at build time)
 COPY backend/ai-orchestrator/src ./backend/ai-orchestrator/src
 COPY backend/ai-orchestrator/prisma ./backend/ai-orchestrator/prisma
 COPY backend/ai-orchestrator/tsconfig.json ./backend/ai-orchestrator/tsconfig.json
@@ -43,6 +43,7 @@ COPY --from=builder /app/backend/ai-orchestrator/src/generated ./dist/generated
 # Schema + migrations needed for prisma migrate deploy in entrypoint
 COPY --from=builder /app/backend/ai-orchestrator/prisma ./prisma
 
+COPY backend/ai-orchestrator/prisma.config.ts ./prisma.config.ts
 COPY backend/ai-orchestrator/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
 
