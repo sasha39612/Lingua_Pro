@@ -70,6 +70,7 @@ interface AiUsageRow {
   total_tokens: string | null;
   avg_duration_ms: number | null;
   total_cost_usd: number | null;
+  total_characters: number | null;
   total_retries: number | null;
 }
 
@@ -417,13 +418,14 @@ function buildAiCost(rows: AiUsageRow[]) {
   let failedEvents = 0;
   let retriedEvents = 0;
 
-  const byFeature = new Map<string, { eventCount: number; totalTokens: number; totalCostUsd: number; totalDurationMs: number }>();
-  const byModel   = new Map<string, { eventCount: number; totalTokens: number; totalCostUsd: number }>();
+  const byFeature = new Map<string, { eventCount: number; totalTokens: number; totalCostUsd: number; totalCharacters: number; totalDurationMs: number }>();
+  const byModel   = new Map<string, { eventCount: number; totalTokens: number; totalCostUsd: number; totalCharacters: number }>();
 
   for (const row of rows) {
     const count   = row.event_count;
     const tokens  = Number(row.total_tokens ?? 0);
     const cost    = row.total_cost_usd ?? 0;
+    const chars   = row.total_characters ?? 0; // null → 0; never let null infect sums
     const retries = row.total_retries ?? 0;
     const durMs   = row.avg_duration_ms ?? 0;
 
@@ -435,19 +437,21 @@ function buildAiCost(rows: AiUsageRow[]) {
 
     // by_feature — group by feature_type
     const ft = row.feature_type;
-    const existing = byFeature.get(ft) ?? { eventCount: 0, totalTokens: 0, totalCostUsd: 0, totalDurationMs: 0 };
+    const existing = byFeature.get(ft) ?? { eventCount: 0, totalTokens: 0, totalCostUsd: 0, totalCharacters: 0, totalDurationMs: 0 };
     existing.eventCount += count;
     existing.totalTokens += tokens;
     existing.totalCostUsd += cost;
+    existing.totalCharacters += chars;
     existing.totalDurationMs += durMs * count;
     byFeature.set(ft, existing);
 
     // by_model
     const m = row.model;
-    const existingM = byModel.get(m) ?? { eventCount: 0, totalTokens: 0, totalCostUsd: 0 };
+    const existingM = byModel.get(m) ?? { eventCount: 0, totalTokens: 0, totalCostUsd: 0, totalCharacters: 0 };
     existingM.eventCount += count;
     existingM.totalTokens += tokens;
     existingM.totalCostUsd += cost;
+    existingM.totalCharacters += chars;
     byModel.set(m, existingM);
   }
 
@@ -459,6 +463,7 @@ function buildAiCost(rows: AiUsageRow[]) {
       eventCount: v.eventCount,
       totalTokens: v.totalTokens,
       totalCostUsd: v.totalCostUsd,
+      totalCharacters: v.totalCharacters,
       avgDurationMs: v.eventCount > 0 ? v.totalDurationMs / v.eventCount : 0,
     })),
     by_model: [...byModel.entries()].map(([model, v]) => ({
@@ -466,6 +471,7 @@ function buildAiCost(rows: AiUsageRow[]) {
       eventCount: v.eventCount,
       totalTokens: v.totalTokens,
       totalCostUsd: v.totalCostUsd,
+      totalCharacters: v.totalCharacters,
     })),
     failure_rate: totalEvents > 0 ? failedEvents / totalEvents : 0,
     retry_rate: totalEvents > 0 ? retriedEvents / totalEvents : 0,

@@ -28,9 +28,11 @@ export class TtsService {
     let attempts = 0;
 
     try {
-      // Listening passages are ~400 words — TTS can take 50-70s for long input
-      const textLength = text.trim().length;
-      const ttsTimeout = textLength > 500 ? 90_000 : 30_000;
+      // Listening passages are ~400 words — TTS can take 50-70s for long input.
+      // Use Array.from() to count Unicode code points (not UTF-16 code units) —
+      // JS .length double-counts emoji/surrogate pairs; providers bill by code point.
+      const characters = Array.from(text).length;
+      const ttsTimeout = characters > 500 ? 90_000 : 30_000;
 
       const { result: audioBase64, attempts: a } = await withRetryTracked(
         () =>
@@ -46,7 +48,7 @@ export class TtsService {
       );
       attempts = a;
 
-      // TTS (audio API) does not expose token counts — costUsd will be null
+      // TTS: no token counts from API — cost computed from character count instead
       void this.aiUsage.log({
         success: true,
         featureType: 'tts',
@@ -54,6 +56,7 @@ export class TtsService {
         model: this.ttsModel,
         durationMs: Date.now() - start,
         retryCount: attempts - 1,
+        characters,
         requestId,
         language,
       });

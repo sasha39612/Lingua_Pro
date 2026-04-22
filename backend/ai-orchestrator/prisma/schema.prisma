@@ -34,6 +34,9 @@ model AiUsageEvent {
   // caller-provided correlation ID — traces one user request across multiple AI calls
   userId           Int?     @map("user_id")
   language         String?
+  characters       Int?
+  // Character count for TTS requests — basis for character-rate cost computation.
+  // null for token-based models (gpt-4o, gpt-4o-mini) — not applicable.
   costUsd          Float?   @map("cost_usd")
   // Computed at log time using MODEL_RATES — stored so historical accuracy is
   // preserved when pricing changes. null when token data unavailable (TTS, Azure).

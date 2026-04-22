@@ -4,20 +4,39 @@ import { PrismaService } from '../prisma/prisma.service';
 const PRICING_VERSION = process.env.PRICING_VERSION
   ?? new Date().toISOString().slice(0, 7); // default: "YYYY-MM"
 
-// $ per token. null = unknown pricing (TTS/Whisper/Azure — no per-token rate).
+// Unified rate type — supports both token-based and character-based pricing.
+// null = unknown/unmeasured pricing (whisper-1, azure-speech — per-second/per-minute).
 // Returns null (not 0) when unavailable — null in DB is honest; 0 corrupts totals.
-const MODEL_RATES: Record<string, { prompt: number; completion: number } | null> = {
-  'gpt-4o':          { prompt: 0.0000025,  completion: 0.000010 },
-  'gpt-4o-mini':     { prompt: 0.00000015, completion: 0.0000006 },
-  'gpt-4o-mini-tts': null, // flat-rate audio — no per-token pricing
-  'whisper-1':       null, // per-second pricing — not token-based
-  'azure-speech':    null, // per-minute pricing — not token-based
+type ModelRate =
+  | { kind: 'tokens'; prompt: number; completion: number }
+  | { kind: 'chars';  perChar: number }
+  | null;
+
+const MODEL_RATES: Record<string, ModelRate> = {
+  'gpt-4o':          { kind: 'tokens', prompt: 0.0000025,  completion: 0.000010 },
+  'gpt-4o-mini':     { kind: 'tokens', prompt: 0.00000015, completion: 0.0000006 },
+  'gpt-4o-mini-tts': { kind: 'chars',  perChar: 15.0 / 1_000_000 }, // $15/1M chars
+  'whisper-1':       null, // per-second pricing — not token or char based
+  'azure-speech':    null, // per-minute pricing — not token or char based
 };
 
-function computeCost(model: string, prompt?: number | null, completion?: number | null): number | null {
+function computeCost(
+  model: string,
+  opts: { prompt?: number | null; completion?: number | null; characters?: number | null },
+): number | null {
   const rate = MODEL_RATES[model];
-  if (!rate || prompt == null || completion == null) return null;
-  return prompt * rate.prompt + completion * rate.completion;
+  if (!rate) return null;
+  if (rate.kind === 'tokens') {
+    const { prompt, completion } = opts;
+    if (prompt == null || prompt < 0 || completion == null || completion < 0) return null;
+    return prompt * rate.prompt + completion * rate.completion;
+  }
+  if (rate.kind === 'chars') {
+    const { characters } = opts;
+    if (characters == null || characters <= 0) return null;
+    return characters * rate.perChar;
+  }
+  return null;
 }
 
 export interface AiUsageEventInput {
@@ -30,6 +49,7 @@ export interface AiUsageEventInput {
   promptTokens?: number | null;
   completionTokens?: number | null;
   totalTokens?: number | null;
+  characters?: number | null;
   durationMs?: number;
   retryCount?: number;
   requestId?: string;
@@ -52,7 +72,11 @@ export class AiUsageService {
       return;
     }
     try {
-      const costUsd = computeCost(event.model, event.promptTokens, event.completionTokens);
+      const costUsd = computeCost(event.model, {
+        prompt:     event.promptTokens,
+        completion: event.completionTokens,
+        characters: event.characters,
+      });
       await client.aiUsageEvent.create({
         data: {
           featureType:      event.featureType,
@@ -64,6 +88,7 @@ export class AiUsageService {
           promptTokens:     event.promptTokens ?? null,
           completionTokens: event.completionTokens ?? null,
           totalTokens:      event.totalTokens ?? null,
+          characters:       event.characters ?? null,
           durationMs:       event.durationMs,
           retryCount:       event.retryCount,
           requestId:        event.requestId,

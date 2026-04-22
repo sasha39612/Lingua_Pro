@@ -100,12 +100,14 @@ export interface AdminStatsOverview {
       eventCount: number;
       totalTokens: number;
       totalCostUsd: number;
+      totalCharacters: number;  // non-zero for TTS; 0 for token-based models
       avgDurationMs: number;
     }>;
     by_model: Array<{
       model: string;
       totalTokens: number;
       totalCostUsd: number;
+      totalCharacters: number;  // non-zero for gpt-4o-mini-tts; 0 otherwise
       eventCount: number;
     }>;
     failure_rate: number;

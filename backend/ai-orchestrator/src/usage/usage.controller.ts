@@ -41,6 +41,7 @@ export class UsageController {
           SUM(total_tokens)::float AS total_tokens,
           AVG(duration_ms)::float AS avg_duration_ms,
           SUM(cost_usd)::float AS total_cost_usd,
+          SUM(characters)::float AS total_characters,
           SUM(retry_count)::int AS total_retries,
           MAX(pricing_version) AS pricing_version
         FROM ai_usage_events
