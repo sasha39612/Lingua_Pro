@@ -39,8 +39,6 @@ COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/backend/text-service/dist ./dist
 COPY --from=builder /app/backend/text-service/prisma ./prisma
 COPY --from=builder /app/backend/text-service/src/generated ./dist/generated
-COPY backend/text-service/prisma.config.ts ./prisma.config.ts
-
 COPY backend/text-service/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
 

@@ -46,7 +46,6 @@ COPY --from=builder /app/backend/audio-service/src/generated ./src/generated
 
 RUN mkdir -p /var/app/uploads
 
-COPY backend/audio-service/prisma.config.ts ./prisma.config.ts
 COPY backend/audio-service/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
 
