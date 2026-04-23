@@ -5,6 +5,9 @@ export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  // Route browser events through our own domain to avoid ad-blocker drops
+  // and CSP issues with sentry.io being blocked.
+  tunnel: '/api/sentry-tunnel',
   tracesSampleRate: 1.0,
   beforeSend(event) {
     if (event.request?.data && typeof event.request.data === 'object') {
