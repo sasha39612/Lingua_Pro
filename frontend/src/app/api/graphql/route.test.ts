@@ -57,6 +57,7 @@ describe('/api/graphql route', () => {
 
     const requestWithOnlyPersistedQuery = {
       headers: new Headers(),
+      cookies: { get: vi.fn().mockReturnValue(undefined) },
       text: () => Promise.resolve(JSON.stringify({
         operationName: 'Me',
         variables: {},
@@ -88,6 +89,7 @@ describe('/api/graphql route', () => {
 
     const request = {
       headers: new Headers({ authorization: 'Bearer token' }),
+      cookies: { get: vi.fn().mockReturnValue(undefined) },
       text: () => Promise.resolve(JSON.stringify({
         operationName: 'Me',
         variables: { demo: true },

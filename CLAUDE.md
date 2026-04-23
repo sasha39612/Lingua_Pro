@@ -241,7 +241,7 @@ Lingua_Pro/
 │       │   ├── admin-hooks.ts           # useAdminStats, useAdminUsers (staleTime: 60_000)
 │       │   ├── persisted-queries.ts     # SHA-256 hash map per operation name
 │       │   └── types.ts                 # Includes AdminUser, AdminStatsOverview
-│       └── store/app-store.ts           # Zustand (auth token, user, language)
+│       └── store/app-store.ts           # Zustand (user metadata, language, level, theme) — no token; auth is httpOnly cookie
 │
 └── backend/
     ├── api-gateway/                 # NestJS, Apollo Federation Gateway, :8080
@@ -331,6 +331,12 @@ AZURE_SPEECH_REGION=westeurope
 # Sentry error tracking (optional — leave blank to disable)
 SENTRY_DSN=your-sentry-dsn-here              # shared by all 6 backend services + Next.js server/edge
 NEXT_PUBLIC_SENTRY_DSN=your-sentry-dsn-here  # baked into frontend client bundle at build time
+
+# Demo login credentials (optional — used by /api/auth/demo-login; seed these users via register mutation first)
+DEMO_STUDENT_EMAIL=demo.student@lingua.pro
+DEMO_STUDENT_PASSWORD=your-demo-student-password
+DEMO_ADMIN_EMAIL=demo.admin@lingua.pro
+DEMO_ADMIN_PASSWORD=your-demo-admin-password
 ```
 
 Service-level env (with defaults):

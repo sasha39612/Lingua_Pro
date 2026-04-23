@@ -5,7 +5,6 @@ import { persist } from 'zustand/middleware';
 import { AppLanguage, AuthUser, TextResult } from '@/lib/types';
 
 interface AppState {
-  token: string | null;
   user: AuthUser | null;
   language: AppLanguage;
   level: string;
@@ -13,7 +12,6 @@ interface AppState {
   lastTaskTitle: string | null;
   audioScores: number[];
   recentResults: TextResult[];
-  setToken: (token: string | null) => void;
   setUser: (user: AuthUser | null) => void;
   setLanguage: (language: AppLanguage) => void;
   setLevel: (level: string) => void;
@@ -28,7 +26,6 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      token: null,
       user: null,
       language: 'English',
       level: 'A2',
@@ -36,7 +33,6 @@ export const useAppStore = create<AppState>()(
       lastTaskTitle: null,
       audioScores: [0.62, 0.7, 0.68, 0.77],
       recentResults: [],
-      setToken: (token) => set({ token }),
       setUser: (user) => set({ user }),
       setLanguage: (language) => set({ language }),
       setLevel: (level) => set({ level }),
@@ -51,12 +47,11 @@ export const useAppStore = create<AppState>()(
           recentResults: [result, ...state.recentResults].slice(0, 12),
         })),
       clearResults: () => set({ recentResults: [] }),
-      logout: () => set({ token: null, user: null, recentResults: [], lastTaskTitle: null }),
+      logout: () => set({ user: null, recentResults: [], lastTaskTitle: null }),
     }),
     {
       name: 'lingua-pro-zustand',
       partialize: (state) => ({
-        token: state.token,
         user: state.user,
         language: state.language,
         level: state.level,

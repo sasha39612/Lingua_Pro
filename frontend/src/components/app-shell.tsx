@@ -7,11 +7,10 @@ import { useAppStore } from '@/store/app-store';
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const token = useAppStore((s) => s.token);
   const user = useAppStore((s) => s.user);
   // Zustand persist reads from localStorage only on the client. Delay auth
   // enforcement until after first mount so we don't redirect before the
-  // persisted token has been loaded.
+  // persisted user has been loaded.
   const [hydrated, setHydrated] = useState(false);
   const isPublicRoute =
     pathname === '/dashboard' ||
@@ -28,22 +27,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    if (!token && !isPublicRoute) {
+    if (!user && !isPublicRoute) {
       router.replace('/login');
     }
-    if (token && pathname === '/admin' && user && user.role !== 'admin') {
+    if (user && pathname === '/admin' && user.role !== 'admin') {
       router.replace('/dashboard');
     }
-    if (token && pathname === '/login') {
+    if (user && pathname === '/login') {
       router.replace('/dashboard');
     }
-  }, [hydrated, token, pathname, router, isPublicRoute, user]);
+  }, [hydrated, user, pathname, router, isPublicRoute]);
 
   if (!hydrated) {
     return <div className="min-h-screen">{children}</div>;
   }
 
-  if (!token && !isPublicRoute) {
+  if (!user && !isPublicRoute) {
     return (
       <div className="mx-auto mt-10 max-w-xl rounded-2xl bg-white p-6 text-center shadow-float">
         <h1 className="text-xl font-semibold">Authentication Required</h1>
@@ -52,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (token && pathname === '/admin' && user && user.role !== 'admin') {
+  if (user && pathname === '/admin' && user.role !== 'admin') {
     return (
       <div className="mx-auto mt-10 max-w-xl rounded-2xl bg-white p-6 text-center shadow-float">
         <h1 className="text-xl font-semibold">Admin Access Required</h1>

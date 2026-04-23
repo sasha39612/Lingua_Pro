@@ -42,19 +42,10 @@ describe('graphqlRequest', () => {
     expect(result).toEqual({ me: { id: 1, email: 'a@b.com' } });
   });
 
-  it('includes Authorization header when token is provided', async () => {
+  it('does not include an Authorization header (auth is cookie-based)', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse({ data: { me: { id: 1 } } }));
 
-    await graphqlRequest({ operationName: 'Me', token: 'mytoken' });
-
-    const [, options] = mockFetch.mock.calls[0];
-    expect(options.headers['authorization']).toBe('Bearer mytoken');
-  });
-
-  it('omits Authorization header when token is null', async () => {
-    mockFetch.mockResolvedValueOnce(mockResponse({ data: { me: { id: 1 } } }));
-
-    await graphqlRequest({ operationName: 'Me', token: null });
+    await graphqlRequest({ operationName: 'Me' });
 
     const [, options] = mockFetch.mock.calls[0];
     expect(options.headers).not.toHaveProperty('authorization');

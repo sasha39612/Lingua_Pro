@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LabFrame } from '@/components/lab-frame';
-import { useLoginMutation } from '@/lib/graphql-hooks';
 import { AuthUser } from '@/lib/types';
 import { useAppStore } from '@/store/app-store';
 
@@ -19,10 +18,9 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const router = useRouter();
-  const setToken = useAppStore((s) => s.setToken);
   const setUser = useAppStore((s) => s.setUser);
-  const loginMutation = useLoginMutation();
   const [status, setStatus] = useState('Please login to access learning tasks.');
+  const [isPending, setIsPending] = useState(false);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -30,21 +28,47 @@ export function LoginPage() {
   });
 
   const onSubmit = async (values: LoginValues) => {
+    setIsPending(true);
     try {
-      const data = await loginMutation.mutateAsync({ variables: values });
-      setToken(data.login.token);
-      setUser(data.login.user);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus(data.error ?? 'Login failed');
+        return;
+      }
+      setUser(data.user as AuthUser);
       router.push('/dashboard');
-    } catch (err: unknown) {
-      setStatus(err instanceof Error ? err.message : 'Login failed');
+    } catch {
+      setStatus('Login failed — please try again');
+    } finally {
+      setIsPending(false);
     }
   };
 
-  const loginTemporarily = (user: AuthUser, tokenPrefix: string) => {
-    setUser(user);
-    setToken(`${tokenPrefix}-${Date.now()}`);
-    setStatus(`Temporary login as ${user.role}: ${user.email}`);
-    router.push('/dashboard');
+  const demoLogin = async (type: 'student' | 'admin') => {
+    setIsPending(true);
+    try {
+      const res = await fetch('/api/auth/demo-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus(data.error ?? 'Demo login failed');
+        return;
+      }
+      setUser(data.user as AuthUser);
+      router.push('/dashboard');
+    } catch {
+      setStatus('Demo login failed — please try again');
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -70,9 +94,9 @@ export function LoginPage() {
           <button
             type="submit"
             className="w-full rounded-xl bg-teal-700 px-4 py-2 font-medium text-white"
-            disabled={loginMutation.isPending}
+            disabled={isPending}
           >
-            {loginMutation.isPending ? 'Logging in...' : 'Login'}
+            {isPending ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
@@ -81,35 +105,17 @@ export function LoginPage() {
           <div className="mt-2 flex gap-2">
             <button
               type="button"
-              onClick={() =>
-                loginTemporarily(
-                  {
-                    id: '0',
-                    email: 'demo.student@lingua.pro',
-                    role: 'student',
-                    language: 'English',
-                  },
-                  'temp-student',
-                )
-              }
-              className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white"
+              onClick={() => demoLogin('student')}
+              disabled={isPending}
+              className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
             >
               Demo User
             </button>
             <button
               type="button"
-              onClick={() =>
-                loginTemporarily(
-                  {
-                    id: '-1',
-                    email: 'demo.admin@lingua.pro',
-                    role: 'admin',
-                    language: 'English',
-                  },
-                  'temp-admin',
-                )
-              }
-              className="flex-1 rounded-lg bg-indigo-700 px-3 py-2 text-sm font-medium text-white"
+              onClick={() => demoLogin('admin')}
+              disabled={isPending}
+              className="flex-1 rounded-lg bg-indigo-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
             >
               Demo Admin
             </button>

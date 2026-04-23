@@ -5,18 +5,16 @@ import type { AdminStatsOverview, AdminUser } from '@/lib/types';
 
 type Period = 'week' | 'month' | 'all';
 
-export function useAdminStats(period: Period, language: string, token: string | null) {
+export function useAdminStats(period: Period, language: string) {
   return useQuery<AdminStatsOverview>({
     queryKey: ['admin-stats', period, language],
-    enabled: !!token,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
       const params = new URLSearchParams({ period });
       if (language) params.set('language', language);
-      const res = await fetch(`/api/admin/stats?${params}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      // Cookie is sent automatically (same-origin); server route reads it via getAuthToken.
+      const res = await fetch(`/api/admin/stats?${params}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -26,10 +24,9 @@ export function useAdminStats(period: Period, language: string, token: string | 
   });
 }
 
-export function useAdminUsers(limit = 100, offset = 0, token: string | null) {
+export function useAdminUsers(limit = 100, offset = 0) {
   return useQuery<{ data?: { users?: AdminUser[] } }>({
     queryKey: ['admin-users', limit, offset],
-    enabled: !!token,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
@@ -37,9 +34,7 @@ export function useAdminUsers(limit = 100, offset = 0, token: string | null) {
         limit: String(limit),
         offset: String(offset),
       });
-      const res = await fetch(`/api/admin/users?${params}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await fetch(`/api/admin/users?${params}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `HTTP ${res.status}`);

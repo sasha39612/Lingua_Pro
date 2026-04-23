@@ -89,7 +89,6 @@ function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[], gener
 export function SpeakingPage() {
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
-  const token = useAppStore((s) => s.token);
   const user = useAppStore((s) => s.user);
 
   const [generatedText, setGeneratedText] = useState('');
@@ -108,7 +107,6 @@ export function SpeakingPage() {
       const data = await graphqlRequest<TasksData, TasksVariables>({
         operationName: 'Tasks',
         variables: { language, level, skill: 'speaking' },
-        token,
       });
       const first = data.tasks[0];
       setGeneratedText(first?.referenceText ?? '');

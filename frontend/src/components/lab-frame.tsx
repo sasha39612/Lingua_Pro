@@ -15,9 +15,14 @@ const SKILL_LINKS = [
 export function LabFrame({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const token = useAppStore((s) => s.token);
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    logout();
+    router.push('/login');
+  };
 
   return (
     <main className="min-h-screen bg-[#0a54c2] p-4 sm:p-8">
@@ -64,13 +69,10 @@ export function LabFrame({ children }: { children: React.ReactNode }) {
                   Settings
                 </Link>
                 <span className="h-5 w-px bg-white/35" />
-                {token ? (
+                {user ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      logout();
-                      router.push('/login');
-                    }}
+                    onClick={handleLogout}
                     className="opacity-95 transition hover:opacity-100"
                   >
                     Log Out

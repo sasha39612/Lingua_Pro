@@ -15,8 +15,13 @@ const SKILL_LINKS = [
 export function DashboardHome() {
   const router = useRouter();
   const user = useAppStore((s) => s.user);
-  const token = useAppStore((s) => s.token);
   const logout = useAppStore((s) => s.logout);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    logout();
+    router.push('/login');
+  };
   const recentResults = useAppStore((s) => s.recentResults);
   const audioScores = useAppStore((s) => s.audioScores);
   const lastTaskTitle = useAppStore((s) => s.lastTaskTitle);
@@ -75,13 +80,10 @@ export function DashboardHome() {
                   Settings
                 </Link>
                 <span className="h-5 w-px bg-white/35" />
-                {token ? (
+                {user ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      logout();
-                      router.push('/login');
-                    }}
+                    onClick={handleLogout}
                     className="transition hover:opacity-100 opacity-95"
                   >
                     Log Out

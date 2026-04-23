@@ -36,12 +36,10 @@ type AuthFormValues = z.infer<typeof authSchema>;
 type TextFormValues = z.infer<typeof textSchema>;
 
 export function Dashboard() {
-  const token = useAppStore((s) => s.token);
   const user = useAppStore((s) => s.user);
   const language = useAppStore((s) => s.language);
   const recentResults = useAppStore((s) => s.recentResults);
   const setLanguage = useAppStore((s) => s.setLanguage);
-  const setToken = useAppStore((s) => s.setToken);
   const setUser = useAppStore((s) => s.setUser);
   const addResult = useAppStore((s) => s.addResult);
   const logout = useAppStore((s) => s.logout);
@@ -55,15 +53,14 @@ export function Dashboard() {
   const loginMutation = useLoginMutation();
   const checkTextMutation = useCheckTextMutation();
 
-  const meQuery = useMeQuery({ enabled: Boolean(token), token });
+  const meQuery = useMeQuery({ enabled: Boolean(user) });
   const tasksQuery = useTasksQuery({
-    enabled: Boolean(token && taskInput),
+    enabled: Boolean(user && taskInput),
     variables: {
       language,
       level: taskInput?.level ?? 'A2',
       skill: taskInput?.skill ?? 'reading',
     },
-    token,
   });
 
   const authForm = useForm<AuthFormValues>({
@@ -93,21 +90,19 @@ export function Dashboard() {
 
       const payload =
         mode === 'register'
-          ? (await registerMutation.mutateAsync({ variables })).register
-          : (await loginMutation.mutateAsync({ variables })).login;
-      if (!payload?.token || !payload?.user) {
+          ? (await registerMutation.mutateAsync(variables)).register
+          : (await loginMutation.mutateAsync(variables)).login;
+      if (!payload?.user) {
         setStatus('Authentication succeeded but no user payload was returned.');
         return;
       }
 
-      setToken(payload.token);
       setUser(payload.user);
       setStatus(`Authenticated as ${payload.user.email}.`);
 
       const textResults = await graphqlRequest<TextsData, TextsVariables>({
         operationName: 'Texts',
         variables: { userId: payload.user.id },
-        token: payload.token,
       });
       const records: TextResult[] = textResults.texts ?? [];
       records.slice(0, 6).forEach((record) => addResult(record));
@@ -117,21 +112,18 @@ export function Dashboard() {
   };
 
   const handleTextSubmit = async (values: TextFormValues) => {
-    if (!token || !user) {
+    if (!user) {
       setStatus('Login is required to submit text for analysis.');
       return;
     }
 
     try {
       const result = await checkTextMutation.mutateAsync({
-        variables: {
-          input: {
-            userId: user.id,
-            language,
-            text: values.text,
-          },
+        input: {
+          userId: user.id,
+          language,
+          text: values.text,
         },
-        token,
       });
 
       const record: TextResult | undefined = result.checkText;
@@ -221,7 +213,7 @@ export function Dashboard() {
           </form>
           <div className="mt-4 rounded-xl border border-slate-200 p-3 text-sm">
             <p>
-              Token status: <strong>{token ? 'active' : 'missing'}</strong>
+              Auth status: <strong>{user ? 'logged in' : 'guest'}</strong>
             </p>
             <p>
               User: <strong>{meQuery.data?.me?.email ?? user?.email ?? 'guest'}</strong>

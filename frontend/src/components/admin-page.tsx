@@ -296,10 +296,10 @@ function OverviewTab({ data, onRetry, isLoading, error }: {
 
 // ─── Users tab ────────────────────────────────────────────────────────────────
 
-function UsersTab({ token }: { token: string | null }) {
+function UsersTab() {
   const PAGE_SIZE = 100;
   const [offset, setOffset] = useState(0);
-  const { data, isLoading, error, refetch } = useAdminUsers(PAGE_SIZE, offset, token);
+  const { data, isLoading, error, refetch } = useAdminUsers(PAGE_SIZE, offset);
 
   const users: AdminUser[] = data?.data?.users ?? [];
 
@@ -530,13 +530,12 @@ function AiUsageTab({ data, onRetry, isLoading, error }: {
 
 export function AdminPage() {
   const user  = useAppStore((s) => s.user);
-  const token = useAppStore((s) => s.token);
 
   const [tab, setTab]         = useState<AdminTab>('overview');
   const [period, setPeriod]   = useState<Period>('week');
   const [language, setLanguage] = useState('');
 
-  const { data, isLoading, error, refetch } = useAdminStats(period, language, token);
+  const { data, isLoading, error, refetch } = useAdminStats(period, language);
 
   // Guard — no API calls for non-admins
   if (!user || user.role !== 'admin') {
@@ -605,7 +604,7 @@ export function AdminPage() {
             onRetry={() => refetch()}
           />
         )}
-        {tab === 'users' && <UsersTab token={token} />}
+        {tab === 'users' && <UsersTab />}
         {tab === 'learning' && (
           <LearningTab
             data={data}

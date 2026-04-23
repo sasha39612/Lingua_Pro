@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useAppStore } from './app-store';
 
 const initialState = {
-  token: null,
   user: null,
   language: 'English' as const,
   level: 'A2',
@@ -18,19 +17,18 @@ beforeEach(() => {
 });
 
 describe('useAppStore', () => {
-  describe('setToken / setUser', () => {
-    it('sets and clears token', () => {
-      useAppStore.getState().setToken('tok123');
-      expect(useAppStore.getState().token).toBe('tok123');
-
-      useAppStore.getState().setToken(null);
-      expect(useAppStore.getState().token).toBeNull();
-    });
-
+  describe('setUser', () => {
     it('sets user', () => {
       const user = { id: '1', email: 'a@b.com', role: 'student' as const, language: 'English' as const };
       useAppStore.getState().setUser(user);
       expect(useAppStore.getState().user).toEqual(user);
+    });
+
+    it('clears user', () => {
+      const user = { id: '1', email: 'a@b.com', role: 'student' as const, language: 'English' as const };
+      useAppStore.getState().setUser(user);
+      useAppStore.getState().setUser(null);
+      expect(useAppStore.getState().user).toBeNull();
     });
   });
 
@@ -92,9 +90,8 @@ describe('useAppStore', () => {
   });
 
   describe('logout', () => {
-    it('clears token, user, recentResults, and lastTaskTitle', () => {
+    it('clears user, recentResults, and lastTaskTitle', () => {
       useAppStore.setState({
-        token: 'tok',
         user: { id: '1', email: 'a@b.com', role: 'student', language: 'English' },
         lastTaskTitle: 'Write an essay',
         recentResults: [{ id: '1', originalText: 'Hi', createdAt: '2026-01-01T00:00:00Z' }],
@@ -103,7 +100,6 @@ describe('useAppStore', () => {
       useAppStore.getState().logout();
 
       const state = useAppStore.getState();
-      expect(state.token).toBeNull();
       expect(state.user).toBeNull();
       expect(state.lastTaskTitle).toBeNull();
       expect(state.recentResults).toEqual([]);

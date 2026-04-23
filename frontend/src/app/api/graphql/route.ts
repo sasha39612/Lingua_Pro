@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PERSISTED_QUERY_MANIFEST } from '@/lib/persisted-queries';
+import { getAuthToken } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,9 @@ async function forwardGraphQL(req: NextRequest) {
   const gatewayUrl = getGatewayUrl();
   const rawBody = await req.text();
   let body = rawBody;
-  const authHeader = req.headers.get('authorization');
+
+  // Extract token from httpOnly cookie (primary) or Authorization header (fallback).
+  const token = getAuthToken(req);
 
   try {
     const parsed = JSON.parse(rawBody) as {
@@ -39,7 +42,7 @@ async function forwardGraphQL(req: NextRequest) {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      ...(authHeader ? { authorization: authHeader } : {}),
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
     body,
     cache: 'no-store',
@@ -68,14 +71,14 @@ export async function GET(req: NextRequest) {
   }
 
   const gatewayUrl = getGatewayUrl();
-  const authHeader = req.headers.get('authorization');
+  const token = getAuthToken(req);
   const variables = req.nextUrl.searchParams.get('variables');
 
   const upstream = await fetch(gatewayUrl, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      ...(authHeader ? { authorization: authHeader } : {}),
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({
       query,

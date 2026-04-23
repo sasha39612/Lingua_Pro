@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GRAPHQL_OPERATIONS } from '@/lib/graphql-operations';
+import { getAuthToken } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,8 +15,7 @@ function getAdminPayload(token: string): { role?: string } | null {
 }
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization') ?? '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const token = getAuthToken(req);
   const payload = token ? getAdminPayload(token) : null;
   if (!payload || payload.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: authHeader,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         query: GRAPHQL_OPERATIONS.AdminUsers,

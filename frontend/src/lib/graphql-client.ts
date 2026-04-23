@@ -10,21 +10,20 @@ interface GraphQLResponse<TData> {
 interface RequestOptions<TVariables> {
   operationName: OperationName;
   variables?: TVariables;
-  token?: string | null;
 }
 
 export async function graphqlRequest<TData, TVariables = Record<string, unknown>>(
   options: RequestOptions<TVariables>,
 ): Promise<TData> {
-  const { operationName, variables, token } = options;
+  const { operationName, variables } = options;
   const sha256Hash = OPERATION_HASH_BY_NAME[operationName];
 
+  // Cookies are sent automatically for same-origin requests; no Authorization
+  // header is constructed here — the Next.js proxy route reads the httpOnly
+  // auth-token cookie and forwards it to the API gateway.
   const response = await fetch('/api/graphql', {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       operationName,
       variables,
@@ -49,10 +48,7 @@ export async function graphqlRequest<TData, TVariables = Record<string, unknown>
   if (!payload.data) {
     const fallback = await fetch('/api/graphql', {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         operationName,
         query: GRAPHQL_OPERATIONS[operationName],

@@ -68,15 +68,12 @@ describe('graphql-hooks', () => {
       mockGraphqlRequest.mockResolvedValue({ register: { token: 'tok', user: {} } });
       useRegisterMutation();
 
-      await capturedMutation.config.mutationFn({
-        variables: { email: 'a@b.com', password: 'pass', language: 'english' },
-        token: null,
-      });
+      const variables = { email: 'a@b.com', password: 'pass', language: 'english' };
+      await capturedMutation.config.mutationFn(variables);
 
       expect(mockGraphqlRequest).toHaveBeenCalledWith({
         operationName: 'Register',
-        variables: { email: 'a@b.com', password: 'pass', language: 'english' },
-        token: null,
+        variables,
       });
     });
   });
@@ -88,15 +85,12 @@ describe('graphql-hooks', () => {
       mockGraphqlRequest.mockResolvedValue({ login: { token: 'jwt', user: {} } });
       useLoginMutation();
 
-      await capturedMutation.config.mutationFn({
-        variables: { email: 'x@y.com', password: 'secret' },
-        token: undefined,
-      });
+      const variables = { email: 'x@y.com', password: 'secret' };
+      await capturedMutation.config.mutationFn(variables);
 
       expect(mockGraphqlRequest).toHaveBeenCalledWith({
         operationName: 'Login',
-        variables: { email: 'x@y.com', password: 'secret' },
-        token: undefined,
+        variables,
       });
     });
 
@@ -106,7 +100,8 @@ describe('graphql-hooks', () => {
       useLoginMutation();
 
       const result = await capturedMutation.config.mutationFn({
-        variables: { email: 'x@y.com', password: 'pass' },
+        email: 'x@y.com',
+        password: 'pass',
       });
 
       expect(result).toEqual(expected);
@@ -121,12 +116,11 @@ describe('graphql-hooks', () => {
       useCheckTextMutation();
 
       const variables = { input: { userId: '1', language: 'English', text: 'Hello' } };
-      await capturedMutation.config.mutationFn({ variables, token: 'my-token' });
+      await capturedMutation.config.mutationFn(variables);
 
       expect(mockGraphqlRequest).toHaveBeenCalledWith({
         operationName: 'CheckText',
         variables,
-        token: 'my-token',
       });
     });
   });
@@ -138,7 +132,6 @@ describe('graphql-hooks', () => {
       useTasksQuery({
         enabled: true,
         variables: { language: 'English', level: 'B1', skill: 'reading' },
-        token: 'tok',
       });
 
       expect(capturedQuery.config.queryKey).toEqual(['tasks', 'English', 'B1', 'reading']);
@@ -149,7 +142,6 @@ describe('graphql-hooks', () => {
       useTasksQuery({
         enabled: true,
         variables: { language: 'German', level: 'A2' },
-        token: null,
       });
 
       await capturedQuery.config.queryFn();
@@ -157,7 +149,6 @@ describe('graphql-hooks', () => {
       expect(mockGraphqlRequest).toHaveBeenCalledWith({
         operationName: 'Tasks',
         variables: { language: 'German', level: 'A2' },
-        token: null,
       });
     });
 
@@ -171,20 +162,19 @@ describe('graphql-hooks', () => {
 
   describe('useTextsQuery', () => {
     it('sets queryKey with userId', () => {
-      useTextsQuery({ enabled: true, variables: { userId: '42' }, token: 'tok' });
+      useTextsQuery({ enabled: true, variables: { userId: '42' } });
       expect(capturedQuery.config.queryKey).toEqual(['texts', '42']);
     });
 
     it('calls graphqlRequest with Texts operation in queryFn', async () => {
       mockGraphqlRequest.mockResolvedValue({ texts: [] });
-      useTextsQuery({ enabled: true, variables: { userId: '7' }, token: 'tok' });
+      useTextsQuery({ enabled: true, variables: { userId: '7' } });
 
       await capturedQuery.config.queryFn();
 
       expect(mockGraphqlRequest).toHaveBeenCalledWith({
         operationName: 'Texts',
         variables: { userId: '7' },
-        token: 'tok',
       });
     });
   });
@@ -192,31 +182,25 @@ describe('graphql-hooks', () => {
   // ─── useMeQuery ────────────────────────────────────────────────────────────
 
   describe('useMeQuery', () => {
-    it('sets queryKey with token', () => {
-      useMeQuery({ enabled: true, token: 'abc' });
-      expect(capturedQuery.config.queryKey).toEqual(['me', 'abc']);
+    it('sets queryKey as ["me"]', () => {
+      useMeQuery({ enabled: true });
+      expect(capturedQuery.config.queryKey).toEqual(['me']);
     });
 
     it('calls graphqlRequest with Me operation in queryFn', async () => {
       mockGraphqlRequest.mockResolvedValue({ me: { id: 1 } });
-      useMeQuery({ enabled: true, token: 'jwt-tok' });
+      useMeQuery({ enabled: true });
 
       await capturedQuery.config.queryFn();
 
       expect(mockGraphqlRequest).toHaveBeenCalledWith({
         operationName: 'Me',
-        token: 'jwt-tok',
       });
     });
 
     it('passes enabled flag through', () => {
-      useMeQuery({ enabled: false, token: null });
+      useMeQuery({ enabled: false });
       expect(capturedQuery.config.enabled).toBe(false);
-    });
-
-    it('queryKey includes null token when no token provided', () => {
-      useMeQuery({ enabled: true, token: null });
-      expect(capturedQuery.config.queryKey).toEqual(['me', null]);
     });
   });
 });
