@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { TaskService } from './task.service';
 
 vi.mock('@nestjs/common', async (importOriginal) => {
   const actual = (await importOriginal()) as any;
@@ -12,11 +13,12 @@ vi.mock('@nestjs/common', async (importOriginal) => {
 
 const mockAiUsage = { log: vi.fn() } as any;
 
-async function makeService() {
+// AI_API_KEY is read in the constructor, not at module-load time, so there is
+// no need to reset the module registry between tests.  A fresh instance with
+// the env var unset is sufficient.
+function makeService() {
   const orig = process.env.AI_API_KEY;
   delete process.env.AI_API_KEY;
-  vi.resetModules();
-  const { TaskService } = await import('./task.service');
   const svc = new TaskService(mockAiUsage);
   if (orig !== undefined) process.env.AI_API_KEY = orig;
   return svc;

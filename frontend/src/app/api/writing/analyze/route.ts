@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkOrigin } from '@/lib/csrf-guard';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const originError = checkOrigin(req);
+  if (originError) return originError;
+
   let body: any;
   try {
     body = await req.json();

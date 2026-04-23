@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkOrigin } from '@/lib/csrf-guard';
 
 export const dynamic = 'force-dynamic';
 // Pronunciation analysis can take up to ~30s; raise the function timeout
@@ -18,6 +19,9 @@ const ALLOWED_AUDIO_TYPES = new Set([
 ]);
 
 export async function POST(req: NextRequest) {
+  const originError = checkOrigin(req);
+  if (originError) return originError;
+
   // Reject oversized uploads before reading the full body.
   const contentLength = req.headers.get('content-length');
   if (contentLength && parseInt(contentLength, 10) > AUDIO_MAX_BYTES * 1.5) {

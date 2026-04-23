@@ -235,6 +235,7 @@ Lingua_Pro/
 │       │       ├── achievements.tsx     # 6 achievements computed from real data
 │       │       └── charts-section.tsx   # SVG line chart (progress over time) + bar chart (mistakes by type)
 │       ├── lib/
+│       │   ├── csrf-guard.ts            # checkOrigin() — rejects POST with a disallowed Origin header (defense-in-depth); applied to all 6 state-changing routes
 │       │   ├── graphql-client.ts        # fetch wrapper (persisted queries + fallback)
 │       │   ├── graphql-operations.ts    # All GQL query/mutation strings (includes AdminUsers)
 │       │   ├── graphql-hooks.ts         # TanStack Query hooks
@@ -331,6 +332,9 @@ AZURE_SPEECH_REGION=westeurope
 # Sentry error tracking (optional — leave blank to disable)
 SENTRY_DSN=your-sentry-dsn-here              # shared by all 6 backend services + Next.js server/edge
 NEXT_PUBLIC_SENTRY_DSN=your-sentry-dsn-here  # baked into frontend client bundle at build time
+
+# CSRF — allowed origins for Next.js API routes (comma-separated; defaults to http://localhost:3000)
+ALLOWED_ORIGINS=https://yourdomain.com
 
 # Demo login credentials (optional — used by /api/auth/demo-login; seed these users via register mutation first)
 DEMO_STUDENT_EMAIL=demo.student@lingua.pro

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PERSISTED_QUERY_MANIFEST } from '@/lib/persisted-queries';
 import { getAuthToken } from '@/lib/server-auth';
+import { checkOrigin } from '@/lib/csrf-guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +59,8 @@ async function forwardGraphQL(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const originError = checkOrigin(req);
+  if (originError) return originError;
   return forwardGraphQL(req);
 }
 
