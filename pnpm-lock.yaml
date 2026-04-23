@@ -28,6 +28,7 @@ overrides:
   '@angular-devkit/core>picomatch': ^4.0.4
   vitest>picomatch: ^4.0.4
   '@nestjs/platform-express>path-to-regexp': '>=8.4.0'
+  uuid: '>=14.0.0'
 
 importers:
 
@@ -5515,12 +5516,8 @@ packages:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
 
-  uuid@9.0.0:
-    resolution: {integrity: sha512-MXcSTerfPa4uqyzStbRoTgt5XIe3x5+42+q1sDuy3R5MDk66URdLMOZe5aPX/SQd+kuYAh0FdP/pO28IkQyTeg==}
-    hasBin: true
-
-  uuid@9.0.1:
-    resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
+  uuid@14.0.0:
+    resolution: {integrity: sha512-Qo+uWgilfSmAhXCMav1uYFynlQO7fMFiMVZsQqZRMIXp0O7rR7qjkj+cPvBHLgBqi960QCoo/PH2/6ZtVqKvrg==}
     hasBin: true
 
   v8-compile-cache-lib@3.0.1:
@@ -5903,7 +5900,7 @@ snapshots:
       chalk: 4.1.2
       graphql: 16.13.0
       js-levenshtein: 1.1.6
-      uuid: 9.0.1
+      uuid: 14.0.0
 
   '@apollo/gateway@2.13.2(graphql@16.13.0)':
     dependencies:
@@ -5967,7 +5964,7 @@ snapshots:
       deep-equal: 2.2.3
       graphql: 16.13.0
       ts-graphviz: 1.8.2
-      uuid: 9.0.1
+      uuid: 14.0.0
 
   '@apollo/query-planner@2.13.2(graphql@16.13.0)':
     dependencies:
@@ -6018,7 +6015,7 @@ snapshots:
       negotiator: 0.6.4
       node-abort-controller: 3.1.1
       node-fetch: 2.7.0
-      uuid: 9.0.1
+      uuid: 14.0.0
       whatwg-mimetype: 3.0.0
     transitivePeerDependencies:
       - encoding
@@ -7028,7 +7025,7 @@ snapshots:
       reflect-metadata: 0.1.14
       subscriptions-transport-ws: 0.11.0(graphql@16.13.0)
       tslib: 2.5.2
-      uuid: 9.0.0
+      uuid: 14.0.0
       ws: 8.19.0
     optionalDependencies:
       '@apollo/subgraph': 2.13.2(graphql@16.13.0)
@@ -8064,7 +8061,7 @@ snapshots:
       lru-cache: 6.0.0
       node-abort-controller: 3.1.1
       sha.js: 2.4.12
-      uuid: 9.0.1
+      uuid: 14.0.0
       whatwg-mimetype: 3.0.0
     transitivePeerDependencies:
       - encoding
@@ -10034,7 +10031,7 @@ snapshots:
       agent-base: 6.0.2
       bent: 7.3.12
       https-proxy-agent: 4.0.0
-      uuid: 9.0.1
+      uuid: 14.0.0
       ws: 8.19.0
     transitivePeerDependencies:
       - bufferutil
@@ -11474,9 +11471,7 @@ snapshots:
 
   utils-merge@1.0.1: {}
 
-  uuid@9.0.0: {}
-
-  uuid@9.0.1: {}
+  uuid@14.0.0: {}
 
   v8-compile-cache-lib@3.0.1: {}
 

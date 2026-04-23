@@ -39,7 +39,8 @@
       "micromatch>picomatch": "^2.3.2",
       "@angular-devkit/core>picomatch": "^4.0.4",
       "vitest>picomatch": "^4.0.4",
-      "@nestjs/platform-express>path-to-regexp": ">=8.4.0"
+      "@nestjs/platform-express>path-to-regexp": ">=8.4.0",
+      "uuid": ">=14.0.0"
     },
     "auditConfig": {
       "ignoreCves": [
