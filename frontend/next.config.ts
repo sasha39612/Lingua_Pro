@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
 
 export default withSentryConfig(withBundleAnalyzer(nextConfig), {
   silent: true,
-  hideSourceMaps: true,
-  disableLogger: true,
+  sourcemaps: {
+    // Upload source maps to Sentry then delete them from the build output
+    // so they are never served to the browser.
+    deleteSourcemapsAfterUpload: true,
+  },
 });

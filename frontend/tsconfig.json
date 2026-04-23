@@ -17,6 +17,7 @@
     "paths": {
       "@/*": ["src/*"]
     },
+    "typeRoots": ["./node_modules/@types"],
     "plugins": [
       {
         "name": "next"
