@@ -39,6 +39,12 @@ echo "==> Creating app directory..."
 mkdir -p /opt/lingua-pro
 cd /opt/lingua-pro
 
+echo "==> Creating backup directory..."
+mkdir -p /opt/lingua-pro/backups
+
+echo "==> Scheduling daily database backup (3 AM UTC)..."
+(crontab -l 2>/dev/null; echo "0 3 * * * /opt/lingua-pro/scripts/backup.sh >> /var/log/lingua-backup.log 2>&1") | crontab -
+
 echo ""
 echo "Bootstrap complete. Next steps:"
 echo "  1. Clone the repo:  git clone <repo-url> ."
