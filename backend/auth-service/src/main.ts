@@ -129,26 +129,31 @@ const server = createServer(async (req, res) => {
     return sendJson(res, 404, { error: 'Not found' });
   }
 
-  try {
-    const body = await readJsonBody(req);
-    if (!body.query || typeof body.query !== 'string') {
-      return sendJson(res, 400, { error: 'GraphQL query is required' });
+  const sentryTrace = req.headers['sentry-trace'] as string | undefined;
+  const baggage = req.headers['baggage'] as string | undefined;
+
+  return Sentry.continueTrace({ sentryTrace, baggage }, async () => {
+    try {
+      const body = await readJsonBody(req);
+      if (!body.query || typeof body.query !== 'string') {
+        return sendJson(res, 400, { error: 'GraphQL query is required' });
+      }
+
+      const contextValue = await buildContext(req);
+      const result = await graphql({
+        schema: authSchema,
+        source: body.query,
+        variableValues: body.variables,
+        operationName: body.operationName,
+        contextValue
+      });
+
+      return sendJson(res, 200, result);
+    } catch (error: any) {
+      Sentry.captureException(error);
+      return sendJson(res, 400, { error: error?.message || 'Bad request' });
     }
-
-    const contextValue = await buildContext(req);
-    const result = await graphql({
-      schema: authSchema,
-      source: body.query,
-      variableValues: body.variables,
-      operationName: body.operationName,
-      contextValue
-    });
-
-    return sendJson(res, 200, result);
-  } catch (error: any) {
-    Sentry.captureException(error);
-    return sendJson(res, 400, { error: error?.message || 'Bad request' });
-  }
+  });
 });
 
 server.listen(PORT, HOST, () => {

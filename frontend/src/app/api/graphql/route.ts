@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PERSISTED_QUERY_MANIFEST } from '@/lib/persisted-queries';
 import { getAuthToken } from '@/lib/server-auth';
 import { checkOrigin } from '@/lib/csrf-guard';
+import { getTraceData } from '@sentry/nextjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,11 +40,14 @@ async function forwardGraphQL(req: NextRequest) {
     body = rawBody;
   }
 
+  const traceData = getTraceData();
   const upstream = await fetch(gatewayUrl, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(traceData['sentry-trace'] ? { 'sentry-trace': traceData['sentry-trace'] } : {}),
+      ...(traceData.baggage ? { baggage: traceData.baggage } : {}),
     },
     body,
     cache: 'no-store',
@@ -77,11 +81,14 @@ export async function GET(req: NextRequest) {
   const token = getAuthToken(req);
   const variables = req.nextUrl.searchParams.get('variables');
 
+  const traceData = getTraceData();
   const upstream = await fetch(gatewayUrl, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(traceData['sentry-trace'] ? { 'sentry-trace': traceData['sentry-trace'] } : {}),
+      ...(traceData.baggage ? { baggage: traceData.baggage } : {}),
     },
     body: JSON.stringify({
       query,

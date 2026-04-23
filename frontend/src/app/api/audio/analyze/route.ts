@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkOrigin } from '@/lib/csrf-guard';
+import * as Sentry from '@sentry/nextjs';
 
 export const dynamic = 'force-dynamic';
 // Pronunciation analysis can take up to ~30s; raise the function timeout
@@ -57,23 +58,25 @@ export async function POST(req: NextRequest) {
   const audioServiceUrl = process.env.AUDIO_SERVICE_URL || 'http://audio-service:4003';
 
   try {
-    const response = await fetch(`${audioServiceUrl}/audio/analyze-base64`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audioBase64, mimeType, language, userId, expectedText: referenceText ?? '' }),
+    return await Sentry.startSpan({ name: 'audio.analyze', op: 'http.client' }, async () => {
+      const response = await fetch(`${audioServiceUrl}/audio/analyze-base64`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audioBase64, mimeType, language, userId, expectedText: referenceText ?? '' }),
+      });
+
+      if (!response.ok) {
+        let detail = '';
+        try { detail = await response.text(); } catch { /* ignore */ }
+        return NextResponse.json(
+          { error: 'Audio analysis failed', detail, status: response.status },
+          { status: response.status },
+        );
+      }
+
+      const data = await response.json();
+      return NextResponse.json(data);
     });
-
-    if (!response.ok) {
-      let detail = '';
-      try { detail = await response.text(); } catch { /* ignore */ }
-      return NextResponse.json(
-        { error: 'Audio analysis failed', detail, status: response.status },
-        { status: response.status },
-      );
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
   } catch {
     return NextResponse.json({ error: 'Audio service unavailable' }, { status: 502 });
   }

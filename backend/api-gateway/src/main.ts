@@ -8,6 +8,7 @@ import { expressMiddleware } from '@apollo/server/express4';
 import { json } from 'express';
 import { AuthContextService } from './auth/auth-context.service';
 import { SentryApolloPlugin } from './graphql/sentry-apollo-plugin';
+import * as Sentry from '@sentry/nestjs';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -22,7 +23,12 @@ async function bootstrap() {
   app.setGlobalPrefix('');
 
   app.use((req: any, _res: any, next: any) => {
-    const traceId = req.headers['x-trace-id'] || Date.now().toString();
+    const activeSpan = Sentry.getActiveSpan();
+    const sentryTrace = activeSpan ? Sentry.spanToTraceHeader(activeSpan) : undefined;
+    // sentry-trace format: {32-char traceId}-{16-char spanId}-{sampled}
+    const traceId = sentryTrace
+      ? sentryTrace.split('-')[0]
+      : (req.headers['x-trace-id'] as string | undefined) || Date.now().toString();
     req.headers['x-trace-id'] = traceId;
     next();
   });
@@ -49,11 +55,16 @@ async function bootstrap() {
           const userRole = context?.authContext?.user?.role;
           const userLanguage = context?.authContext?.user?.language;
 
+          const incomingSentryTrace = context?.req?.headers?.['sentry-trace'];
+          const incomingBaggage = context?.req?.headers?.['baggage'];
+
           if (authHeader) headers.set('authorization', authHeader);
           if (traceId) headers.set('x-trace-id', String(traceId));
           if (userId) headers.set('x-user-id', String(userId));
           if (userRole) headers.set('x-user-role', String(userRole));
           if (userLanguage) headers.set('x-user-language', String(userLanguage));
+          if (incomingSentryTrace) headers.set('sentry-trace', String(incomingSentryTrace));
+          if (incomingBaggage) headers.set('baggage', String(incomingBaggage));
         },
       }),
   });
