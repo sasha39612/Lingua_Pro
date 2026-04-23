@@ -243,14 +243,13 @@ export class AudioService {
   }
 
   async analyzeBase64(
-    audioBase64: string,
+    audioBuffer: Buffer,
     mimeType: string,
     language: string,
     userId: string,
     expectedText?: string,
   ): Promise<AudioAnalysisResult & { id?: number; createdAt?: Date }> {
     language = language.toLowerCase();
-    const audioBuffer = Buffer.from(audioBase64, 'base64');
     const result = await this.aiOrchestrator.analyzeAudio(audioBuffer, mimeType, language, expectedText);
 
     try {

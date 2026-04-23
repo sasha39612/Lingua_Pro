@@ -1,5 +1,6 @@
 import { Controller, Post, Body, BadRequestException, ForbiddenException, Get, Param, Query, Headers } from '@nestjs/common';
 import { AudioService } from './audio.service';
+import { validateAudioBase64 } from './audio-validation';
 
 const AUDIO_INTERNAL_SECRET = process.env.INTERNAL_SERVICE_SECRET || '';
 const AUDIO_ALLOWED_SERVICES = new Set(['stats-service', 'api-gateway']);
@@ -62,7 +63,10 @@ export class AudioController {
     if (!audioBase64 || !language || !userId) {
       throw new BadRequestException('audioBase64, language, and userId are required');
     }
-    return this.audioService.analyzeBase64(audioBase64, mimeType || 'audio/webm', language, userId, expectedText);
+    const resolvedMime = mimeType || 'audio/webm';
+    // Validate size, MIME type, and magic bytes before anything else touches the payload.
+    const audioBuffer = validateAudioBase64(audioBase64, resolvedMime);
+    return this.audioService.analyzeBase64(audioBuffer, resolvedMime, language, userId, expectedText);
   }
 
   @Post('check')

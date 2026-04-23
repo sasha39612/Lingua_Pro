@@ -81,6 +81,10 @@ export class SpeechService {
       return this.offlineFallback(safeLanguage);
     }
 
+    if (buffer.length > 10_485_760) {
+      throw new Error(`Audio buffer exceeds 10 MB limit (got ${Math.round(buffer.length / 1_048_576)} MB)`);
+    }
+
     // Try Azure path
     if (this.azureKey && this.azureRegion && this.sdk) {
       const start = Date.now();
@@ -179,6 +183,10 @@ export class SpeechService {
 
     if (!buffer) {
       return this.pronunciationFallback(referenceText, safeLanguage);
+    }
+
+    if (buffer.length > 10_485_760) {
+      throw new Error(`Audio buffer exceeds 10 MB limit (got ${Math.round(buffer.length / 1_048_576)} MB)`);
     }
 
     if (this.azureKey && this.azureRegion && this.sdk) {
