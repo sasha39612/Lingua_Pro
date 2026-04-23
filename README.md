@@ -63,6 +63,8 @@ All variables live in a single `.env` file at the repo root. See [`.env.example`
 | `OPENAI_TTS_MODEL` | TTS model for listening task audio (default `gpt-4o-mini-tts`) |
 | `AZURE_SPEECH_KEY` | Azure Cognitive Services Speech key — primary transcription + pronunciation scoring |
 | `AZURE_SPEECH_REGION` | Azure region (default `westeurope`) |
+| `SENTRY_DSN` | Sentry DSN for all backend services + Next.js server/edge; leave blank to disable |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN baked into the frontend client bundle at build time |
 
 ---
 

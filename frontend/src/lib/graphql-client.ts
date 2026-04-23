@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs';
 import { GRAPHQL_OPERATIONS, OperationName } from '@/lib/graphql-operations';
 import { OPERATION_HASH_BY_NAME } from '@/lib/persisted-queries';
 
@@ -40,7 +41,9 @@ export async function graphqlRequest<TData, TVariables = Record<string, unknown>
   const payload = (await response.json()) as GraphQLResponse<TData>;
 
   if (payload.errors?.length) {
-    throw new Error(payload.errors.map((e) => e.message).join('; '));
+    const error = new Error(payload.errors.map((e) => e.message).join('; '));
+    Sentry.captureException(error, { extra: { operationName } });
+    throw error;
   }
 
   if (!payload.data) {
@@ -60,10 +63,14 @@ export async function graphqlRequest<TData, TVariables = Record<string, unknown>
 
     const fallbackPayload = (await fallback.json()) as GraphQLResponse<TData>;
     if (fallbackPayload.errors?.length) {
-      throw new Error(fallbackPayload.errors.map((e) => e.message).join('; '));
+      const error = new Error(fallbackPayload.errors.map((e) => e.message).join('; '));
+      Sentry.captureException(error, { extra: { operationName } });
+      throw error;
     }
     if (!fallbackPayload.data) {
-      throw new Error('GraphQL returned empty payload');
+      const error = new Error('GraphQL returned empty payload');
+      Sentry.captureException(error, { extra: { operationName } });
+      throw error;
     }
     return fallbackPayload.data;
   }

@@ -327,6 +327,10 @@ OPENAI_TTS_MODEL=gpt-4o-mini-tts
 # Azure Speech Services (ai-orchestrator — primary transcription + pronunciation scoring)
 AZURE_SPEECH_KEY=your-azure-speech-key-here
 AZURE_SPEECH_REGION=westeurope
+
+# Sentry error tracking (optional — leave blank to disable)
+SENTRY_DSN=your-sentry-dsn-here              # shared by all 6 backend services + Next.js server/edge
+NEXT_PUBLIC_SENTRY_DSN=your-sentry-dsn-here  # baked into frontend client bundle at build time
 ```
 
 Service-level env (with defaults):

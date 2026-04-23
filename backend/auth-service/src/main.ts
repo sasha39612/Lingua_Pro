@@ -1,6 +1,20 @@
+import * as Sentry from '@sentry/node';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { graphql } from 'graphql';
 import { authSchema, verifyToken } from './graphql/auth.schema';
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  tracesSampleRate: 1.0,
+  beforeSend(event) {
+    if (event.request?.headers && typeof event.request.headers === 'object') {
+      const headers = event.request.headers as Record<string, unknown>;
+      if ('authorization' in headers) headers['authorization'] = '[Filtered]';
+      if ('x-internal-token' in headers) headers['x-internal-token'] = '[Filtered]';
+    }
+    return event;
+  },
+});
 
 type GraphQLBody = {
   query?: string;
@@ -132,6 +146,7 @@ const server = createServer(async (req, res) => {
 
     return sendJson(res, 200, result);
   } catch (error: any) {
+    Sentry.captureException(error);
     return sendJson(res, 400, { error: error?.message || 'Bad request' });
   }
 });

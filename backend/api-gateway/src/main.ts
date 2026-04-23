@@ -1,3 +1,4 @@
+import './instrument';
 /// <reference types="node" />
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -6,6 +7,7 @@ import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import { json } from 'express';
 import { AuthContextService } from './auth/auth-context.service';
+import { SentryApolloPlugin } from './graphql/sentry-apollo-plugin';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -56,7 +58,7 @@ async function bootstrap() {
       }),
   });
 
-  const apolloServer = new ApolloServer({ gateway });
+  const apolloServer = new ApolloServer({ gateway, plugins: [SentryApolloPlugin] });
   await apolloServer.start();
 
   const authContextService = new AuthContextService();

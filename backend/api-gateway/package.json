@@ -16,6 +16,8 @@
     "@nestjs/core": "^11.1.18",
     "@nestjs/graphql": "^11.0.0",
     "@nestjs/platform-express": "^11.1.18",
+    "@sentry/nestjs": "^10.49.0",
+    "@sentry/profiling-node": "^10.49.0",
     "apollo-server-express": "^3.11.1",
     "dotenv": "^16.0.0",
     "graphql": "^16.6.0",
