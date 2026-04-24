@@ -16,6 +16,7 @@ import type {
   WritingAnalysisResult,
   WritingTask,
 } from './types';
+import type { WritingStreamEvent } from './text-ai.service';
 
 @Injectable()
 export class OrchestratorService {
@@ -130,6 +131,10 @@ export class OrchestratorService {
 
   analyzeWritingTask(text: string, language: string, taskContext: WritingTask, requestId?: string): Promise<WritingAnalysisResult> {
     return this.textAi.analyzeWritingTask(text, language, taskContext, requestId);
+  }
+
+  streamWritingAnalysis(text: string, language: string, taskContext: WritingTask, requestId?: string): AsyncGenerator<WritingStreamEvent> {
+    return this.textAi.streamWritingAnalysis(text, language, taskContext, requestId);
   }
 
   // ── TTS ────────────────────────────────────────────────────────────────────

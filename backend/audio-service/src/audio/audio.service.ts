@@ -1,4 +1,5 @@
 import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { AudioRepository, audioPeriodToFromDate, type AudioPeriod } from './audio.repository';
 import { AiOrchestratorService, AudioAnalysisResult } from '../ai-orchestrator/ai-orchestrator.service';
 import axios from 'axios';
@@ -365,6 +366,140 @@ export class AudioService {
       mimeType: tts.audioBase64 ? 'audio/mpeg' : null,
       questions,
       durationEstimateMs: tts.durationEstimateMs,
+    };
+  }
+
+  /**
+   * Two-phase SSE streaming for listening tasks.
+   *
+   * Phase 1: AI generates the passage + questions → emits task_ready.
+   *          The task is persisted before phase 2 so cancellation mid-TTS
+   *          doesn't orphan the record.
+   * Phase 2: TTS synthesis → emits audio_ready.
+   *          Cancellation is best-effort: if TTS is already in-flight when
+   *          the client disconnects, the HTTP call runs to completion but the
+   *          response write is suppressed.
+   */
+  async streamListeningTask(
+    userId: string,
+    language: string,
+    level: string,
+    req: Request,
+    res: Response,
+  ): Promise<void> {
+    const normalizedLanguage = language.toLowerCase();
+    const userIdInt = parseInt(userId, 10);
+
+    let cancelled = false;
+    req.on('close', () => { cancelled = true; });
+
+    const write = (event: object) => {
+      if (!cancelled && !res.writableEnded) {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      }
+    };
+
+    try {
+      // ── Phase 1: look for reusable task or generate fresh ────────────────
+      let taskId: number;
+      let questions: ListeningQuestionForClient[];
+      let passageText: string;
+
+      const existingTask = await this.audioRepository.getNextListeningTask(
+        userIdInt,
+        normalizedLanguage,
+        level,
+      );
+
+      if (existingTask?.questionsJson) {
+        let rawQuestions: any[];
+        try { rawQuestions = JSON.parse(existingTask.questionsJson); } catch { rawQuestions = []; }
+        const isNewFormat = rawQuestions[0]?.difficulty !== undefined && rawQuestions.length === 8;
+
+        if (isNewFormat) {
+          taskId = existingTask.id;
+          questions = this.parseQuestionsForClient(existingTask.questionsJson!);
+          passageText = existingTask.referenceText || existingTask.prompt;
+
+          // If already has audio, emit both events and close
+          if (existingTask.audioUrl) {
+            const isDataUrl = existingTask.audioUrl.startsWith('data:');
+            const audioBase64 = isDataUrl ? (existingTask.audioUrl.split(',')[1] ?? null) : null;
+            write({ event: 'task_ready', data: { taskId, passage: passageText, questions } });
+            write({ event: 'audio_ready', data: { taskId, audioBase64, mimeType: 'audio/mpeg' } });
+            if (!res.writableEnded) res.end();
+            return;
+          }
+
+          write({ event: 'task_ready', data: { taskId, passage: passageText, questions } });
+          // Fall through to TTS phase
+        } else {
+          // Old format — generate fresh
+          const { taskId: newId, questions: newQuestions, passageText: newPassage } =
+            await this.generateAndPersistListeningTask(language, normalizedLanguage, level);
+          taskId = newId;
+          questions = newQuestions;
+          passageText = newPassage;
+          write({ event: 'task_ready', data: { taskId, passage: passageText, questions } });
+        }
+      } else {
+        const { taskId: newId, questions: newQuestions, passageText: newPassage } =
+          await this.generateAndPersistListeningTask(language, normalizedLanguage, level);
+        taskId = newId;
+        questions = newQuestions;
+        passageText = newPassage;
+        write({ event: 'task_ready', data: { taskId, passage: passageText, questions } });
+      }
+
+      // ── Phase 2: TTS synthesis (best-effort cancellation) ────────────────
+      if (!cancelled) {
+        try {
+          const tts = await this.aiOrchestrator.synthesizeSpeech(passageText!, language);
+          if (tts.audioBase64) {
+            const dataUrl = `data:audio/mpeg;base64,${tts.audioBase64}`;
+            await this.audioRepository.updateTaskAudio(taskId!, dataUrl);
+            write({ event: 'audio_ready', data: { taskId, audioBase64: tts.audioBase64, mimeType: 'audio/mpeg' } });
+          } else {
+            write({ event: 'audio_unavailable', data: { taskId } });
+          }
+        } catch (ttsErr) {
+          this.logger.warn(`streamListeningTask: TTS failed for taskId=${taskId}: ${ttsErr}`);
+          write({ event: 'audio_unavailable', data: { taskId } });
+        }
+      }
+    } catch (err) {
+      this.logger.error(`streamListeningTask: phase 1 failed: ${err}`);
+      write({ event: 'error', data: { message: 'Failed to generate listening task' } });
+    } finally {
+      if (!res.writableEnded) res.end();
+    }
+  }
+
+  /** Shared helper: generate a fresh exercise from AI and persist it. */
+  private async generateAndPersistListeningTask(
+    language: string,
+    normalizedLanguage: string,
+    level: string,
+  ): Promise<{ taskId: number; questions: ListeningQuestionForClient[]; passageText: string }> {
+    this.logger.log(`streamListeningTask: generating new exercise lang=${normalizedLanguage} level=${level}`);
+    const passage = await this.aiOrchestrator.generateListeningExercise(language, level);
+
+    const savedTask = await this.audioRepository.createTask({
+      language: normalizedLanguage,
+      level,
+      skill: 'listening',
+      prompt: 'Listen to the audio and answer the comprehension questions.',
+      audioUrl: null,
+      referenceText: passage.passageText,
+      answerOptions: [],
+      correctAnswer: null,
+      questionsJson: JSON.stringify(passage.questions),
+    });
+
+    return {
+      taskId: savedTask.id,
+      questions: this.parseQuestionsForClient(savedTask.questionsJson!),
+      passageText: passage.passageText,
     };
   }
 

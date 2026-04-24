@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import type { WordAlignment, WordDetail } from './types';
+import { classifyError } from './usage/error-type';
 
 // ── Phoneme map (ARPABET → IPA + articulation) ────────────────────────────────
 // English uses ARPABET notation from Azure. Other languages use IPA-like symbols.
@@ -226,9 +227,26 @@ export async function withRetry<T>(
       return await fn();
     } catch (error) {
       lastError = error;
+      const normalized = classifyError(error);
+
+      // Fail fast for non-retryable errors (quota, parse, unknown, 4xx, etc.)
+      if (!normalized.retryable) throw error;
+
       if (attempt === attempts) break;
-      const waitMs = baseMs * Math.pow(2, attempt - 1);
-      logger.warn(`${label}: attempt ${attempt} failed, retrying in ${waitMs}ms`);
+
+      let waitMs: number;
+      if (normalized.backoffMs !== undefined) {
+        // Provider returned Retry-After — use as floor, add small jitter
+        waitMs = normalized.backoffMs + Math.floor(Math.random() * 500);
+      } else if (normalized.type === 'rate_limit') {
+        // Rate limit without Retry-After — exponential + jitter
+        waitMs = baseMs * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 500);
+      } else {
+        // Standard exponential backoff (transient / network / timeout / 5xx)
+        waitMs = baseMs * Math.pow(2, attempt - 1);
+      }
+
+      logger.warn(`${label}: attempt ${attempt} failed (${normalized.type}), retrying in ${waitMs}ms`);
       await sleep(waitMs);
     }
   }

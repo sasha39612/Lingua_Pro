@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkOrigin } from '@/lib/csrf-guard';
 import * as Sentry from '@sentry/nextjs';
+import { generateRequestId } from '@/lib/request-id';
 
 export const dynamic = 'force-dynamic';
 // Pronunciation analysis can take up to ~30s; raise the function timeout
@@ -22,6 +23,7 @@ const ALLOWED_AUDIO_TYPES = new Set([
 export async function POST(req: NextRequest) {
   const originError = checkOrigin(req);
   if (originError) return originError;
+  const requestId = generateRequestId();
 
   // Reject oversized uploads before reading the full body.
   const contentLength = req.headers.get('content-length');
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
     return await Sentry.startSpan({ name: 'audio.analyze', op: 'http.client' }, async () => {
       const response = await fetch(`${audioServiceUrl}/audio/analyze-base64`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-request-id': requestId },
         body: JSON.stringify({ audioBase64, mimeType, language, userId, expectedText: referenceText ?? '' }),
       });
 

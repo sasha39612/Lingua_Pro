@@ -1,4 +1,5 @@
-import { Controller, Post, Body, BadRequestException, ForbiddenException, Get, Param, Query, Headers } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, ForbiddenException, Get, Param, Query, Headers, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { AudioService } from './audio.service';
 import { validateAudioBase64 } from './audio-validation';
 
@@ -169,6 +170,29 @@ export class AudioController {
       throw new BadRequestException('x-user-id header is required');
     }
     return this.audioService.getListeningTask(userId, language, level);
+  }
+
+  @Post('listening-task/stream')
+  async streamListeningTask(
+    @Body('language') language: string,
+    @Body('level') level: string,
+    @Headers('x-user-id') userId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    if (!language || !level) {
+      res.status(400).json({ error: 'language and level are required' });
+      return;
+    }
+    if (!userId) {
+      res.status(400).json({ error: 'x-user-id header is required' });
+      return;
+    }
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    await this.audioService.streamListeningTask(userId, language, level, req, res);
   }
 
   @Post('listening-answers')

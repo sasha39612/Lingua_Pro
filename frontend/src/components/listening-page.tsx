@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { LabFrame } from '@/components/lab-frame';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
+import { useAiStream } from '@/lib/use-ai-stream';
 import type { AppLanguage } from '@/lib/types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -28,6 +29,17 @@ interface ListeningTask {
   questions: ListeningQuestion[];
   durationEstimateMs: number | null;
 }
+
+// ── SSE event types ───────────────────────────────────────────────────────────
+
+type ListeningStreamEvent =
+  | { event: 'task_ready'; data: { taskId: number; passage: string; questions: ListeningQuestion[] }; requestId?: string }
+  | { event: 'audio_ready'; data: { taskId: number; audioBase64: string; mimeType: string }; requestId?: string }
+  | { event: 'audio_unavailable'; data: { taskId: number }; requestId?: string }
+  | { event: 'error'; data?: { message?: string }; requestId?: string };
+
+// 'generating' → spinner; 'synthesizing' → questions visible + audio bar; 'ready' → full; 'no_audio' → no audio banner
+type StreamPhase = 'idle' | 'generating' | 'synthesizing' | 'ready' | 'no_audio';
 
 interface QuestionResult {
   questionIndex: number;
@@ -95,10 +107,13 @@ export function ListeningPage() {
   const setLanguage = useAppStore((s) => s.setLanguage);
   const setLevel = useAppStore((s) => s.setLevel);
 
-  const [task, setTask] = useState<ListeningTask | null>(null);
+  // ── Two-phase streaming state ──────────────────────────────────────────────
+  const [streamPhase, setStreamPhase] = useState<StreamPhase>('idle');
+  const [taskId, setTaskId] = useState<number | null>(null);
+  const [questions, setQuestions] = useState<ListeningQuestion[]>([]);
+  const [audioSrcState, setAudioSrcState] = useState<string | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<Array<number | string | null>>([]);
   const [result, setResult] = useState<AnswersResult | null>(null);
-  const [loadingTask, setLoadingTask] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -106,37 +121,53 @@ export function ListeningPage() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const isNewFormat = task?.questions.some((q) => 'difficulty' in q && q.difficulty !== undefined) ?? false;
+  const isNewFormat = questions.some((q) => 'difficulty' in q && q.difficulty !== undefined);
 
-  const fetchTask = useCallback(async () => {
+  // ── Stream hook ─────────────────────────────────────────────────────────────
+
+  const listeningStream = useAiStream<ListeningStreamEvent>({
+    url: '/api/audio/listening-task/stream',
+    method: 'POST',
+    onEvent: useCallback((ev: ListeningStreamEvent) => {
+      if (ev.event === 'task_ready') {
+        setTaskId(ev.data.taskId);
+        setQuestions(ev.data.questions);
+        setSelectedAnswers(new Array(ev.data.questions.length).fill(null));
+        setStreamPhase('synthesizing');
+      } else if (ev.event === 'audio_ready') {
+        const src = `data:${ev.data.mimeType};base64,${ev.data.audioBase64}`;
+        setAudioSrcState(src);
+        setStreamPhase('ready');
+      } else if (ev.event === 'audio_unavailable') {
+        setStreamPhase('no_audio');
+      } else if (ev.event === 'error') {
+        setTaskError('Failed to generate listening task. Please try again.');
+        setStreamPhase('idle');
+      }
+    }, []),
+    onError: useCallback(() => {
+      setTaskError('Connection error while loading task. Please try again.');
+      setStreamPhase('idle');
+    }, []),
+  });
+
+  const fetchTask = useCallback(() => {
     if (!user) {
       setTaskError('You must be logged in to load a listening task.');
       return;
     }
-    setLoadingTask(true);
+    listeningStream.cancel();
+    setStreamPhase('generating');
     setTaskError(null);
-    setTask(null);
+    setTaskId(null);
+    setQuestions([]);
+    setAudioSrcState(null);
     setSelectedAnswers([]);
     setResult(null);
     setSubmitError(null);
     setPlaysUsed(0);
-
-    try {
-      const params = new URLSearchParams({ language, level, userId: user.id });
-      const res = await fetch(`/api/audio/listening-task?${params.toString()}`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || data.error || 'Failed to load task');
-      }
-      const loaded = data as ListeningTask;
-      setTask(loaded);
-      setSelectedAnswers(new Array(loaded.questions.length).fill(null));
-    } catch (err) {
-      setTaskError(err instanceof Error ? err.message : 'Failed to load listening task.');
-    } finally {
-      setLoadingTask(false);
-    }
-  }, [language, level, user]);
+    listeningStream.start({ language, level, userId: user.id });
+  }, [language, level, user, listeningStream]);
 
   const handleSelectAnswer = (questionIndex: number, value: number | string) => {
     if (result) return;
@@ -152,7 +183,7 @@ export function ListeningPage() {
     selectedAnswers.every((a) => a !== null && a !== undefined);
 
   const handleSubmit = async () => {
-    if (!task || !user || !allAnswered) return;
+    if (!taskId || !user || !allAnswered) return;
     setSubmitting(true);
     setSubmitError(null);
 
@@ -161,7 +192,7 @@ export function ListeningPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          taskId: task.taskId,
+          taskId,
           answers: selectedAnswers,
           userId: user.id,
         }),
@@ -178,10 +209,10 @@ export function ListeningPage() {
     }
   };
 
-  const audioSrc =
-    task?.audioUrl ?? (task?.audioBase64 ? `data:audio/mpeg;base64,${task.audioBase64}` : null);
-
   const scorePercent = result ? Math.round(result.score * 100) : null;
+  const hasQuestions = questions.length > 0;
+  const loadingTask = streamPhase === 'generating';
+  const isStreaming = listeningStream.status === 'streaming';
 
   return (
     <LabFrame>
@@ -209,7 +240,7 @@ export function ListeningPage() {
             </div>
           </div>
 
-          {!task && !loadingTask && (
+          {streamPhase === 'idle' && (
             <button
               type="button"
               onClick={fetchTask}
@@ -219,32 +250,41 @@ export function ListeningPage() {
             </button>
           )}
 
-          {loadingTask && (
+          {/* Phase 1: generating passage */}
+          {streamPhase === 'generating' && (
             <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-teal-600 border-t-transparent" />
-              Generating audio passage… this may take up to 30 seconds
+              Generating passage…
             </div>
           )}
 
           {taskError && <p className="mt-3 text-sm text-red-600">{taskError}</p>}
 
-          {task && audioSrc && (
+          {/* Phase 2: questions visible, audio still synthesizing */}
+          {streamPhase === 'synthesizing' && (
+            <div className="mt-4">
+              <p className="mb-2 text-sm text-slate-500">
+                Passage ready — answering allowed. Audio is being synthesized…
+              </p>
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5">
+                <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-teal-600" />
+                <span className="text-sm text-slate-500">Synthesizing audio…</span>
+              </div>
+            </div>
+          )}
+
+          {/* Audio ready — play button */}
+          {streamPhase === 'ready' && audioSrcState && (
             <div className="mt-4">
               <p className="mb-2 text-sm text-slate-500">
                 {isNewFormat
-                  ? `Listen carefully. You may play the audio up to ${MAX_PLAYS} times. Then answer all ${task.questions.length} questions below.`
+                  ? `Listen carefully. You may play the audio up to ${MAX_PLAYS} times. Then answer all ${questions.length} questions below.`
                   : 'Listen to the audio, then answer all questions below.'}
               </p>
-
-              {/* Custom play button with play-count tracking */}
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (playsUsed < MAX_PLAYS) {
-                      audioRef.current?.play();
-                    }
-                  }}
+                  onClick={() => { if (playsUsed < MAX_PLAYS) audioRef.current?.play(); }}
                   disabled={playsUsed >= MAX_PLAYS}
                   className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -259,29 +299,28 @@ export function ListeningPage() {
                   <p className="text-xs text-amber-600">Play limit reached. Proceed with your answers.</p>
                 )}
               </div>
-
-              {/* Hidden audio element — controlled programmatically */}
               <audio
                 ref={audioRef}
-                key={task.taskId}
-                src={audioSrc}
+                key={taskId ?? undefined}
+                src={audioSrcState}
                 onPlay={() => setPlaysUsed((p) => p + 1)}
                 className="hidden"
               />
             </div>
           )}
 
-          {task && !audioSrc && (
+          {/* Audio unavailable */}
+          {streamPhase === 'no_audio' && (
             <p className="mt-4 text-sm text-amber-600">
-              Audio is not available for this task. Read the questions and answer based on context.
+              Audio unavailable — read the passage silently and answer based on the questions below.
             </p>
           )}
         </section>
 
         {/* ── Questions ───────────────────────────────────────────────────── */}
-        {task && task.questions.length > 0 && (
+        {hasQuestions && (
           <section className="space-y-4">
-            {task.questions.map((q) => {
+            {questions.map((q) => {
               const qResult = result?.results.find((r) => r.questionIndex === q.index);
               const chosen = selectedAnswers[q.index];
               const qType = q.type ?? 'multiple_choice';
@@ -418,7 +457,7 @@ export function ListeningPage() {
         )}
 
         {/* ── Submit ───────────────────────────────────────────────────────── */}
-        {task && !result && (
+        {hasQuestions && !result && (
           <section className="rounded-2xl bg-white p-5 shadow-float">
             {submitError && <p className="mb-3 text-sm text-red-600">{submitError}</p>}
 
@@ -426,14 +465,14 @@ export function ListeningPage() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={!allAnswered || submitting}
+                disabled={!allAnswered || submitting || isStreaming}
                 className="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-40"
               >
                 {submitting ? 'Submitting…' : 'Submit Answers'}
               </button>
               {!allAnswered && (
                 <p className="text-xs text-slate-500">
-                  Answer all {task.questions.length} questions to submit
+                  Answer all {questions.length} questions to submit
                 </p>
               )}
             </div>
@@ -504,10 +543,10 @@ export function ListeningPage() {
             <button
               type="button"
               onClick={fetchTask}
-              disabled={loadingTask}
+              disabled={isStreaming}
               className="mt-4 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-40"
             >
-              {loadingTask ? 'Loading…' : 'Next Task'}
+              Next Task
             </button>
           </section>
         )}

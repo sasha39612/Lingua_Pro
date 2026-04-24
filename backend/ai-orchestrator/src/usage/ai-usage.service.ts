@@ -4,25 +4,31 @@ import { PrismaService } from '../prisma/prisma.service';
 const PRICING_VERSION = process.env.PRICING_VERSION
   ?? new Date().toISOString().slice(0, 7); // default: "YYYY-MM"
 
-// Unified rate type — supports both token-based and character-based pricing.
-// null = unknown/unmeasured pricing (whisper-1, azure-speech — per-second/per-minute).
+// Unified rate type — supports token-based, character-based, and audio-second pricing.
+// null = unknown/unmeasured pricing.
 // Returns null (not 0) when unavailable — null in DB is honest; 0 corrupts totals.
 type ModelRate =
-  | { kind: 'tokens'; prompt: number; completion: number }
-  | { kind: 'chars';  perChar: number }
+  | { kind: 'tokens';       prompt: number; completion: number }
+  | { kind: 'chars';        perChar: number }
+  | { kind: 'audio_seconds'; perSecond: number }
   | null;
 
 const MODEL_RATES: Record<string, ModelRate> = {
-  'gpt-4o':          { kind: 'tokens', prompt: 0.0000025,  completion: 0.000010 },
-  'gpt-4o-mini':     { kind: 'tokens', prompt: 0.00000015, completion: 0.0000006 },
-  'gpt-4o-mini-tts': { kind: 'chars',  perChar: 15.0 / 1_000_000 }, // $15/1M chars
-  'whisper-1':       null, // per-second pricing — not token or char based
-  'azure-speech':    null, // per-minute pricing — not token or char based
+  'gpt-4o':          { kind: 'tokens',        prompt: 0.0000025,   completion: 0.000010 },
+  'gpt-4o-mini':     { kind: 'tokens',        prompt: 0.00000015,  completion: 0.0000006 },
+  'gpt-4o-mini-tts': { kind: 'chars',         perChar: 15.0 / 1_000_000 }, // $15/1M chars
+  'whisper-1':       { kind: 'audio_seconds', perSecond: 0.006 / 60 },     // $0.006/min
+  'azure-speech':    { kind: 'audio_seconds', perSecond: 0.01  / 60 },     // ~$0.01/min standard tier
 };
 
 function computeCost(
   model: string,
-  opts: { prompt?: number | null; completion?: number | null; characters?: number | null },
+  opts: {
+    prompt?: number | null;
+    completion?: number | null;
+    characters?: number | null;
+    audioDurationSec?: number | null;
+  },
 ): number | null {
   const rate = MODEL_RATES[model];
   if (!rate) return null;
@@ -35,6 +41,11 @@ function computeCost(
     const { characters } = opts;
     if (characters == null || characters <= 0) return null;
     return characters * rate.perChar;
+  }
+  if (rate.kind === 'audio_seconds') {
+    const { audioDurationSec } = opts;
+    if (audioDurationSec == null || audioDurationSec <= 0) return null;
+    return audioDurationSec * rate.perSecond;
   }
   return null;
 }
@@ -50,11 +61,17 @@ export interface AiUsageEventInput {
   completionTokens?: number | null;
   totalTokens?: number | null;
   characters?: number | null;
+  /** Audio duration in seconds — used for Azure Speech and Whisper cost calculation */
+  audioDurationSec?: number | null;
   durationMs?: number;
   retryCount?: number;
   requestId?: string;
   userId?: number;
   language?: string;
+  /** true when token counts are estimated (e.g. stream failed before the final usage chunk) */
+  estimated?: boolean;
+  /** method used for estimation — e.g. 'chars_div_4' — null when estimated=false */
+  estimationMethod?: string | null;
 }
 
 @Injectable()
@@ -73,9 +90,10 @@ export class AiUsageService {
     }
     try {
       const costUsd = computeCost(event.model, {
-        prompt:     event.promptTokens,
-        completion: event.completionTokens,
-        characters: event.characters,
+        prompt:          event.promptTokens,
+        completion:      event.completionTokens,
+        characters:      event.characters,
+        audioDurationSec: event.audioDurationSec,
       });
       await client.aiUsageEvent.create({
         data: {
@@ -89,6 +107,9 @@ export class AiUsageService {
           completionTokens: event.completionTokens ?? null,
           totalTokens:      event.totalTokens ?? null,
           characters:       event.characters ?? null,
+          audioDurationSec: event.audioDurationSec ?? null,
+          estimated:        event.estimated ?? false,
+          estimationMethod: event.estimationMethod ?? null,
           durationMs:       event.durationMs,
           retryCount:       event.retryCount,
           requestId:        event.requestId,

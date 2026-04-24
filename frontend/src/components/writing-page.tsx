@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { LabFrame } from '@/components/lab-frame';
 import { useAppStore } from '@/store/app-store';
+import { useAiStream } from '@/lib/use-ai-stream';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -20,16 +21,6 @@ interface WritingTask {
 interface WritingCriterion {
   score: number;
   feedback: string;
-}
-
-interface WritingAnalysis {
-  taskAchievement: WritingCriterion;
-  grammarVocabulary: WritingCriterion;
-  coherenceStructure: WritingCriterion;
-  style: WritingCriterion;
-  correctedText: string;
-  overallScore: number;
-  overallFeedback: string;
 }
 
 type Phase = 'idle' | 'task' | 'editor' | 'result';
@@ -73,6 +64,28 @@ function CriterionCard({ label, criterion }: { label: string; criterion: Writing
   );
 }
 
+function CriterionCardSkeleton({ label }: { label: string }) {
+  return (
+    <div className="animate-pulse rounded-xl border border-slate-200 p-4">
+      <div className="flex items-center gap-3">
+        <div className="h-12 w-12 shrink-0 rounded-full bg-slate-200" />
+        <div className="flex-1 space-y-2">
+          <p className="text-sm font-semibold text-slate-800">{label}</p>
+          <div className="h-3 w-3/4 rounded bg-slate-200" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SSE event types ───────────────────────────────────────────────────────────
+
+type WritingStreamEvent =
+  | { event: 'analysis_started'; requestId?: string }
+  | { event: 'criterion'; data: { key: string; score: number; feedback: string }; requestId?: string }
+  | { event: 'analysis_complete'; data: { overallScore: number; overallFeedback: string; correctedText: string; partial?: boolean }; requestId?: string }
+  | { event: 'error'; requestId?: string };
+
 function WordCounter({
   count,
   min,
@@ -108,12 +121,19 @@ export function WritingPage() {
   const [task, setTask] = useState<WritingTask | null>(null);
   const [taskId, setTaskId] = useState<number | null>(null);
   const [text, setText] = useState('');
-  const [analysis, setAnalysis] = useState<WritingAnalysis | null>(null);
   const [taskCollapsed, setTaskCollapsed] = useState(false);
   const [showCorrected, setShowCorrected] = useState(false);
   const [loadingTask, setLoadingTask] = useState(false);
-  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ── Streaming analysis state ───────────────────────────────────────────────
+  const [streamedCriteria, setStreamedCriteria] = useState<Record<string, WritingCriterion>>({});
+  const [streamedComplete, setStreamedComplete] = useState<{
+    overallScore: number;
+    overallFeedback: string;
+    correctedText: string;
+    partial?: boolean;
+  } | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -122,6 +142,33 @@ export function WritingPage() {
   const maxWords = task?.wordCountMax ?? 180;
   const canSubmit = wordCount >= minWords;
 
+  // ── Writing analysis stream ────────────────────────────────────────────────
+
+  const writingStream = useAiStream<WritingStreamEvent>({
+    url: '/api/writing/analyze/stream',
+    method: 'POST',
+    onEvent: useCallback((ev: WritingStreamEvent) => {
+      if (ev.event === 'criterion') {
+        setStreamedCriteria((prev) => ({
+          ...prev,
+          [ev.data.key]: { score: ev.data.score, feedback: ev.data.feedback },
+        }));
+      } else if (ev.event === 'analysis_complete') {
+        setStreamedComplete(ev.data);
+        // Persist score (fire-and-forget)
+        if (user) {
+          fetch('/api/text/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, language, skill: 'writing', score: ev.data.overallScore }),
+          }).catch(() => { /* best-effort */ });
+        }
+      } else if (ev.event === 'error') {
+        setError('Analysis encountered an error. Partial results may be shown.');
+      }
+    }, [user, language]),
+  });
+
   // ── Fetch task ─────────────────────────────────────────────────────────────
 
   const fetchTask = useCallback(async () => {
@@ -129,11 +176,13 @@ export function WritingPage() {
       setError('You must be logged in to load a writing task.');
       return;
     }
+    writingStream.cancel();
     setLoadingTask(true);
     setError(null);
     setTask(null);
     setText('');
-    setAnalysis(null);
+    setStreamedCriteria({});
+    setStreamedComplete(null);
     setTaskCollapsed(false);
     setShowCorrected(false);
 
@@ -150,42 +199,21 @@ export function WritingPage() {
     } finally {
       setLoadingTask(false);
     }
-  }, [language, level, user]);
+  }, [language, level, user, writingStream]);
 
-  // ── Submit text ────────────────────────────────────────────────────────────
+  // ── Submit text (via SSE stream) ───────────────────────────────────────────
 
-  const submitText = useCallback(async () => {
+  const submitText = useCallback(() => {
     if (!task || !canSubmit) return;
-    setLoadingAnalysis(true);
     setError(null);
+    setStreamedCriteria({});
+    setStreamedComplete(null);
+    setPhase('result');
+    writingStream.start({ text, language, taskContext: task });
+  }, [task, text, language, canSubmit, writingStream]);
 
-    try {
-      const res = await fetch('/api/writing/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, language, taskContext: task }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || data.error || 'Analysis failed');
-      setAnalysis(data as WritingAnalysis);
-      setPhase('result');
-
-      // Persist score to text-service (fire-and-forget)
-      if (user) {
-        fetch('/api/text/score', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id, language, skill: 'writing', score: data.overallScore }),
-        }).catch(() => { /* best-effort */ });
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
-    } finally {
-      setLoadingAnalysis(false);
-    }
-  }, [task, text, language, canSubmit, user]);
-
-  const overallPct = analysis ? Math.round(analysis.overallScore * 100) : null;
+  const overallPct = streamedComplete ? Math.round(streamedComplete.overallScore * 100) : null;
+  const isAnalyzing = writingStream.status === 'streaming';
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -224,7 +252,7 @@ export function WritingPage() {
               <button
                 type="button"
                 onClick={fetchTask}
-                disabled={loadingTask || loadingAnalysis}
+                disabled={loadingTask || isAnalyzing}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
               >
                 {loadingTask ? 'Loading…' : 'New Task'}
@@ -349,17 +377,10 @@ export function WritingPage() {
               <button
                 type="button"
                 onClick={submitText}
-                disabled={!canSubmit || loadingAnalysis}
+                disabled={!canSubmit || isAnalyzing}
                 className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-amber-400 disabled:opacity-40"
               >
-                {loadingAnalysis ? (
-                  <>
-                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-                    Evaluating…
-                  </>
-                ) : (
-                  'Submit'
-                )}
+                Submit
               </button>
               {!canSubmit && (
                 <p className="text-xs text-slate-400">
@@ -371,50 +392,81 @@ export function WritingPage() {
         )}
 
         {/* ── Results ─────────────────────────────────────────────────────── */}
-        {phase === 'result' && analysis && (
+        {phase === 'result' && (
           <>
-            {/* Overall score */}
+            {/* Overall score — shown once analysis_complete fires; skeleton while streaming */}
             <section className="rounded-2xl bg-white p-5 shadow-float">
               <h2 className="text-base font-semibold text-slate-800">Result</h2>
-              <div className="mt-4 flex items-center gap-4">
-                <div
-                  className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white ${scoreColor(analysis.overallScore)}`}
-                >
-                  {overallPct}%
+              {streamedComplete ? (
+                <div className="mt-4 flex items-center gap-4">
+                  <div
+                    className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white ${scoreColor(streamedComplete.overallScore)}`}
+                  >
+                    {overallPct}%
+                  </div>
+                  <p className="text-sm leading-relaxed text-slate-700">{streamedComplete.overallFeedback}</p>
                 </div>
-                <p className="text-sm leading-relaxed text-slate-700">{analysis.overallFeedback}</p>
-              </div>
-            </section>
-
-            {/* Criteria */}
-            <section className="rounded-2xl bg-white p-5 shadow-float">
-              <h2 className="mb-4 text-base font-semibold text-slate-800">Detailed feedback</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <CriterionCard label="Task Achievement" criterion={analysis.taskAchievement} />
-                <CriterionCard label="Grammar & Vocabulary" criterion={analysis.grammarVocabulary} />
-                <CriterionCard label="Coherence & Structure" criterion={analysis.coherenceStructure} />
-                <CriterionCard label="Style" criterion={analysis.style} />
-              </div>
-            </section>
-
-            {/* Corrected text */}
-            <section className="rounded-2xl bg-white p-5 shadow-float">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-slate-800">Corrected version</h2>
-                <button
-                  type="button"
-                  onClick={() => setShowCorrected((v) => !v)}
-                  className="text-xs text-slate-400 hover:text-slate-600"
-                >
-                  {showCorrected ? 'Hide ▴' : 'Show ▾'}
-                </button>
-              </div>
-              {showCorrected && (
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
-                  {analysis.correctedText}
+              ) : (
+                <div className="mt-4 flex animate-pulse items-center gap-4">
+                  <div className="h-16 w-16 shrink-0 rounded-full bg-slate-200" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-1/2 rounded bg-slate-200" />
+                    <div className="h-3 w-3/4 rounded bg-slate-200" />
+                  </div>
                 </div>
               )}
             </section>
+
+            {/* Criteria — each card resolves progressively as SSE events arrive */}
+            <section className="rounded-2xl bg-white p-5 shadow-float">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-base font-semibold text-slate-800">Detailed feedback</h2>
+                {isAnalyzing && (
+                  <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
+                    Evaluating…
+                  </span>
+                )}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {streamedCriteria['taskAchievement']
+                  ? <CriterionCard label="Task Achievement" criterion={streamedCriteria['taskAchievement']} />
+                  : <CriterionCardSkeleton label="Task Achievement" />}
+                {streamedCriteria['grammarVocabulary']
+                  ? <CriterionCard label="Grammar & Vocabulary" criterion={streamedCriteria['grammarVocabulary']} />
+                  : <CriterionCardSkeleton label="Grammar & Vocabulary" />}
+                {streamedCriteria['coherenceStructure']
+                  ? <CriterionCard label="Coherence & Structure" criterion={streamedCriteria['coherenceStructure']} />
+                  : <CriterionCardSkeleton label="Coherence & Structure" />}
+                {streamedCriteria['style']
+                  ? <CriterionCard label="Style" criterion={streamedCriteria['style']} />
+                  : <CriterionCardSkeleton label="Style" />}
+              </div>
+              {writingStream.status === 'error' && (
+                <p className="mt-3 text-xs text-red-500">Stream error — partial results shown. You can try resubmitting.</p>
+              )}
+            </section>
+
+            {/* Corrected text — only available once analysis_complete fires */}
+            {streamedComplete && (
+              <section className="rounded-2xl bg-white p-5 shadow-float">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-semibold text-slate-800">Corrected version</h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowCorrected((v) => !v)}
+                    className="text-xs text-slate-400 hover:text-slate-600"
+                  >
+                    {showCorrected ? 'Hide ▴' : 'Show ▾'}
+                  </button>
+                </div>
+                {showCorrected && (
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
+                    {streamedComplete.correctedText}
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* Your original */}
             <section className="rounded-2xl bg-white p-5 shadow-float">
@@ -426,8 +478,10 @@ export function WritingPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    writingStream.cancel();
                     setPhase('editor');
-                    setAnalysis(null);
+                    setStreamedCriteria({});
+                    setStreamedComplete(null);
                     setError(null);
                   }}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"

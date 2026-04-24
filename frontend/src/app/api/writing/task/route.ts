@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { generateRequestId } from '@/lib/request-id';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -16,12 +17,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'userId is required' }, { status: 401 });
   }
 
+  const requestId = generateRequestId();
   const textServiceUrl = process.env.TEXT_SERVICE_URL || 'http://text-service:4002';
 
   try {
     const params = new URLSearchParams({ language, level, skill: 'writing' });
     const response = await fetch(`${textServiceUrl}/text/tasks?${params.toString()}`, {
-      headers: { 'x-user-id': userId },
+      headers: { 'x-user-id': userId, 'x-request-id': requestId },
       signal: AbortSignal.timeout(55_000),
     });
 

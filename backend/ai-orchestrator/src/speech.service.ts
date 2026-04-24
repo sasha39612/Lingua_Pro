@@ -93,6 +93,8 @@ export class SpeechService {
         const wavBuffer = this.ffmpegAvailable
           ? await this.convertToWav(buffer)
           : buffer;
+        // 16kHz mono 16-bit PCM: 32000 bytes/sec; subtract 44-byte WAV header
+        const audioDurationSec = Math.max(0, (wavBuffer.length - 44)) / 32_000;
         const { result, attempts: a } = await withRetryTracked(
           () => this.transcribeWithAzure(wavBuffer, safeLanguage),
           'transcribeAudio',
@@ -105,6 +107,7 @@ export class SpeechService {
           endpoint: 'transcribeWithAzure',
           model: 'azure-speech',
           requestType: 'sync',
+          audioDurationSec,
           durationMs: Date.now() - start,
           retryCount: attempts - 1,
           requestId,
@@ -118,7 +121,7 @@ export class SpeechService {
           endpoint: 'transcribeWithAzure',
           model: 'azure-speech',
           requestType: 'sync',
-          errorType: classifyError(err),
+          errorType: classifyError(err).type,
           durationMs: Date.now() - start,
           retryCount: attempts > 0 ? attempts - 1 : 0,
           requestId,
@@ -139,12 +142,16 @@ export class SpeechService {
           this.logger,
         );
         attempts = a;
+        // Whisper pricing is per-minute; estimate duration from buffer size
+        // WebM audio averages ~16KB/s at typical quality settings
+        const audioDurationSec = buffer.length / 16_000;
         void this.aiUsage.log({
           success: true,
           featureType: 'transcribe',
           endpoint: 'transcribeWithWhisper',
           model: this.transcriptionModel,
           requestType: 'fallback',  // Azure failed or unavailable → Whisper ran
+          audioDurationSec,
           durationMs: Date.now() - start,
           retryCount: attempts - 1,
           requestId,
@@ -158,7 +165,7 @@ export class SpeechService {
           endpoint: 'transcribeWithWhisper',
           model: this.transcriptionModel,
           requestType: 'fallback',
-          errorType: classifyError(err),
+          errorType: classifyError(err).type,
           durationMs: Date.now() - start,
           retryCount: attempts > 0 ? attempts - 1 : 0,
           requestId,
@@ -196,6 +203,7 @@ export class SpeechService {
         const wavBuffer = this.ffmpegAvailable
           ? await this.convertToWav(buffer)
           : buffer;
+        const audioDurationSec = Math.max(0, (wavBuffer.length - 44)) / 32_000;
         const { result, attempts: a } = await withRetryTracked(
           () => this.analyzePronunciationWithAzure(wavBuffer, referenceText, safeLanguage),
           'analyzePronunciation',
@@ -208,6 +216,7 @@ export class SpeechService {
           endpoint: 'analyzePronunciationWithAzure',
           model: 'azure-speech',
           requestType: 'sync',
+          audioDurationSec,
           durationMs: Date.now() - start,
           retryCount: attempts - 1,
           requestId,
@@ -221,7 +230,7 @@ export class SpeechService {
           endpoint: 'analyzePronunciationWithAzure',
           model: 'azure-speech',
           requestType: 'sync',
-          errorType: classifyError(err),
+          errorType: classifyError(err).type,
           durationMs: Date.now() - start,
           retryCount: attempts > 0 ? attempts - 1 : 0,
           requestId,
@@ -263,7 +272,7 @@ export class SpeechService {
           endpoint: 'transcribeWithWhisper',
           model: this.transcriptionModel,
           requestType: 'fallback',
-          errorType: classifyError(err),
+          errorType: classifyError(err).type,
           durationMs: Date.now() - start,
           retryCount: attempts > 0 ? attempts - 1 : 0,
           requestId,

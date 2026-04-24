@@ -44,9 +44,18 @@ export class PronunciationAiService {
     // ── Perfect result short-circuit ─────────────────────────────────────────
     // All words correct + no phoneme data → return a clean success message
     // without calling GPT (avoids hallucinated phoneme corrections).
-    // DO NOT log here — no API call was made.
     const allCorrect = alignment.length > 0 && alignment.every((e) => e.type === 'correct');
     if (allCorrect && phonemeSource === 'none') {
+      void this.aiUsage.log({
+        featureType: 'pronunciation_feedback',
+        endpoint: 'generateFeedback',
+        model: 'short_circuit',
+        success: true,
+        promptTokens: 0,
+        completionTokens: 0,
+        requestId,
+        language,
+      });
       return {
         feedback:
           'Excellent! All words were recognised correctly. ' +
@@ -136,7 +145,7 @@ export class PronunciationAiService {
         featureType: 'pronunciation',
         endpoint: 'generateFeedback',
         model: this.evalModel,
-        errorType: classifyError(error),
+        errorType: classifyError(error).type,
         durationMs: Date.now() - start,
         retryCount: attempts > 0 ? attempts - 1 : 0,
         requestId,

@@ -163,6 +163,7 @@ type: 'correct' | 'missing' | 'extra' | 'mispronounced'
 **Endpoints**:
 - `POST /text/analyze` — text correction + feedback
 - `POST /text/analyze-writing` — structured writing evaluation: 4 scored criteria (task achievement, grammar/vocabulary, coherence/structure, style) + corrected text; feedback written in the task language
+- `POST /text/analyze-writing/stream` — SSE version of the above; emits `analysis_started`, `criterion` (one per validated marker), `analysis_complete` (or partial on 45 s timeout); uses `[CRITERION]`/`[FINAL]` marker protocol; manual SSE via `@Post` + `res.write()`
 - `POST /tasks/generate` — CEFR task generation; `skill=writing` returns a `WritingTask` JSON stored in `prompt` field (situation, taskPoints, instructions, exampleStructure, wordCountMin/Max, style)
 - `POST /tasks/generate-listening` — listening passage generation; without `version` param returns old 5-question MC format (`ListeningPassage`); with `version: '2'` returns 8-question CEFR-graded `ListeningPassageV2` (used by audio-service)
 - `POST /audio/transcribe` — transcription with `words[]` and `source`
@@ -261,14 +262,14 @@ Lingua_Pro/
     │       ├── graphql/text.schema.ts
     │       └── text/
     │           ├── text.service.ts      # analyzeText, getTextsByLanguage, getTasks, recordScore, getAdminSummary (raw SQL, UTC)
-    │           └── text.controller.ts   # POST /text/check, POST /text/score, GET /text/tasks, GET /text/by-language, GET /text/admin/summary
+    │           └── text.controller.ts   # POST /text/check, POST /text/score, GET /text/tasks, POST /text/tasks/stream (SSE), GET /text/by-language, GET /text/admin/summary
     │
     ├── audio-service/               # NestJS, :4003 → audio_db
     │   ├── prisma/schema.prisma         # audio_records, tasks (no User model)
     │   └── src/
     │       ├── audio/
-    │       │   ├── audio.controller.ts  # POST /check, POST /analyze-base64, GET /records/:id, GET /by-language, GET /listening-by-language, GET /listening-task, POST /listening-answers, GET /audio/admin/summary
-    │       │   ├── audio.service.ts     # getAdminSummary, adminActiveUserIds (raw SQL, UTC)
+    │       │   ├── audio.controller.ts  # POST /check, POST /analyze-base64, GET /records/:id, GET /by-language, GET /listening-by-language, GET /listening-task, POST /listening-task/stream (SSE — two-phase: task_ready then audio_ready/audio_unavailable), POST /listening-answers, GET /audio/admin/summary
+    │       │   ├── audio.service.ts     # getAdminSummary, adminActiveUserIds (raw SQL, UTC); streamListeningTask() — phase 1 persists task, phase 2 TTS with best-effort cancellation
     │       │   └── audio.repository.ts  # Prisma queries (uses src/generated/prisma); admin SQL helpers (getDailyCounts, getTopUsers, etc.); exports AudioPeriod, audioPeriodToFromDate, audioSafeAvg
     │       └── generated/prisma/        # Custom Prisma output (committed type stubs only)
     │
@@ -285,18 +286,18 @@ Lingua_Pro/
         └── src/
             ├── types.ts                     # Shared types: PhonemeDetail, WordDetail, WordAlignment, PronunciationAnalysisResult, TtsResult, …
             ├── util.ts                      # Pure helpers: withRetry, withRetryTracked, withTimeout, safeJsonParse, decodeBase64, normalizedEditDistance, enrichPhonemeContext, PHONEME_MAP, …
-            ├── orchestrator.controller.ts   # HTTP layer — 7 endpoints; generates requestId per request (or reads x-request-id header)
+            ├── orchestrator.controller.ts   # HTTP layer — 8 endpoints; generates requestId per request (or reads x-request-id header)
             ├── orchestrator.service.ts      # Thin facade — composes the 5 providers below
-            ├── speech.service.ts            # Azure transcription + phoneme extraction + word alignment; Whisper fallback
-            ├── text-ai.service.ts           # GPT-4o: text analysis (reading/writing domain); logs usage events
+            ├── speech.service.ts            # Azure transcription + phoneme extraction + word alignment; Whisper fallback; extracts audioDurationSec from WAV buffer for cost logging
+            ├── text-ai.service.ts           # GPT-4o: text analysis (reading/writing domain); streamWritingAnalysis() async generator with [CRITERION]/[FINAL] marker protocol; logs usage events
             ├── task.service.ts              # GPT-4o-mini: CEFR task generation; skill='reading' generates 1 full exercise (passage + 16 questions across 5 types); generateListeningExercise() generates 8-question CEFR-graded exercise (v2 format)
-            ├── pronunciation-ai.service.ts  # GPT-4o: feedback string + phoneme hints ONLY (no scores)
+            ├── pronunciation-ai.service.ts  # GPT-4o: feedback string + phoneme hints ONLY (no scores); short-circuit path logs zero-token event for perfect scores
             ├── tts.service.ts               # gpt-4o-mini-tts: text → base64 MP3
             ├── prisma/
             │   └── prisma.service.ts        # Conditional require('../generated/prisma'); degrades gracefully if not yet generated
             └── usage/
-                ├── ai-usage.service.ts      # log() — fire-and-forget; never throws; no-ops when Prisma unavailable
-                ├── error-type.ts            # ErrorType const + classifyError(err) — centralised error classification
+                ├── ai-usage.service.ts      # log() — fire-and-forget; never throws; no-ops when Prisma unavailable; MODEL_RATES includes audio_seconds pricing for azure-speech and whisper-1
+                ├── error-type.ts            # NormalizedError type { type, retryable, backoffMs?, originalError }; classifyError(err) — reads Retry-After header; unknown/quota/parse → retryable: false
                 └── usage.controller.ts      # GET /usage/admin — groups ai_usage_events (x-user-role: admin)
 ```
 

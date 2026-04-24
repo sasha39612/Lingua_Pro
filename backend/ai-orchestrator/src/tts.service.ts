@@ -72,7 +72,7 @@ export class TtsService {
         featureType: 'tts',
         endpoint: 'synthesize',
         model: this.ttsModel,
-        errorType: classifyError(error),
+        errorType: classifyError(error).type,
         durationMs: Date.now() - start,
         retryCount: attempts > 0 ? attempts - 1 : 0,
         requestId,

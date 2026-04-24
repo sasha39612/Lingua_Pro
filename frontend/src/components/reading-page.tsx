@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { LabFrame } from '@/components/lab-frame';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
+import { useAiStream } from '@/lib/use-ai-stream';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,34 +66,50 @@ export function ReadingPage() {
   const [task, setTask] = useState<ReadingTask | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [result, setResult] = useState<AnswersResult | null>(null);
-  const [loadingTask, setLoadingTask] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
 
-  const fetchTask = useCallback(async () => {
+  // ── SSE event types ──────────────────────────────────────────────────────
+  type ReadingStreamEvent =
+    | { event: 'task_generating'; requestId?: string }
+    | { event: 'task_ready'; data: ReadingTask[]; requestId?: string }
+    | { event: 'error'; data?: { message?: string }; requestId?: string };
+
+  const readingStream = useAiStream<ReadingStreamEvent>({
+    url: '/api/reading/task/stream',
+    method: 'POST',
+    onEvent: useCallback((ev: ReadingStreamEvent) => {
+      if (ev.event === 'task_ready') {
+        const raw = ev.data[0];
+        if (!raw) { setTaskError('No reading task available.'); return; }
+        const questions = Array.isArray(raw.questions)
+          ? raw.questions
+          : typeof raw.questions === 'string'
+            ? JSON.parse(raw.questions as unknown as string)
+            : [];
+        setTask({ taskId: (raw as any).id ?? (raw as any).taskId, passage: (raw as any).referenceText ?? (raw as any).passage ?? '', questions });
+      } else if (ev.event === 'error') {
+        setTaskError(ev.data?.message ?? 'Failed to load reading task.');
+      }
+    }, []),
+    onError: useCallback(() => {
+      setTaskError('Connection error loading task. Please try again.');
+    }, []),
+  });
+
+  const loadingTask = readingStream.status === 'streaming';
+
+  const fetchTask = useCallback(() => {
     if (!user) {
       setTaskError('You must be logged in to load a reading task.');
       return;
     }
-    setLoadingTask(true);
+    readingStream.cancel();
     setTaskError(null);
     setTask(null);
     setAnswers({});
     setResult(null);
-
-    try {
-      const params = new URLSearchParams({ language, level, userId: user.id });
-      const res = await fetch(`/api/reading/task?${params.toString()}`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || data.error || 'Failed to load task');
-      }
-      setTask(data as ReadingTask);
-    } catch (err) {
-      setTaskError(err instanceof Error ? err.message : 'Failed to load reading task.');
-    } finally {
-      setLoadingTask(false);
-    }
-  }, [language, level, user]);
+    readingStream.start({ language, level, userId: user.id });
+  }, [language, level, user, readingStream]);
 
   const setAnswer = (index: number, value: string) => {
     if (result) return;

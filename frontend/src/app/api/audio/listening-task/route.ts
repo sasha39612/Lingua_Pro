@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { generateRequestId } from '@/lib/request-id';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -16,13 +17,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'userId is required' }, { status: 401 });
   }
 
+  const requestId = generateRequestId();
   const audioServiceUrl = process.env.AUDIO_SERVICE_URL || 'http://audio-service:4003';
 
   try {
     const response = await fetch(
       `${audioServiceUrl}/audio/listening-task?language=${encodeURIComponent(language)}&level=${encodeURIComponent(level)}`,
       {
-        headers: { 'x-user-id': userId },
+        headers: { 'x-user-id': userId, 'x-request-id': requestId },
         // TTS generation for a 400-word passage can take up to 45 s
         signal: AbortSignal.timeout(110_000),
       },

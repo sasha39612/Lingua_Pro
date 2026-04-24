@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Get, Query, Headers, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Headers, BadRequestException, ForbiddenException, Logger, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { TextService } from './text.service';
 
 const INTERNAL_SERVICE_SECRET = process.env.INTERNAL_SERVICE_SECRET || '';
@@ -52,6 +53,45 @@ export class TextController {
     if (!level) throw new BadRequestException('level is required');
     const userId = rawUserId ? parseInt(rawUserId, 10) : null;
     return this.textService.getTasks(language, level, skill, userId);
+  }
+
+  @Post('tasks/stream')
+  async tasksStream(
+    @Body('language') language: string,
+    @Body('level') level: string,
+    @Body('skill') skill: string | undefined,
+    @Body('userId') rawUserId: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    if (!language) { res.status(400).json({ error: 'language is required' }); return; }
+    if (!level)    { res.status(400).json({ error: 'level is required' });    return; }
+    const userId = rawUserId ? parseInt(rawUserId, 10) : null;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    let aborted = false;
+    req.on('close', () => { aborted = true; });
+
+    const write = (event: object) => {
+      if (!aborted && !res.writableEnded) {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      }
+    };
+
+    try {
+      write({ event: 'task_generating' });
+      const tasks = await this.textService.getTasks(language, level, skill, userId);
+      write({ event: 'task_ready', data: tasks });
+    } catch (err: any) {
+      this.logger.error(`tasksStream failed: ${err?.message ?? err}`);
+      write({ event: 'error', data: { message: 'Failed to generate task' } });
+    } finally {
+      if (!res.writableEnded) res.end();
+    }
   }
 
   @Get('by-language')

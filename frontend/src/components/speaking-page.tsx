@@ -1,11 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { AudioRecorder } from '@/components/audio-recorder';
 import { LabFrame } from '@/components/lab-frame';
 import { useAppStore } from '@/store/app-store';
-import { graphqlRequest } from '@/lib/graphql-client';
-import type { TasksData, TasksVariables } from '@/lib/graphql-types';
+import { useAiStream } from '@/lib/use-ai-stream';
 import {
   STAT_LABELS,
   type FeedbackResult,
@@ -93,31 +92,37 @@ export function SpeakingPage() {
 
   const [generatedText, setGeneratedText] = useState('');
   const [focusPhonemes, setFocusPhonemes] = useState<string[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [feedbackResult, setFeedbackResult] = useState<FeedbackResult | null>(null);
 
-  const handleGenerateText = async () => {
-    setIsGenerating(true);
+  type SpeakingStreamEvent =
+    | { event: 'task_generating'; requestId?: string }
+    | { event: 'task_ready'; data: Array<{ referenceText?: string; focusPhonemes?: string[] }>; requestId?: string }
+    | { event: 'error'; requestId?: string };
+
+  const speakingStream = useAiStream<SpeakingStreamEvent>({
+    url: '/api/speaking/task/stream',
+    method: 'POST',
+    onEvent: useCallback((ev: SpeakingStreamEvent) => {
+      if (ev.event === 'task_ready') {
+        const first = ev.data[0];
+        setGeneratedText(first?.referenceText ?? '');
+        setFocusPhonemes(first?.focusPhonemes ?? []);
+      }
+      // error event: leave generatedText empty — UI shows nothing (same as before)
+    }, []),
+  });
+
+  const isGenerating = speakingStream.status === 'streaming';
+
+  const handleGenerateText = useCallback(() => {
+    speakingStream.cancel();
     setGeneratedText('');
     setFocusPhonemes([]);
-    try {
-      const data = await graphqlRequest<TasksData, TasksVariables>({
-        operationName: 'Tasks',
-        variables: { language, level, skill: 'speaking' },
-      });
-      const first = data.tasks[0];
-      setGeneratedText(first?.referenceText ?? '');
-      setFocusPhonemes(first?.focusPhonemes ?? []);
-    } catch {
-      setGeneratedText('');
-      setFocusPhonemes([]);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+    speakingStream.start({ language, level, userId: user?.id });
+  }, [language, level, user, speakingStream]);
 
   const handleAnalyze = async () => {
     if (!recordedBlob || !generatedText || !user) return;

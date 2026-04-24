@@ -1,6 +1,7 @@
-import { Body, Controller, Headers, MessageEvent, Post, Query, Sse } from '@nestjs/common';
+import { Body, Controller, Headers, MessageEvent, Post, Query, Req, Res, Sse } from '@nestjs/common';
 import { IsObject, IsOptional, IsString } from 'class-validator';
 import { randomUUID } from 'crypto';
+import type { Request, Response } from 'express';
 import { Observable } from 'rxjs';
 import { OrchestratorService } from './orchestrator.service';
 
@@ -165,6 +166,38 @@ export class OrchestratorController {
   ) {
     const requestId = requestIdHeader || randomUUID();
     return this.orchestratorService.analyzeWritingTask(body.text, body.language, body.taskContext as any, requestId);
+  }
+
+  @Post('text/analyze-writing/stream')
+  async streamWritingAnalysis(
+    @Body() body: AnalyzeWritingDto,
+    @Req() req: Request,
+    @Res() res: Response,
+    @Headers('x-request-id') requestIdHeader?: string,
+  ) {
+    const requestId = requestIdHeader || randomUUID();
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    let aborted = false;
+    req.on('close', () => { aborted = true; });
+
+    try {
+      const stream = this.orchestratorService.streamWritingAnalysis(
+        body.text,
+        body.language,
+        body.taskContext as any,
+        requestId,
+      );
+      for await (const event of stream) {
+        if (aborted || res.writableEnded) break;
+        res.write(`data: ${JSON.stringify({ ...event, requestId })}\n\n`);
+      }
+    } finally {
+      if (!res.writableEnded) res.end();
+    }
   }
 
   @Sse('text/analyze/stream')

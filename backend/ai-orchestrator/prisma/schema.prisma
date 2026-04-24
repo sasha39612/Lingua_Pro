@@ -37,6 +37,13 @@ model AiUsageEvent {
   characters       Int?
   // Character count for TTS requests — basis for character-rate cost computation.
   // null for token-based models (gpt-4o, gpt-4o-mini) — not applicable.
+  estimated        Boolean  @default(false)
+  // true when token counts are estimated (e.g. stream failed before final usage chunk)
+  estimationMethod String?  @map("estimation_method")
+  // e.g. "chars_div_4" — method used when estimated=true, for analytics filtering
+  audioDurationSec Float?   @map("audio_duration_sec")
+  // Duration of audio input in seconds — used for Azure Speech and Whisper cost estimates.
+  // null for text-only models (gpt-4o, gpt-4o-mini, TTS).
   costUsd          Float?   @map("cost_usd")
   // Computed at log time using MODEL_RATES — stored so historical accuracy is
   // preserved when pricing changes. null when token data unavailable (TTS, Azure).

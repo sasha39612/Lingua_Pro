@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { generateRequestId } from '@/lib/request-id';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,7 @@ function createFallbackStream(text: string) {
 export async function GET(req: NextRequest) {
   const text = req.nextUrl.searchParams.get('text') || '';
   const language = req.nextUrl.searchParams.get('language') || 'English';
+  const requestId = generateRequestId();
 
   const orchestratorUrl =
     process.env.AI_ORCHESTRATOR_URL || 'http://ai-orchestrator:4005';
@@ -33,7 +35,7 @@ export async function GET(req: NextRequest) {
     const upstream = await fetch(
       `${orchestratorUrl}/text/analyze/stream?text=${encodeURIComponent(text)}&language=${encodeURIComponent(language)}`,
       {
-        headers: { Accept: 'text/event-stream' },
+        headers: { Accept: 'text/event-stream', 'x-request-id': requestId },
         cache: 'no-store',
       },
     );

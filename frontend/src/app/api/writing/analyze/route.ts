@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkOrigin } from '@/lib/csrf-guard';
+import { generateRequestId } from '@/lib/request-id';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -21,12 +22,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'text, language, and taskContext are required' }, { status: 400 });
   }
 
+  const requestId = generateRequestId();
   const orchestratorUrl = process.env.AI_ORCHESTRATOR_URL || 'http://ai-orchestrator:4005';
 
   try {
     const response = await fetch(`${orchestratorUrl}/text/analyze-writing`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-request-id': requestId },
       body: JSON.stringify({ text, language, taskContext }),
       signal: AbortSignal.timeout(55_000),
     });
