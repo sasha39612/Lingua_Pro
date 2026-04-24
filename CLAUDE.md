@@ -235,7 +235,7 @@ Lingua_Pro/
 │       │       ├── achievements.tsx     # 6 achievements computed from real data
 │       │       └── charts-section.tsx   # SVG line chart (progress over time) + bar chart (mistakes by type)
 │       ├── lib/
-│       │   ├── csrf-guard.ts            # checkOrigin() — rejects POST with a disallowed Origin header (defense-in-depth); applied to all 6 state-changing routes
+│       │   ├── csrf-guard.ts            # checkOrigin() — rejects POST with a disallowed Origin header (defense-in-depth); applied to all 8 state-changing routes
 │       │   ├── graphql-client.ts        # fetch wrapper (persisted queries + fallback)
 │       │   ├── graphql-operations.ts    # All GQL query/mutation strings (includes AdminUsers)
 │       │   ├── graphql-hooks.ts         # TanStack Query hooks
