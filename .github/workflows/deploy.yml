@@ -56,6 +56,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Collect extra build args (frontend only)
+        id: extra_args
+        run: |
+          if [ "${{ matrix.service }}" = "frontend" ]; then
+            {
+              echo 'args<<EOF'
+              echo "NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}"
+              echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}"
+              echo "SENTRY_ORG=${{ secrets.SENTRY_ORG }}"
+              echo "SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}"
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo 'args=' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
@@ -65,7 +81,9 @@ jobs:
           tags: |
             ${{ steps.image.outputs.prefix }}/${{ matrix.service }}:latest
             ${{ steps.image.outputs.prefix }}/${{ matrix.service }}:${{ github.sha }}
-          build-args: ${{ matrix.build_args || '' }}
+          build-args: |
+            ${{ matrix.build_args || '' }}
+            ${{ steps.extra_args.outputs.args }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
