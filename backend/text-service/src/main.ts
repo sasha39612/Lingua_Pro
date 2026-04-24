@@ -6,6 +6,7 @@ import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import { json } from 'express';
 import { textSchema } from './graphql/text.schema';
+import { SentryApolloPlugin } from './graphql/sentry-apollo-plugin';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -14,7 +15,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.setGlobalPrefix('');
 
-  const apolloServer = new ApolloServer({ schema: textSchema });
+  const apolloServer = new ApolloServer({ schema: textSchema, plugins: [SentryApolloPlugin] });
   await apolloServer.start();
 
   const expressApp = app.getHttpAdapter().getInstance();

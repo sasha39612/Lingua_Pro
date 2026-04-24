@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GRAPHQL_OPERATIONS } from '@/lib/graphql-operations';
+import { checkOrigin } from '@/lib/csrf-guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,9 @@ function getApiGatewayUrl() {
 }
 
 export async function POST(req: NextRequest) {
+  const originBlock = checkOrigin(req);
+  if (originBlock) return originBlock;
+
   let body: { type?: string };
   try {
     body = await req.json();

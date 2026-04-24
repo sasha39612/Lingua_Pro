@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkOrigin } from '@/lib/csrf-guard';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const originBlock = checkOrigin(req);
+  if (originBlock) return originBlock;
+
   let body: { taskId?: number; answers?: Array<number | string>; userId?: string };
   try {
     body = await req.json();
