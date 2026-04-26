@@ -70,8 +70,8 @@ export function StatsPage() {
 
   const streak = useMemo(() => computeStreak(data?.history ?? []), [data?.history]);
   const weakPoints = useMemo(
-    () => buildWeakPoints(data?.mistake_counts_by_type ?? {}),
-    [data?.mistake_counts_by_type],
+    () => buildWeakPoints(data?.mistake_counts_by_type ?? {}, data?.mistake_severity_by_type ?? {}),
+    [data?.mistake_counts_by_type, data?.mistake_severity_by_type],
   );
 
   const nextLevel = getNextLevel(level);

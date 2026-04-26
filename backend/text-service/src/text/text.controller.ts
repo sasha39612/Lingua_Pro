@@ -4,6 +4,7 @@ import { TextService } from './text.service';
 
 const INTERNAL_SERVICE_SECRET = process.env.INTERNAL_SERVICE_SECRET || '';
 const ALLOWED_INTERNAL_SERVICES = new Set(['stats-service', 'api-gateway']);
+const ALLOWED_WRITING_RECORD_SERVICES = new Set(['frontend-ssr']);
 
 function requireInternalToken(headers: Record<string, string | undefined>): void {
   const token = headers['x-internal-token'];
@@ -28,6 +29,41 @@ export class TextController {
     if (!language) throw new BadRequestException('language is required');
     const uid = parseInt(userId, 10);
     return this.textService.analyzeText(uid, language, text, skill);
+  }
+
+  @Post('writing-record')
+  async writingRecord(
+    @Body('userId') userId: string,
+    @Body('language') language: string,
+    @Body('text') text: string,
+    @Body('overallScore') overallScore: number,
+    @Body('grammarVocabularyScore') grammarVocabularyScore: number,
+    @Body('taskAchievementScore') taskAchievementScore: number,
+    @Body('coherenceStructureScore') coherenceStructureScore: number,
+    @Body('styleScore') styleScore: number,
+    @Headers('x-internal-token') internalToken: string,
+    @Headers('x-internal-service') internalService: string,
+  ) {
+    if (!INTERNAL_SERVICE_SECRET || internalToken !== INTERNAL_SERVICE_SECRET) {
+      throw new ForbiddenException('Internal access only');
+    }
+    if (!ALLOWED_WRITING_RECORD_SERVICES.has(internalService)) {
+      throw new ForbiddenException('Unknown internal service');
+    }
+    if (!userId || !language) throw new BadRequestException('userId and language are required');
+    const scores = { overallScore, grammarVocabularyScore, taskAchievementScore, coherenceStructureScore, styleScore };
+    for (const [name, val] of Object.entries(scores)) {
+      const n = Number(val);
+      if (!Number.isFinite(n) || n < 0 || n > 1) {
+        throw new BadRequestException(`${name} must be a number in [0, 1]`);
+      }
+    }
+    const uid = parseInt(userId, 10);
+    return this.textService.recordWritingAnalysis(
+      uid, language, text ?? '',
+      Number(overallScore), Number(grammarVocabularyScore),
+      Number(taskAchievementScore), Number(coherenceStructureScore), Number(styleScore),
+    );
   }
 
   @Post('score')

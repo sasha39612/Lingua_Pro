@@ -33,6 +33,8 @@ export interface StatsData {
   listening_count: number;
   mistakes_total: number;
   mistake_counts_by_type: Record<string, number>;
+  /** severitySum per dimension (1 - score accumulated); used for weak-point ranking */
+  mistake_severity_by_type: Record<string, number>;
   history: Array<{ date: string; text_score: number; pronunciation_score: number }>;
   charts: {
     mistakesByType: { labels: string[]; values: number[] };

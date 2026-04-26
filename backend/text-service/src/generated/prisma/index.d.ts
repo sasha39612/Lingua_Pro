@@ -1081,6 +1081,10 @@ export namespace Prisma {
     correctedText: string | null
     textScore: number | null
     feedback: string | null
+    grammarVocabularyScore: number | null
+    taskAchievementScore: number | null
+    coherenceStructureScore: number | null
+    styleScore: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1094,6 +1098,10 @@ export namespace Prisma {
     correctedText: string | null
     textScore: number | null
     feedback: string | null
+    grammarVocabularyScore: number | null
+    taskAchievementScore: number | null
+    coherenceStructureScore: number | null
+    styleScore: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1107,6 +1115,10 @@ export namespace Prisma {
     correctedText: number
     textScore: number
     feedback: number
+    grammarVocabularyScore: number
+    taskAchievementScore: number
+    coherenceStructureScore: number
+    styleScore: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -1117,12 +1129,20 @@ export namespace Prisma {
     id?: true
     userId?: true
     textScore?: true
+    grammarVocabularyScore?: true
+    taskAchievementScore?: true
+    coherenceStructureScore?: true
+    styleScore?: true
   }
 
   export type TextSumAggregateInputType = {
     id?: true
     userId?: true
     textScore?: true
+    grammarVocabularyScore?: true
+    taskAchievementScore?: true
+    coherenceStructureScore?: true
+    styleScore?: true
   }
 
   export type TextMinAggregateInputType = {
@@ -1134,6 +1154,10 @@ export namespace Prisma {
     correctedText?: true
     textScore?: true
     feedback?: true
+    grammarVocabularyScore?: true
+    taskAchievementScore?: true
+    coherenceStructureScore?: true
+    styleScore?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1147,6 +1171,10 @@ export namespace Prisma {
     correctedText?: true
     textScore?: true
     feedback?: true
+    grammarVocabularyScore?: true
+    taskAchievementScore?: true
+    coherenceStructureScore?: true
+    styleScore?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1160,6 +1188,10 @@ export namespace Prisma {
     correctedText?: true
     textScore?: true
     feedback?: true
+    grammarVocabularyScore?: true
+    taskAchievementScore?: true
+    coherenceStructureScore?: true
+    styleScore?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1260,6 +1292,10 @@ export namespace Prisma {
     correctedText: string | null
     textScore: number | null
     feedback: string | null
+    grammarVocabularyScore: number | null
+    taskAchievementScore: number | null
+    coherenceStructureScore: number | null
+    styleScore: number | null
     createdAt: Date
     updatedAt: Date
     _count: TextCountAggregateOutputType | null
@@ -1292,6 +1328,10 @@ export namespace Prisma {
     correctedText?: boolean
     textScore?: boolean
     feedback?: boolean
+    grammarVocabularyScore?: boolean
+    taskAchievementScore?: boolean
+    coherenceStructureScore?: boolean
+    styleScore?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["text"]>
@@ -1305,6 +1345,10 @@ export namespace Prisma {
     correctedText?: boolean
     textScore?: boolean
     feedback?: boolean
+    grammarVocabularyScore?: boolean
+    taskAchievementScore?: boolean
+    coherenceStructureScore?: boolean
+    styleScore?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["text"]>
@@ -1318,6 +1362,10 @@ export namespace Prisma {
     correctedText?: boolean
     textScore?: boolean
     feedback?: boolean
+    grammarVocabularyScore?: boolean
+    taskAchievementScore?: boolean
+    coherenceStructureScore?: boolean
+    styleScore?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["text"]>
@@ -1331,11 +1379,15 @@ export namespace Prisma {
     correctedText?: boolean
     textScore?: boolean
     feedback?: boolean
+    grammarVocabularyScore?: boolean
+    taskAchievementScore?: boolean
+    coherenceStructureScore?: boolean
+    styleScore?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type TextOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "language" | "skill" | "originalText" | "correctedText" | "textScore" | "feedback" | "createdAt" | "updatedAt", ExtArgs["result"]["text"]>
+  export type TextOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "language" | "skill" | "originalText" | "correctedText" | "textScore" | "feedback" | "grammarVocabularyScore" | "taskAchievementScore" | "coherenceStructureScore" | "styleScore" | "createdAt" | "updatedAt", ExtArgs["result"]["text"]>
 
   export type $TextPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Text"
@@ -1349,6 +1401,10 @@ export namespace Prisma {
       correctedText: string | null
       textScore: number | null
       feedback: string | null
+      grammarVocabularyScore: number | null
+      taskAchievementScore: number | null
+      coherenceStructureScore: number | null
+      styleScore: number | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["text"]>
@@ -4370,6 +4426,10 @@ export namespace Prisma {
     correctedText: 'correctedText',
     textScore: 'textScore',
     feedback: 'feedback',
+    grammarVocabularyScore: 'grammarVocabularyScore',
+    taskAchievementScore: 'taskAchievementScore',
+    coherenceStructureScore: 'coherenceStructureScore',
+    styleScore: 'styleScore',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -4780,6 +4840,10 @@ export namespace Prisma {
     correctedText?: string | null
     textScore?: number | null
     feedback?: string | null
+    grammarVocabularyScore?: number | null
+    taskAchievementScore?: number | null
+    coherenceStructureScore?: number | null
+    styleScore?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4793,6 +4857,10 @@ export namespace Prisma {
     correctedText?: string | null
     textScore?: number | null
     feedback?: string | null
+    grammarVocabularyScore?: number | null
+    taskAchievementScore?: number | null
+    coherenceStructureScore?: number | null
+    styleScore?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4805,6 +4873,10 @@ export namespace Prisma {
     correctedText?: NullableStringFieldUpdateOperationsInput | string | null
     textScore?: NullableFloatFieldUpdateOperationsInput | number | null
     feedback?: NullableStringFieldUpdateOperationsInput | string | null
+    grammarVocabularyScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    taskAchievementScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    coherenceStructureScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    styleScore?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4818,6 +4890,10 @@ export namespace Prisma {
     correctedText?: NullableStringFieldUpdateOperationsInput | string | null
     textScore?: NullableFloatFieldUpdateOperationsInput | number | null
     feedback?: NullableStringFieldUpdateOperationsInput | string | null
+    grammarVocabularyScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    taskAchievementScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    coherenceStructureScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    styleScore?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4831,6 +4907,10 @@ export namespace Prisma {
     correctedText?: string | null
     textScore?: number | null
     feedback?: string | null
+    grammarVocabularyScore?: number | null
+    taskAchievementScore?: number | null
+    coherenceStructureScore?: number | null
+    styleScore?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4843,6 +4923,10 @@ export namespace Prisma {
     correctedText?: NullableStringFieldUpdateOperationsInput | string | null
     textScore?: NullableFloatFieldUpdateOperationsInput | number | null
     feedback?: NullableStringFieldUpdateOperationsInput | string | null
+    grammarVocabularyScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    taskAchievementScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    coherenceStructureScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    styleScore?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

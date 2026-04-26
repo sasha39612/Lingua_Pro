@@ -93,6 +93,38 @@ export class TextService {
     }
   }
 
+  async recordWritingAnalysis(
+    userId: number,
+    language: string,
+    text: string,
+    overallScore: number,
+    grammarVocabularyScore: number,
+    taskAchievementScore: number,
+    coherenceStructureScore: number,
+    styleScore: number,
+  ) {
+    language = (language || 'english').toLowerCase();
+    try {
+      const record = await this.prisma.text.create({
+        data: {
+          userId,
+          language,
+          skill: 'writing',
+          originalText: text,
+          textScore: overallScore, // stored as textScore (generic column shared across all skills)
+          grammarVocabularyScore,
+          taskAchievementScore,
+          coherenceStructureScore,
+          styleScore,
+        },
+      });
+      return { id: record.id, skill: 'writing', score: overallScore, createdAt: record.createdAt };
+    } catch (err: any) {
+      this.logger.error('failed to record writing analysis', err?.message || err);
+      throw err;
+    }
+  }
+
   async getTextsByLanguage(language: string, from?: string, skill?: string, userId?: string) {
     const where: any = { language: language.toLowerCase() };
     if (from) where.createdAt = { gte: new Date(from) };
@@ -101,7 +133,16 @@ export class TextService {
     try {
       const texts = await this.prisma.text.findMany({
         where,
-        select: { textScore: true, feedback: true, createdAt: true, skill: true },
+        select: {
+          textScore: true,
+          feedback: true,
+          createdAt: true,
+          skill: true,
+          grammarVocabularyScore: true,
+          taskAchievementScore: true,
+          coherenceStructureScore: true,
+          styleScore: true,
+        },
         orderBy: { createdAt: 'asc' },
       });
       return { texts };

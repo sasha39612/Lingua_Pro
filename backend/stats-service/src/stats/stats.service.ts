@@ -2,7 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 
 type Period = 'week' | 'month' | 'all';
 
-type MistakeCounts = Record<string, number>;
+// Continuous weakness signal — not a discrete mistake counter.
+// 1 writing submission contributes to up to 4 dimensions; 'observations' ≠ sessions.
+// TODO: per-criterion normalization (distribution-aware) — criteria scores have different
+// natural distributions (grammar clusters 0.8–0.95, coherence 0.4–0.7). When enough
+// historical data exists, replace (1 - score) with normalize(score, criterion).
+type SignalEntry = { observations: number; severitySum: number };
+type SignalMap = Record<string, SignalEntry>;
 
 @Injectable()
 export class StatsService {
@@ -73,7 +79,8 @@ export class StatsService {
         ? allAudioScores.reduce((a, b) => a + b, 0) / allAudioScores.length
         : 0;
 
-    const mistakeCountsByType = this.buildMistakeCountsByType(textData, audioData);
+    const { counts: mistakeCountsByType, severity: mistakeSeverityByType } =
+      this.buildWeaknessSignals(textData, audioData);
     const mistakesTotal = Object.values(mistakeCountsByType).reduce((sum, v) => sum + v, 0);
 
     const progressOverTime = this.buildDailyHistory(textData, audioData, listeningData);
@@ -94,6 +101,7 @@ export class StatsService {
       listening_count: listeningScores.length,
       mistakes_total: mistakesTotal,
       mistake_counts_by_type: mistakeCountsByType,
+      mistake_severity_by_type: mistakeSeverityByType,
       history: progressOverTime,
       charts,
     };
@@ -103,7 +111,16 @@ export class StatsService {
     language: string,
     from?: string,
     userId?: string,
-  ): Promise<{ textScore: number | null; feedback: string | null; createdAt: string; skill?: string }[]> {
+  ): Promise<{
+    textScore: number | null;
+    feedback: string | null;
+    createdAt: string;
+    skill?: string;
+    grammarVocabularyScore: number | null;
+    taskAchievementScore: number | null;
+    coherenceStructureScore: number | null;
+    styleScore: number | null;
+  }[]> {
     try {
       const url = new URL(`${this.textServiceUrl}/text/by-language`);
       url.searchParams.set('language', language);
@@ -114,7 +131,13 @@ export class StatsService {
         this.logger.warn(`[fetchTexts] text-service returned ${resp.status} for language=${language}`);
         return [];
       }
-      const data = await resp.json() as { texts?: { textScore: number | null; feedback: string | null; createdAt: string; skill?: string }[] };
+      const data = await resp.json() as {
+        texts?: {
+          textScore: number | null; feedback: string | null; createdAt: string; skill?: string;
+          grammarVocabularyScore: number | null; taskAchievementScore: number | null;
+          coherenceStructureScore: number | null; styleScore: number | null;
+        }[];
+      };
       return data?.texts ?? [];
     } catch (err: any) {
       this.logger.warn('could not fetch texts from text-service', err?.message);
@@ -207,33 +230,84 @@ export class StatsService {
     });
   }
 
-  private buildMistakeCountsByType(
-    textRows: { feedback: string | null }[],
+  private buildWeaknessSignals(
+    textRows: {
+      feedback: string | null;
+      grammarVocabularyScore: number | null;
+      taskAchievementScore: number | null;
+      coherenceStructureScore: number | null;
+      styleScore: number | null;
+    }[],
     audioRows: { feedback: string | null; pronunciationScore: number | null }[],
-  ): MistakeCounts {
-    const counts: MistakeCounts = {};
+  ): { counts: Record<string, number>; severity: Record<string, number> } {
+    const map: SignalMap = {};
+
+    const LEGACY_SEVERITY: Record<string, number> = {
+      spelling: 0.1, punctuation: 0.1,
+      grammar: 0.2, article: 0.15, preposition: 0.15, vocabulary: 0.15,
+      pronunciation_major: 0.3, pronunciation_minor: 0.15,
+      other: 0.1,
+    };
+
+    // Rejects null, undefined, and NaN — the only values safe to pass to (1 - score)
+    const isValidScore = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+    const accumulate = (key: string, score: number) => {
+      map[key] ??= { observations: 0, severitySum: 0 };
+      map[key].observations++;
+      map[key].severitySum += (1 - score);
+    };
 
     for (const row of textRows) {
-      const feedback = row.feedback?.trim();
-      if (!feedback || feedback === 'Great work! No obvious errors detected.') continue;
+      const gv = isValidScore(row.grammarVocabularyScore);
+      const ta = isValidScore(row.taskAchievementScore);
+      const cs = isValidScore(row.coherenceStructureScore);
+      const st = isValidScore(row.styleScore);
 
-      for (const part of feedback.split(';').map((p) => p.trim()).filter(Boolean)) {
-        const type = this.detectMistakeType(part);
-        counts[type] = (counts[type] ?? 0) + 1;
+      if (gv || ta || cs || st) {
+        // Criteria-based path: continuous signal from structured scores
+        if (gv) accumulate('grammar_vocabulary',  row.grammarVocabularyScore as number);
+        if (ta) accumulate('task_achievement',    row.taskAchievementScore as number);
+        if (cs) accumulate('coherence_structure', row.coherenceStructureScore as number);
+        if (st) accumulate('style',               row.styleScore as number);
+      } else {
+        // Legacy fallback: keyword-parse feedback string
+        const feedback = row.feedback?.trim();
+        if (!feedback || feedback === 'Great work! No obvious errors detected.') continue;
+        for (const part of feedback.split(';').map((p) => p.trim()).filter(Boolean)) {
+          const type = this.detectMistakeType(part);
+          const legacySeverity = LEGACY_SEVERITY[type] ?? 0.1;
+          map[type] ??= { observations: 0, severitySum: 0 };
+          map[type].observations++;
+          map[type].severitySum += legacySeverity;
+        }
       }
     }
 
     for (const row of audioRows) {
       const fromFeedback = this.detectAudioMistakeType(row.feedback);
-      if (fromFeedback) counts[fromFeedback] = (counts[fromFeedback] ?? 0) + 1;
+      if (fromFeedback) {
+        const legacySeverity = LEGACY_SEVERITY[fromFeedback] ?? 0.1;
+        map[fromFeedback] ??= { observations: 0, severitySum: 0 };
+        map[fromFeedback].observations++;
+        map[fromFeedback].severitySum += legacySeverity;
+      }
 
       if (typeof row.pronunciationScore === 'number' && row.pronunciationScore < 0.85) {
-        const type = row.pronunciationScore < 0.7 ? 'pronunciation_major' : 'pronunciation_minor';
-        counts[type] = (counts[type] ?? 0) + 1;
+        accumulate(
+          row.pronunciationScore < 0.7 ? 'pronunciation_major' : 'pronunciation_minor',
+          row.pronunciationScore,
+        );
       }
     }
 
-    return counts;
+    const counts: Record<string, number> = {};
+    const severity: Record<string, number> = {};
+    for (const [key, entry] of Object.entries(map)) {
+      counts[key] = entry.observations;
+      severity[key] = entry.severitySum;
+    }
+    return { counts, severity };
   }
 
   private detectMistakeType(segment: string): string {
@@ -267,7 +341,7 @@ export class StatsService {
   }
 
   private buildFrontendCharts(
-    mistakeCountsByType: MistakeCounts,
+    mistakeCountsByType: Record<string, number>,
     progressOverTime: Array<{ date: string; text_score: number; pronunciation_score: number }>,
   ) {
     const sortedMistakes = Object.entries(mistakeCountsByType).sort((a, b) => b[1] - a[1]);

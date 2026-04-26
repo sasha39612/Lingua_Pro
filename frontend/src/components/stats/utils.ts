@@ -73,6 +73,11 @@ export function getSkillStatus(pct: number): string {
 }
 
 export function formatMistakeLabel(key: string): string {
+  if (process.env.NODE_ENV !== 'production') {
+    // Fallback produces English-only strings — add a WEAK_POINT_CONFIG entry with a
+    // translationKey to ensure non-English locales get a translated label (WCAG 3.1.2).
+    console.warn(`[WeakPoints] No WEAK_POINT_CONFIG entry for key "${key}". Add it to avoid untranslated labels.`);
+  }
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -124,40 +129,66 @@ export function getPeriodStartDate(period: 'week' | 'month' | 'all'): string | n
   return d.toISOString().slice(0, 10);
 }
 
+const WINDOW = 5;
+const MIN_WINDOW = 3;
+
 export function computePreviousReadiness(
   history: Array<{ date: string; text_score: number; pronunciation_score: number }>,
   period: 'week' | 'month' | 'all',
   targetLevel: TargetLevel,
 ): number | null {
-  if (period === 'all' || history.length < 2) return null;
+  // 'all' uses full range; delta logic still applies if there's enough history
+  if (history.length < MIN_WINDOW + 1) return null;
 
   const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date));
-  const first = sorted[0];
+  // w = half of available history, capped at WINDOW.
+  // previousWindow = entries [-(2w) .. -(w+1)]; current readiness is computed at the call site.
+  // Non-overlapping by construction: slice(-2w, -w) and slice(-w) are disjoint.
+  const w = Math.min(WINDOW, Math.floor(sorted.length / 2));
+  const previousWindow = sorted.slice(-w * 2, -w);
 
-  const proxyRaw = Math.round((first.text_score + first.pronunciation_score) / 2);
+  if (previousWindow.length < MIN_WINDOW) return null;
 
-  return computeReadinessTowardTarget(proxyRaw, targetLevel);
+  const avgRaw = (arr: typeof sorted) => {
+    const sum = arr.reduce((s, h) => s + (h.text_score + h.pronunciation_score) / 2, 0);
+    return Math.round(sum / arr.length);
+  };
+
+  return computeReadinessTowardTarget(avgRaw(previousWindow), targetLevel);
 }
 
 export const WEAK_POINT_CONFIG: Record<string, { label: string; href: string }> = {
-  grammar:             { label: 'Grammar',      href: '/writing' },
-  spelling:            { label: 'Spelling',      href: '/writing' },
-  punctuation:         { label: 'Punctuation',   href: '/writing' },
-  article:             { label: 'Articles',      href: '/writing' },
-  preposition:         { label: 'Prepositions',  href: '/writing' },
-  vocabulary:          { label: 'Vocabulary',    href: '/writing' },
-  tense:               { label: 'Tense Usage',   href: '/writing' },
-  other:               { label: 'Other',         href: '/writing' },
-  pronunciation_major: { label: 'Pronunciation', href: '/speaking' },
-  pronunciation_minor: { label: 'Pronunciation', href: '/speaking' },
+  grammar:              { label: 'Grammar',        href: '/writing' },
+  spelling:             { label: 'Spelling',        href: '/writing' },
+  punctuation:          { label: 'Punctuation',     href: '/writing' },
+  article:              { label: 'Articles',        href: '/writing' },
+  preposition:          { label: 'Prepositions',    href: '/writing' },
+  vocabulary:           { label: 'Vocabulary',      href: '/writing' },
+  tense:                { label: 'Tense Usage',     href: '/writing' },
+  other:                { label: 'Other',           href: '/writing' },
+  // Structured criteria keys (new records with writing analysis criteria)
+  grammar_vocabulary:   { label: 'Grammar & Vocab', href: '/writing' },
+  task_achievement:     { label: 'Task Achievement', href: '/writing' },
+  coherence_structure:  { label: 'Coherence',        href: '/writing' },
+  style:                { label: 'Style',             href: '/writing' },
+  pronunciation_major:  { label: 'Pronunciation',    href: '/speaking' },
+  pronunciation_minor:  { label: 'Pronunciation',    href: '/speaking' },
 };
+
+// Keep in sync with LEGACY_SEVERITY['other'] in stats-service
+const DEFAULT_SEVERITY_PER_OBS = 0.1;
 
 export function buildWeakPoints(
   mistakeCounts: Record<string, number>,
+  mistakeSeverity: Record<string, number> = {},
   limit = 5,
 ): WeakPoint[] {
   return Object.entries(mistakeCounts)
-    .sort((a, b) => b[1] - a[1])
+    .sort((a, b) => {
+      const sA = mistakeSeverity[a[0]] ?? a[1] * DEFAULT_SEVERITY_PER_OBS;
+      const sB = mistakeSeverity[b[0]] ?? b[1] * DEFAULT_SEVERITY_PER_OBS;
+      return sB - sA;
+    })
     .slice(0, limit)
     .map(([key, count]) => {
       const cfg = WEAK_POINT_CONFIG[key];

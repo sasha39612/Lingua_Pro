@@ -19,9 +19,13 @@ model Text {
   skill         String   @default("writing")
   originalText  String   @map("original_text")
   correctedText String?  @map("corrected_text")
-  textScore     Float?   @map("text_score")
-  feedback      String?
-  createdAt     DateTime @default(now()) @map("created_at")
+  textScore                Float?   @map("text_score")
+  feedback                 String?
+  grammarVocabularyScore   Float?   @map("grammar_vocabulary_score")
+  taskAchievementScore     Float?   @map("task_achievement_score")
+  coherenceStructureScore  Float?   @map("coherence_structure_score")
+  styleScore               Float?   @map("style_score")
+  createdAt                DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@index([userId])
