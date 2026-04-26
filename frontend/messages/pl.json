@@ -175,7 +175,7 @@
     "generatedText": "Wygenerowany tekst",
     "generateText": "Wygeneruj tekst",
     "generating": "Generowanie…",
-    "clickToGenerate": "Kliknij „Wygeneruj tekst", aby otrzymać fragment do przeczytania na głos.",
+    "clickToGenerate": "Kliknij „Wygeneruj tekst”, aby otrzymać fragment do przeczytania na głos.",
     "focusSounds": "Dźwięki wymagające uwagi:",
     "recordingReady": "Nagranie gotowe",
     "pronunciationFeedback": "Informacje zwrotne o wymowie",
@@ -189,7 +189,7 @@
     "youSaid": "Powiedziałeś:",
     "analysisFailed": "Analiza nie powiodła się. Spróbuj ponownie.",
     "generateToEnable": "Wygeneruj tekst i nagraj siebie, aby włączyć analizę.",
-    "listenTo": "Posłuchaj „{word}"",
+    "listenTo": "Posłuchaj „{word}”",
     "statPronunciation": "Wymowa",
     "statAdded": "Dodane",
     "statMissed": "Pominięte"
