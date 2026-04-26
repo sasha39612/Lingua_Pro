@@ -307,5 +307,17 @@
     "thisWeek": "This week",
     "thisMonth": "This month",
     "allTime": "All time"
+  },
+  "contact": {
+    "title": "Contact Us",
+    "subtitle": "Send us a message and we'll get back to you.",
+    "messagePlaceholder": "Your message…",
+    "submitButton": "Send Message",
+    "submittingButton": "Sending…",
+    "successMessage": "Message sent! We'll get back to you shortly.",
+    "errorMessage": "Failed to send. Please try again.",
+    "mathLabel": "Human check: What is {a} + {b}?",
+    "mathPlaceholder": "Answer",
+    "mathError": "Incorrect answer — please try again."
   }
 }

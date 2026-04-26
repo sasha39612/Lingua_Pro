@@ -307,5 +307,17 @@
     "thisWeek": "Diese Woche",
     "thisMonth": "Diesen Monat",
     "allTime": "Gesamt"
+  },
+  "contact": {
+    "title": "Kontakt",
+    "subtitle": "Senden Sie uns eine Nachricht und wir melden uns bei Ihnen.",
+    "messagePlaceholder": "Ihre Nachricht…",
+    "submitButton": "Nachricht senden",
+    "submittingButton": "Wird gesendet…",
+    "successMessage": "Nachricht gesendet! Wir melden uns in Kürze.",
+    "errorMessage": "Senden fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "mathLabel": "Menschenprüfung: Was ergibt {a} + {b}?",
+    "mathPlaceholder": "Antwort",
+    "mathError": "Falsche Antwort — bitte versuchen Sie es erneut."
   }
 }

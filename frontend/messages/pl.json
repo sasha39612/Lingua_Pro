@@ -307,5 +307,17 @@
     "thisWeek": "Ten tydzień",
     "thisMonth": "Ten miesiąc",
     "allTime": "Cały czas"
+  },
+  "contact": {
+    "title": "Kontakt",
+    "subtitle": "Wyślij nam wiadomość, a my skontaktujemy się z Tobą.",
+    "messagePlaceholder": "Twoja wiadomość…",
+    "submitButton": "Wyślij wiadomość",
+    "submittingButton": "Wysyłanie…",
+    "successMessage": "Wiadomość wysłana! Odezwiemy się wkrótce.",
+    "errorMessage": "Wysyłanie nie powiodło się. Spróbuj ponownie.",
+    "mathLabel": "Weryfikacja człowieka: Ile to {a} + {b}?",
+    "mathPlaceholder": "Odpowiedź",
+    "mathError": "Błędna odpowiedź — spróbuj ponownie."
   }
 }

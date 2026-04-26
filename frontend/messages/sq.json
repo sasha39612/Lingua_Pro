@@ -307,5 +307,17 @@
     "thisWeek": "Këtë javë",
     "thisMonth": "Këtë muaj",
     "allTime": "Gjithë kohën"
+  },
+  "contact": {
+    "title": "Na Kontaktoni",
+    "subtitle": "Dërgoni një mesazh dhe do t'ju kthejmë përgjigje.",
+    "messagePlaceholder": "Mesazhi juaj…",
+    "submitButton": "Dërgo Mesazhin",
+    "submittingButton": "Po dërgohet…",
+    "successMessage": "Mesazhi u dërgua! Do t'ju kontaktojmë së shpejti.",
+    "errorMessage": "Dërgimi dështoi. Ju lutemi provoni përsëri.",
+    "mathLabel": "Kontroll njeriu: Sa është {a} + {b}?",
+    "mathPlaceholder": "Përgjigja",
+    "mathError": "Përgjigje e gabuar — ju lutemi provoni përsëri."
   }
 }
