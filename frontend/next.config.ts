@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
+import createNextIntlPlugin from 'next-intl/plugin';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
@@ -57,7 +58,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(withBundleAnalyzer(nextConfig), {
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+
+export default withSentryConfig(withNextIntl(withBundleAnalyzer(nextConfig)), {
   silent: true,
   sourcemaps: {
     // Upload source maps to Sentry then delete them from the build output

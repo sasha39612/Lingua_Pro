@@ -3,11 +3,13 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/app-store';
+import { useTranslations } from 'next-intl';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAppStore((s) => s.user);
+  const t = useTranslations('errors');
   // Zustand persist reads from localStorage only on the client. Delay auth
   // enforcement until after first mount so we don't redirect before the
   // persisted user has been loaded.
@@ -45,8 +47,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!user && !isPublicRoute) {
     return (
       <div className="mx-auto mt-10 max-w-xl rounded-2xl bg-white p-6 text-center shadow-float">
-        <h1 className="text-xl font-semibold">Authentication Required</h1>
-        <p className="mt-2 text-sm text-slate-600">Redirecting to login...</p>
+        <h1 className="text-xl font-semibold">{t('authRequired')}</h1>
+        <p className="mt-2 text-sm text-slate-600">{t('authRequiredSub')}</p>
       </div>
     );
   }
@@ -54,8 +56,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (user && pathname === '/admin' && user.role !== 'admin') {
     return (
       <div className="mx-auto mt-10 max-w-xl rounded-2xl bg-white p-6 text-center shadow-float">
-        <h1 className="text-xl font-semibold">Admin Access Required</h1>
-        <p className="mt-2 text-sm text-slate-600">Redirecting to dashboard...</p>
+        <h1 className="text-xl font-semibold">{t('adminRequired')}</h1>
+        <p className="mt-2 text-sm text-slate-600">{t('adminRequiredSub')}</p>
       </div>
     );
   }

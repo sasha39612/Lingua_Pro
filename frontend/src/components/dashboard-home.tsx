@@ -4,15 +4,18 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/app-store';
+import { useTranslations } from 'next-intl';
 
 const SKILL_LINKS = [
-  { href: '/speaking', icon: '/icons/speaking-inverted.svg', label: 'Speaking' },
-  { href: '/listening', icon: '/icons/listening-inverted.svg', label: 'Listening' },
-  { href: '/reading', icon: '/icons/reading-inverted.svg', label: 'Reading' },
-  { href: '/writing', icon: '/icons/writing-inverted.svg', label: 'Writing' },
+  { href: '/speaking', icon: '/icons/speaking-inverted.svg', labelKey: 'speaking' as const },
+  { href: '/listening', icon: '/icons/listening-inverted.svg', labelKey: 'listening' as const },
+  { href: '/reading', icon: '/icons/reading-inverted.svg', labelKey: 'reading' as const },
+  { href: '/writing', icon: '/icons/writing-inverted.svg', labelKey: 'writing' as const },
 ];
 
 export function DashboardHome() {
+  const tn = useTranslations('nav');
+  const td = useTranslations('dashboard');
   const router = useRouter();
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
@@ -46,11 +49,13 @@ export function DashboardHome() {
             <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-7">
               <div className="flex items-center gap-4">
                 <Link href="/dashboard" className="text-3xl font-bold leading-none tracking-tight text-white">
-                  LanguageLab
+                  {td('brand')}
                 </Link>
                 <span className="h-6 w-px bg-white/30" />
                 <nav className="flex items-center gap-1">
-                  {SKILL_LINKS.map(({ href, icon, label }) => (
+                  {SKILL_LINKS.map(({ href, icon, labelKey }) => {
+                    const label = tn(labelKey);
+                    return (
                     <Link
                       key={href}
                       href={href}
@@ -60,24 +65,25 @@ export function DashboardHome() {
                       <Image src={icon} alt={label} width={28} height={28} className="h-7 w-7 object-contain" />
                       <span className="mt-0.5 text-[10px] font-medium leading-none opacity-75">{label}</span>
                     </Link>
-                  ))}
+                    );
+                  })}
                 </nav>
               </div>
               <div className="flex items-center gap-5 text-sm sm:text-base">
                 {user?.role === 'admin' ? (
                   <>
                     <Link href="/admin" className="transition hover:opacity-100 opacity-95">
-                      Admin
+                      {tn('admin')}
                     </Link>
                     <span className="h-5 w-px bg-white/35" />
                   </>
                 ) : null}
                 <Link href="/stats" className="transition hover:opacity-100 opacity-95">
-                  Statistic
+                  {tn('stats')}
                 </Link>
                 <span className="h-5 w-px bg-white/35" />
                 <Link href="/settings" className="transition hover:opacity-100 opacity-95">
-                  Settings
+                  {tn('settings')}
                 </Link>
                 <span className="h-5 w-px bg-white/35" />
                 {user ? (
@@ -86,11 +92,11 @@ export function DashboardHome() {
                     onClick={handleLogout}
                     className="transition hover:opacity-100 opacity-95"
                   >
-                    Log Out
+                    {tn('logOut')}
                   </button>
                 ) : (
                   <Link href="/login" className="transition hover:opacity-100 opacity-95">
-                    Log In
+                    {tn('logIn')}
                   </Link>
                 )}
               </div>
@@ -98,33 +104,33 @@ export function DashboardHome() {
           </header>
 
           <div className="bg-[#efeff2] px-8 pb-14 pt-20 text-center">
-            <h1 className="text-5xl font-bold tracking-tight text-[#23304f]">Language Studying</h1>
-            <p className="mt-3 text-4 text-[#607091]">Practice. Progress. Perform.</p>
+            <h1 className="text-5xl font-bold tracking-tight text-[#23304f]">{td('heading')}</h1>
+            <p className="mt-3 text-4 text-[#607091]">{td('tagline')}</p>
 
             <div className="mx-auto mt-5 flex max-w-3xl flex-wrap justify-center gap-2 text-xs text-slate-600">
-              <span className="rounded-full bg-white px-3 py-1">User: {user?.email ?? 'guest'}</span>
-              <span className="rounded-full bg-white px-3 py-1">Text score: {avgText}%</span>
-              <span className="rounded-full bg-white px-3 py-1">Audio score: {avgAudio}%</span>
-              <span className="rounded-full bg-white px-3 py-1">Last task: {lastTaskTitle ?? 'none'}</span>
+              <span className="rounded-full bg-white px-3 py-1">{td('userLabel')} {user?.email ?? td('guest')}</span>
+              <span className="rounded-full bg-white px-3 py-1">{td('textScoreLabel')} {avgText}%</span>
+              <span className="rounded-full bg-white px-3 py-1">{td('audioScoreLabel')} {avgAudio}%</span>
+              <span className="rounded-full bg-white px-3 py-1">{td('lastTaskLabel')} {lastTaskTitle ?? td('noTask')}</span>
             </div>
 
             <div className="mx-auto mt-10 grid max-w-4xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              <SkillCard href="/speaking" iconSrc="/icons/speaking.svg" title="Speaking" />
-              <SkillCard href="/listening" iconSrc="/icons/listening.svg" title="Listening" />
-              <SkillCard href="/reading" iconSrc="/icons/reading.svg" title="Reading" />
-              <SkillCard href="/writing" iconSrc="/icons/writing.svg" title="Writing" />
+              <SkillCard href="/speaking" iconSrc="/icons/speaking.svg" title={tn('speaking')} openTask={td('openTask')} />
+              <SkillCard href="/listening" iconSrc="/icons/listening.svg" title={tn('listening')} openTask={td('openTask')} />
+              <SkillCard href="/reading" iconSrc="/icons/reading.svg" title={tn('reading')} openTask={td('openTask')} />
+              <SkillCard href="/writing" iconSrc="/icons/writing.svg" title={tn('writing')} openTask={td('openTask')} />
             </div>
           </div>
 
           <footer className="bg-gradient-to-r from-[#1e3358] to-[#101d35] px-6 py-6 text-sm text-slate-200">
             <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-4 sm:gap-8">
-              <FooterLink href="/contact" label="Contact Us" />
+              <FooterLink href="/contact" label={td('contactUs')} />
               <span className="hidden h-4 w-px bg-white/30 sm:block" />
-              <FooterLink href="/privacy" label="Privacy Policy" />
+              <FooterLink href="/privacy" label={td('privacyPolicy')} />
               <span className="hidden h-4 w-px bg-white/30 sm:block" />
-              <FooterLink href="/terms" label="Terms and Conditions" />
+              <FooterLink href="/terms" label={td('terms')} />
               <span className="hidden h-4 w-px bg-white/30 sm:block" />
-              <FooterLink href="/faq" label="FAQ" />
+              <FooterLink href="/faq" label={td('faq')} />
             </div>
           </footer>
         </div>
@@ -133,7 +139,7 @@ export function DashboardHome() {
   );
 }
 
-function SkillCard({ href, iconSrc, title }: { href: string; iconSrc: string; title: string }) {
+function SkillCard({ href, iconSrc, title, openTask }: { href: string; iconSrc: string; title: string; openTask: string }) {
   return (
     <Link
       href={href}
@@ -143,7 +149,7 @@ function SkillCard({ href, iconSrc, title }: { href: string; iconSrc: string; ti
         <Image src={iconSrc} alt={title} width={96} height={96} className="h-24 w-24 object-contain" />
       </div>
       <p className="mt-5 text-4 font-semibold text-[#26344f]">{title}</p>
-      <p className="mt-1 text-xs text-slate-500 opacity-0 transition group-hover:opacity-100">Open task</p>
+      <p className="mt-1 text-xs text-slate-500 opacity-0 transition group-hover:opacity-100">{openTask}</p>
     </Link>
   );
 }

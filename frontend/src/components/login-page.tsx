@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { LabFrame } from '@/components/lab-frame';
 import { AuthUser } from '@/lib/types';
 import { useAppStore } from '@/store/app-store';
+import { useTranslations } from 'next-intl';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -17,9 +18,10 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
+  const t = useTranslations('login');
   const router = useRouter();
   const setUser = useAppStore((s) => s.setUser);
-  const [status, setStatus] = useState('Please login to access learning tasks.');
+  const [status, setStatus] = useState('');
   const [isPending, setIsPending] = useState(false);
 
   const form = useForm<LoginValues>({
@@ -37,13 +39,13 @@ export function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.error ?? 'Login failed');
+        setStatus(data.error ?? t('loginFailed'));
         return;
       }
       setUser(data.user as AuthUser);
       router.push('/dashboard');
     } catch {
-      setStatus('Login failed — please try again');
+      setStatus(t('loginFailedRetry'));
     } finally {
       setIsPending(false);
     }
@@ -59,13 +61,13 @@ export function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.error ?? 'Demo login failed');
+        setStatus(data.error ?? t('demoLoginFailed'));
         return;
       }
       setUser(data.user as AuthUser);
       router.push('/dashboard');
     } catch {
-      setStatus('Demo login failed — please try again');
+      setStatus(t('demoLoginFailedRetry'));
     } finally {
       setIsPending(false);
     }
@@ -74,20 +76,22 @@ export function LoginPage() {
   return (
     <LabFrame>
       <section className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-float">
-        <h1 className="text-2xl font-bold">Login</h1>
-        <p className="mt-2 text-sm text-slate-600">Use your Lingua Pro account to continue.</p>
-        <p className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white">{status}</p>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
+        <p className="mt-2 text-sm text-slate-600">{t('subtitle')}</p>
+        <p className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white">
+          {status || t('defaultStatus')}
+        </p>
 
         <form className="mt-4 space-y-3" onSubmit={form.handleSubmit(onSubmit)}>
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t('emailPlaceholder')}
             className="w-full rounded-xl border border-slate-300 px-3 py-2"
             {...form.register('email')}
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t('passwordPlaceholder')}
             className="w-full rounded-xl border border-slate-300 px-3 py-2"
             {...form.register('password')}
           />
@@ -96,12 +100,12 @@ export function LoginPage() {
             className="w-full rounded-xl bg-teal-700 px-4 py-2 font-medium text-white"
             disabled={isPending}
           >
-            {isPending ? 'Logging in...' : 'Login'}
+            {isPending ? t('submittingButton') : t('submitButton')}
           </button>
         </form>
 
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-600">Temporary Access</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-600">{t('temporaryAccess')}</p>
           <div className="mt-2 flex gap-2">
             <button
               type="button"
@@ -109,7 +113,7 @@ export function LoginPage() {
               disabled={isPending}
               className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
             >
-              Demo User
+              {t('demoUser')}
             </button>
             <button
               type="button"
@@ -117,7 +121,7 @@ export function LoginPage() {
               disabled={isPending}
               className="flex-1 rounded-lg bg-indigo-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
             >
-              Demo Admin
+              {t('demoAdmin')}
             </button>
           </div>
         </div>

@@ -3,12 +3,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AppLanguage, AuthUser, TextResult } from '@/lib/types';
+import type { Locale } from '@/i18n/request';
 
 interface AppState {
   user: AuthUser | null;
   language: AppLanguage;
   level: string;
   theme: 'light' | 'dark' | 'system';
+  uiLocale: Locale;
   lastTaskTitle: string | null;
   audioScores: number[];
   recentResults: TextResult[];
@@ -16,6 +18,7 @@ interface AppState {
   setLanguage: (language: AppLanguage) => void;
   setLevel: (level: string) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setUiLocale: (locale: Locale) => void;
   setLastTaskTitle: (title: string | null) => void;
   addAudioScore: (score: number) => void;
   addResult: (result: TextResult) => void;
@@ -30,6 +33,7 @@ export const useAppStore = create<AppState>()(
       language: 'English',
       level: 'A2',
       theme: 'system',
+      uiLocale: 'en',
       lastTaskTitle: null,
       audioScores: [0.62, 0.7, 0.68, 0.77],
       recentResults: [],
@@ -37,6 +41,7 @@ export const useAppStore = create<AppState>()(
       setLanguage: (language) => set({ language }),
       setLevel: (level) => set({ level }),
       setTheme: (theme) => set({ theme }),
+      setUiLocale: (uiLocale) => set({ uiLocale }),
       setLastTaskTitle: (title) => set({ lastTaskTitle: title }),
       addAudioScore: (score) =>
         set((state) => ({
@@ -56,6 +61,7 @@ export const useAppStore = create<AppState>()(
         language: state.language,
         level: state.level,
         theme: state.theme,
+        uiLocale: state.uiLocale,
         lastTaskTitle: state.lastTaskTitle,
       }),
     },

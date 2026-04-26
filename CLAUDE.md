@@ -181,6 +181,7 @@ type: 'correct' | 'missing' | 'extra' | 'mispronounced'
 - **No Apollo Client** — custom lightweight `graphqlRequest()` in `src/lib/graphql-client.ts`
 - All GraphQL operations in `src/lib/graphql-operations.ts`; hashes in `src/lib/persisted-queries.ts`
 - **Zustand** for global state (`src/store/app-store.ts`)
+- **next-intl** for i18n — cookie-based locale (`NEXT_LOCALE`), no URL prefix; messages in `frontend/messages/{locale}.json`; UI language switched via Settings page; supported locales: `en`, `de`, `sq` (Albanian), `pl`, `uk`
 - **React Hook Form + Zod** for form validation; **TanStack Query** for server state / caching
 - `NEXT_PUBLIC_API_URL` is **baked at build time** — must be set as `ARG` in Dockerfile before `pnpm run build`
 
@@ -209,6 +210,7 @@ Lingua_Pro/
 │   └── workflows/test.yml            # Vitest unit tests on push + PRs
 │
 ├── frontend/                        # Next.js 15 App Router
+│   ├── messages/                    # next-intl locale files: en.json, de.json, sq.json, pl.json, uk.json
 │   └── src/
 │       ├── app/
 │       │   ├── api/
@@ -247,7 +249,10 @@ Lingua_Pro/
 │       │   ├── admin-hooks.ts           # useAdminStats, useAdminUsers (staleTime: 60_000)
 │       │   ├── persisted-queries.ts     # SHA-256 hash map per operation name
 │       │   └── types.ts                 # Includes AdminUser, AdminStatsOverview
-│       └── store/app-store.ts           # Zustand (user metadata, language, level, theme) — no token; auth is httpOnly cookie
+│       ├── store/app-store.ts           # Zustand (user metadata, language, level, theme, uiLocale) — no token; auth is httpOnly cookie
+│       └── i18n/
+│           ├── request.ts               # next-intl getRequestConfig — reads NEXT_LOCALE cookie, falls back to 'en'
+│           └── types.ts                 # IntlMessages augmentation for type-safe translation keys
 │
 └── backend/
     ├── api-gateway/                 # NestJS, Apollo Federation Gateway, :8080

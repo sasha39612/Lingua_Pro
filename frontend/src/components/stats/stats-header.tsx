@@ -2,19 +2,7 @@
 
 import { SelectDropdown } from '@/components/select-dropdown';
 import { Period, TargetLevel } from './types';
-
-const PERIOD_OPTIONS = [
-  { value: 'week', label: 'This week' },
-  { value: 'month', label: 'This month' },
-  { value: 'all', label: 'All time' },
-];
-
-const TARGET_LEVEL_OPTIONS = [
-  { value: 'B1', label: 'Target: B1' },
-  { value: 'B2', label: 'Target: B2' },
-  { value: 'C1', label: 'Target: C1' },
-  { value: 'C2', label: 'Target: C2' },
-];
+import { useTranslations } from 'next-intl';
 
 interface StatsHeaderProps {
   language: string;
@@ -37,17 +25,32 @@ export function StatsHeader({
   onRefresh,
   isRefreshing,
 }: StatsHeaderProps) {
+  const t = useTranslations('stats');
+
+  const PERIOD_OPTIONS = [
+    { value: 'week', label: t('periodWeek') },
+    { value: 'month', label: t('periodMonth') },
+    { value: 'all', label: t('periodAll') },
+  ];
+
+  const TARGET_LEVEL_OPTIONS = [
+    { value: 'B1', label: t('targetPrefix', { level: 'B1' }) },
+    { value: 'B2', label: t('targetPrefix', { level: 'B2' }) },
+    { value: 'C1', label: t('targetPrefix', { level: 'C1' }) },
+    { value: 'C2', label: t('targetPrefix', { level: 'C2' }) },
+  ];
+
   return (
     <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-float">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">
-          Prepare for {targetLevel} Exam
+          {t('prepareFor', { level: targetLevel })}
         </h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          You are {examReadiness}% ready · {language}
+          {t('youAreReady', { readiness: examReadiness, language })}
         </p>
         <p className="mt-0.5 text-xs text-slate-400">
-          Based on reading, writing, speaking, and listening performance
+          {t('basedOn')}
         </p>
       </div>
 
@@ -56,7 +59,7 @@ export function StatsHeader({
           type="button"
           onClick={onRefresh}
           className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
-          title="Refresh statistics"
+          title={t('refreshTitle')}
         >
           <svg
             className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
@@ -67,7 +70,7 @@ export function StatsHeader({
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          {isRefreshing ? 'Refreshing…' : 'Refresh'}
+          {isRefreshing ? t('refreshing') : t('refresh')}
         </button>
         <div className="w-32">
           <SelectDropdown

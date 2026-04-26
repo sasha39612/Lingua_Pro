@@ -5,6 +5,7 @@ import { LabFrame } from '@/components/lab-frame';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
 import { useAiStream } from '@/lib/use-ai-stream';
+import { useTranslations } from 'next-intl';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,12 +41,12 @@ interface AnswersResult {
 
 const OPTION_LABELS = ['A', 'B', 'C', 'D'] as const;
 
-const SECTION_LABELS: Record<ReadingQuestionType, string> = {
-  multiple_choice: 'Multiple Choice',
-  true_false_ng: 'True / False / Not Given',
-  matching: 'Matching',
-  vocabulary: 'Vocabulary in Context',
-  main_idea: 'Main Idea',
+const SECTION_LABEL_KEYS: Record<ReadingQuestionType, string> = {
+  multiple_choice: 'multipleChoice',
+  true_false_ng: 'trueFalseNg',
+  matching: 'matching',
+  vocabulary: 'vocabulary',
+  main_idea: 'mainIdea',
 };
 
 const SECTION_ORDER: ReadingQuestionType[] = [
@@ -59,6 +60,7 @@ const SECTION_ORDER: ReadingQuestionType[] = [
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function ReadingPage() {
+  const t = useTranslations('reading');
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const user = useAppStore((s) => s.user);
@@ -80,7 +82,7 @@ export function ReadingPage() {
     onEvent: useCallback((ev: ReadingStreamEvent) => {
       if (ev.event === 'task_ready') {
         const raw = ev.data[0];
-        if (!raw) { setTaskError('No reading task available.'); return; }
+        if (!raw) { setTaskError(t('noTask')); return; }
         const questions = Array.isArray(raw.questions)
           ? raw.questions
           : typeof raw.questions === 'string'
@@ -88,19 +90,19 @@ export function ReadingPage() {
             : [];
         setTask({ taskId: (raw as any).id ?? (raw as any).taskId, passage: (raw as any).referenceText ?? (raw as any).passage ?? '', questions });
       } else if (ev.event === 'error') {
-        setTaskError(ev.data?.message ?? 'Failed to load reading task.');
+        setTaskError(ev.data?.message ?? t('failedToLoad'));
       }
-    }, []),
+    }, [t]),
     onError: useCallback(() => {
-      setTaskError('Connection error loading task. Please try again.');
-    }, []),
+      setTaskError(t('connectionError'));
+    }, [t]),
   });
 
   const loadingTask = readingStream.status === 'streaming';
 
   const fetchTask = useCallback(() => {
     if (!user) {
-      setTaskError('You must be logged in to load a reading task.');
+      setTaskError(t('authError'));
       return;
     }
     readingStream.cancel();
@@ -168,7 +170,7 @@ export function ReadingPage() {
 
         {/* ── Header ────────────────────────────────────────────────────────── */}
         <section className="rounded-2xl bg-white p-5 shadow-float">
-          <h1 className="text-2xl font-bold">Reading</h1>
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
           <p className="mt-1 text-sm text-slate-600">{language} · {level}</p>
 
           {!task && !loadingTask && (
@@ -177,14 +179,14 @@ export function ReadingPage() {
               onClick={fetchTask}
               className="mt-4 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800"
             >
-              Start Reading
+              {t('startReading')}
             </button>
           )}
 
           {loadingTask && (
             <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-teal-600 border-t-transparent" />
-              Generating reading passage…
+              {t('generatingPassage')}
             </div>
           )}
 
@@ -194,7 +196,7 @@ export function ReadingPage() {
         {/* ── Passage ───────────────────────────────────────────────────────── */}
         {task && (
           <section className="rounded-2xl bg-white p-5 shadow-float">
-            <h2 className="mb-3 text-base font-semibold text-slate-800">Read the text</h2>
+            <h2 className="mb-3 text-base font-semibold text-slate-800">{t('readTheText')}</h2>
             <article className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
               {task.passage}
             </article>
@@ -205,7 +207,7 @@ export function ReadingPage() {
         {task && questionsByType.map(({ type, items }) => (
           <section key={type} className="rounded-2xl bg-white p-5 shadow-float">
             <h2 className="mb-4 text-base font-semibold text-slate-800">
-              {SECTION_LABELS[type]}
+              {t(SECTION_LABEL_KEYS[type] as Parameters<typeof t>[0])}
             </h2>
             <div className="space-y-5">
               {items.map(({ q, idx }) => {
@@ -238,10 +240,10 @@ export function ReadingPage() {
                 disabled={!allAnswered}
                 className="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-40"
               >
-                Submit Answers
+                {t('submitAnswers')}
               </button>
               {!allAnswered && (
-                <p className="text-xs text-slate-500">Answer all questions to submit</p>
+                <p className="text-xs text-slate-500">{t('answerAll')}</p>
               )}
             </div>
           </section>
@@ -250,7 +252,7 @@ export function ReadingPage() {
         {/* ── Result ────────────────────────────────────────────────────────── */}
         {result && (
           <section className="rounded-2xl bg-white p-5 shadow-float">
-            <h2 className="text-lg font-semibold">Result</h2>
+            <h2 className="text-lg font-semibold">{t('result')}</h2>
             <div className="mt-3 flex items-center gap-4">
               <div
                 className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white ${
@@ -264,12 +266,12 @@ export function ReadingPage() {
                 {scorePercent}%
               </div>
               <p className="text-sm text-slate-700">
-                {result.correct} out of {result.total} correct.{' '}
+                {t('resultSummary', { correct: result.correct, total: result.total })}{' '}
                 {scorePercent === 100
-                  ? 'Perfect score!'
+                  ? t('perfectScore')
                   : scorePercent! >= 60
-                    ? 'Good effort — review the incorrect answers above.'
-                    : 'Keep practising — read again and try a new task.'}
+                    ? t('goodEffort')
+                    : t('keepPractising')}
               </p>
             </div>
 
@@ -279,7 +281,7 @@ export function ReadingPage() {
               disabled={loadingTask}
               className="mt-4 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-40"
             >
-              {loadingTask ? 'Loading…' : 'Next Task'}
+              {loadingTask ? t('loading') : t('nextTask')}
             </button>
           </section>
         )}
@@ -301,6 +303,7 @@ interface QuestionBlockProps {
 }
 
 function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }: QuestionBlockProps) {
+  const t = useTranslations('reading');
   const questionLabel = (
     <p className="mb-3 text-sm font-medium text-slate-800">
       <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">
@@ -348,7 +351,7 @@ function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }:
         </div>
         {qResult && (
           <p className={`mt-2 text-xs font-medium ${qResult.correct ? 'text-teal-700' : 'text-red-600'}`}>
-            {qResult.correct ? 'Correct!' : `Incorrect — correct answer: ${q.correctAnswer}`}
+            {qResult.correct ? t('correct') : t('incorrect', { answer: q.correctAnswer ?? '' })}
           </p>
         )}
       </div>
@@ -395,7 +398,7 @@ function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }:
         </div>
         {qResult && (
           <p className={`mt-2 text-xs font-medium ${qResult.correct ? 'text-teal-700' : 'text-red-600'}`}>
-            {qResult.correct ? 'Correct!' : `Incorrect — correct answer: ${q.correctAnswer}`}
+            {qResult.correct ? t('correct') : t('incorrect', { answer: q.correctAnswer ?? '' })}
           </p>
         )}
       </div>
@@ -406,7 +409,7 @@ function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }:
   if (q.type === 'matching') {
     const opts = q.matchingOptions ?? [];
     const dropdownOptions = [
-      { value: '', label: 'Select a meaning…' },
+      { value: '', label: t('selectMeaning') },
       ...opts.map((opt, optIdx) => ({ value: String(optIdx), label: opt })),
     ];
     return (
@@ -422,8 +425,8 @@ function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }:
         {qResult && (
           <p className={`mt-2 text-xs font-medium ${qResult.correct ? 'text-teal-700' : 'text-red-600'}`}>
             {qResult.correct
-              ? 'Correct!'
-              : `Incorrect — correct answer: ${opts[q.correctMatchIndex ?? 0] ?? ''}`}
+              ? t('correct')
+              : t('incorrect', { answer: opts[q.correctMatchIndex ?? 0] ?? '' })}
           </p>
         )}
       </div>

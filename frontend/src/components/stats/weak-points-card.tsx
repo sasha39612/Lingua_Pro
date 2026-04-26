@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { WeakPoint } from './types';
+import { useTranslations } from 'next-intl';
 
 interface WeakPointsCardProps {
   items: WeakPoint[];
@@ -7,15 +10,16 @@ interface WeakPointsCardProps {
 }
 
 export function WeakPointsCard({ items, isLoading }: WeakPointsCardProps) {
+  const t = useTranslations('stats');
   return (
     <div className="rounded-2xl bg-white p-6 shadow-float">
-      <h3 className="mb-3 font-semibold text-slate-800">Weak Points</h3>
+      <h3 className="mb-3 font-semibold text-slate-800">{t('weakPoints')}</h3>
 
       {isLoading ? (
-        <p className="text-sm text-slate-400">Loading…</p>
+        <p className="text-sm text-slate-400">{t('loadingChart')}</p>
       ) : items.length === 0 ? (
         <p className="text-sm text-slate-400">
-          Complete a few exercises to see your exam readiness
+          {t('completeExercises')}
         </p>
       ) : (
         <ul className="divide-y divide-slate-100">
@@ -34,7 +38,7 @@ export function WeakPointsCard({ items, isLoading }: WeakPointsCardProps) {
                 href={item.href}
                 className="text-xs font-medium text-[#0a54c2] hover:underline"
               >
-                Practice
+                {t('practice')}
               </Link>
             </li>
           ))}

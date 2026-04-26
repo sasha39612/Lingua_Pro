@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { LabFrame } from '@/components/lab-frame';
 import { useAppStore } from '@/store/app-store';
 import { useAiStream } from '@/lib/use-ai-stream';
+import { useTranslations } from 'next-intl';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ function WordCounter({
   min: number;
   max: number;
 }) {
+  const t = useTranslations('writing');
   const inRange = count >= min && count <= max;
   const tooFew = count < min;
   const colorClass = inRange
@@ -105,7 +107,7 @@ function WordCounter({
 
   return (
     <span className={`text-xs ${colorClass}`}>
-      {count} / {min}–{max} words
+      {t('wordCounter', { count, min, max })}
     </span>
   );
 }
@@ -113,6 +115,7 @@ function WordCounter({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function WritingPage() {
+  const t = useTranslations('writing');
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const user = useAppStore((s) => s.user);
@@ -164,7 +167,7 @@ export function WritingPage() {
           }).catch(() => { /* best-effort */ });
         }
       } else if (ev.event === 'error') {
-        setError('Analysis encountered an error. Partial results may be shown.');
+        setError(t('streamError'));
       }
     }, [user, language]),
   });
@@ -173,7 +176,7 @@ export function WritingPage() {
 
   const fetchTask = useCallback(async () => {
     if (!user) {
-      setError('You must be logged in to load a writing task.');
+      setError(t('authError'));
       return;
     }
     writingStream.cancel();
@@ -223,7 +226,7 @@ export function WritingPage() {
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <section className="rounded-2xl bg-white p-5 shadow-float">
-          <h1 className="text-2xl font-bold">Writing</h1>
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
           <p className="mt-1 text-sm text-slate-500">{language} · {level}</p>
 
           {phase === 'idle' && (
@@ -238,10 +241,10 @@ export function WritingPage() {
                 {loadingTask ? (
                   <>
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-                    Generating task…
+                    {t('generatingTask')}
                   </>
                 ) : (
-                  'Generate Task'
+                  t('generateTask')
                 )}
               </button>
             </>
@@ -255,7 +258,7 @@ export function WritingPage() {
                 disabled={loadingTask || isAnalyzing}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
               >
-                {loadingTask ? 'Loading…' : 'New Task'}
+                {loadingTask ? t('loadingTask') : t('newTask')}
               </button>
             </div>
           )}
@@ -265,14 +268,14 @@ export function WritingPage() {
         {task && (phase === 'task' || phase === 'editor' || phase === 'result') && (
           <section className="rounded-2xl bg-white p-5 shadow-float">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-800">Your Task</h2>
+              <h2 className="text-base font-semibold text-slate-800">{t('yourTask')}</h2>
               {phase !== 'task' && (
                 <button
                   type="button"
                   onClick={() => setTaskCollapsed((v) => !v)}
                   className="text-xs text-slate-400 hover:text-slate-600"
                 >
-                  {taskCollapsed ? 'Show task ▾' : 'Hide task ▴'}
+                  {taskCollapsed ? t('showTask') : t('hideTask')}
                 </button>
               )}
             </div>
@@ -281,13 +284,13 @@ export function WritingPage() {
               <div className="mt-4 space-y-4 text-sm">
                 {/* Situation */}
                 <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">📌 Situation</p>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{t('situationLabel')}</p>
                   <p className="text-slate-700">{task.situation}</p>
                 </div>
 
                 {/* Task */}
                 <div className="rounded-xl bg-amber-50 p-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-600">📝 Task</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-600">{t('taskLabel')}</p>
                   <p className="mb-2 text-slate-700">{task.taskDescription}</p>
                   <ul className="space-y-1">
                     {task.taskPoints.map((point, i) => (
@@ -302,7 +305,7 @@ export function WritingPage() {
                 {/* Instructions */}
                 {task.instructions.length > 0 && (
                   <div className="rounded-xl bg-red-50 p-4">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-red-500">⚠️ Instructions</p>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-red-500">{t('instructionsLabel')}</p>
                     <ul className="space-y-1">
                       {task.instructions.map((instr, i) => (
                         <li key={i} className="flex items-start gap-2 text-slate-700">
@@ -317,7 +320,7 @@ export function WritingPage() {
                 {/* Example structure */}
                 {task.exampleStructure.length > 0 && (
                   <div className="rounded-xl bg-blue-50 p-4">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-500">📧 Example structure</p>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-500">{t('exampleStructureLabel')}</p>
                     <ol className="list-decimal space-y-1 pl-4">
                       {task.exampleStructure.map((step, i) => (
                         <li key={i} className="text-slate-700">{step}</li>
@@ -338,7 +341,7 @@ export function WritingPage() {
                 }}
                 className="mt-5 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-amber-400"
               >
-                Start Writing
+                {t('startWriting')}
               </button>
             )}
           </section>
@@ -348,7 +351,7 @@ export function WritingPage() {
         {phase === 'editor' && task && (
           <section className="rounded-2xl bg-white p-5 shadow-float">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-800">Your response</h2>
+              <h2 className="text-base font-semibold text-slate-800">{t('yourResponse')}</h2>
               <WordCounter count={wordCount} min={minWords} max={maxWords} />
             </div>
 
@@ -357,7 +360,7 @@ export function WritingPage() {
               rows={12}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Start writing here…"
+              placeholder={t('startWritingPlaceholder')}
               className="w-full resize-y rounded-xl border border-slate-300 px-4 py-3 text-sm leading-relaxed text-slate-800 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100"
             />
 
@@ -380,11 +383,11 @@ export function WritingPage() {
                 disabled={!canSubmit || isAnalyzing}
                 className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-amber-400 disabled:opacity-40"
               >
-                Submit
+                {t('submit')}
               </button>
               {!canSubmit && (
                 <p className="text-xs text-slate-400">
-                  Write at least {minWords} words to submit ({minWords - wordCount} more needed)
+                  {t('writeAtLeast', { min: minWords, remaining: minWords - wordCount })}
                 </p>
               )}
             </div>
@@ -396,7 +399,7 @@ export function WritingPage() {
           <>
             {/* Overall score — shown once analysis_complete fires; skeleton while streaming */}
             <section className="rounded-2xl bg-white p-5 shadow-float">
-              <h2 className="text-base font-semibold text-slate-800">Result</h2>
+              <h2 className="text-base font-semibold text-slate-800">{t('result')}</h2>
               {streamedComplete ? (
                 <div className="mt-4 flex items-center gap-4">
                   <div
@@ -420,30 +423,30 @@ export function WritingPage() {
             {/* Criteria — each card resolves progressively as SSE events arrive */}
             <section className="rounded-2xl bg-white p-5 shadow-float">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-base font-semibold text-slate-800">Detailed feedback</h2>
+                <h2 className="text-base font-semibold text-slate-800">{t('detailedFeedback')}</h2>
                 {isAnalyzing && (
                   <span className="flex items-center gap-1.5 text-xs text-slate-400">
                     <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-amber-500" />
-                    Evaluating…
+                    {t('evaluating')}
                   </span>
                 )}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {streamedCriteria['taskAchievement']
-                  ? <CriterionCard label="Task Achievement" criterion={streamedCriteria['taskAchievement']} />
-                  : <CriterionCardSkeleton label="Task Achievement" />}
+                  ? <CriterionCard label={t('taskAchievement')} criterion={streamedCriteria['taskAchievement']} />
+                  : <CriterionCardSkeleton label={t('taskAchievement')} />}
                 {streamedCriteria['grammarVocabulary']
-                  ? <CriterionCard label="Grammar & Vocabulary" criterion={streamedCriteria['grammarVocabulary']} />
-                  : <CriterionCardSkeleton label="Grammar & Vocabulary" />}
+                  ? <CriterionCard label={t('grammarVocabulary')} criterion={streamedCriteria['grammarVocabulary']} />
+                  : <CriterionCardSkeleton label={t('grammarVocabulary')} />}
                 {streamedCriteria['coherenceStructure']
-                  ? <CriterionCard label="Coherence & Structure" criterion={streamedCriteria['coherenceStructure']} />
-                  : <CriterionCardSkeleton label="Coherence & Structure" />}
+                  ? <CriterionCard label={t('coherenceStructure')} criterion={streamedCriteria['coherenceStructure']} />
+                  : <CriterionCardSkeleton label={t('coherenceStructure')} />}
                 {streamedCriteria['style']
-                  ? <CriterionCard label="Style" criterion={streamedCriteria['style']} />
-                  : <CriterionCardSkeleton label="Style" />}
+                  ? <CriterionCard label={t('style')} criterion={streamedCriteria['style']} />
+                  : <CriterionCardSkeleton label={t('style')} />}
               </div>
               {writingStream.status === 'error' && (
-                <p className="mt-3 text-xs text-red-500">Stream error — partial results shown. You can try resubmitting.</p>
+                <p className="mt-3 text-xs text-red-500">{t('streamError')}</p>
               )}
             </section>
 
@@ -451,13 +454,13 @@ export function WritingPage() {
             {streamedComplete && (
               <section className="rounded-2xl bg-white p-5 shadow-float">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-semibold text-slate-800">Corrected version</h2>
+                  <h2 className="text-base font-semibold text-slate-800">{t('correctedVersion')}</h2>
                   <button
                     type="button"
                     onClick={() => setShowCorrected((v) => !v)}
                     className="text-xs text-slate-400 hover:text-slate-600"
                   >
-                    {showCorrected ? 'Hide ▴' : 'Show ▾'}
+                    {showCorrected ? t('hideCorrected') : t('showCorrected')}
                   </button>
                 </div>
                 {showCorrected && (
@@ -470,7 +473,7 @@ export function WritingPage() {
 
             {/* Your original */}
             <section className="rounded-2xl bg-white p-5 shadow-float">
-              <h2 className="mb-3 text-base font-semibold text-slate-800">Your original text</h2>
+              <h2 className="mb-3 text-base font-semibold text-slate-800">{t('yourOriginalText')}</h2>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
                 {text}
               </div>
@@ -486,7 +489,7 @@ export function WritingPage() {
                   }}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
                 >
-                  Edit & Resubmit
+                  {t('editResubmit')}
                 </button>
                 <button
                   type="button"
@@ -494,7 +497,7 @@ export function WritingPage() {
                   disabled={loadingTask}
                   className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-slate-900 hover:bg-amber-400 disabled:opacity-40"
                 >
-                  Try Another Task
+                  {t('tryAnotherTask')}
                 </button>
               </div>
             </section>

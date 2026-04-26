@@ -6,6 +6,7 @@ import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
 import { useAiStream } from '@/lib/use-ai-stream';
 import type { AppLanguage } from '@/lib/types';
+import { useTranslations } from 'next-intl';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,20 +93,23 @@ const DIFFICULTY_BADGE: Record<ListeningDifficulty, string> = {
   C2: 'bg-red-100 text-red-700',
 };
 
-const TFNG_OPTIONS = [
-  { label: 'True', value: 'T' },
-  { label: 'False', value: 'F' },
-  { label: 'Not Given', value: 'NG' },
-];
+// TFNG_OPTIONS are built inside the component to support translations
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function ListeningPage() {
+  const t = useTranslations('listening');
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const user = useAppStore((s) => s.user);
   const setLanguage = useAppStore((s) => s.setLanguage);
   const setLevel = useAppStore((s) => s.setLevel);
+
+  const TFNG_OPTIONS = [
+    { label: t('true'), value: 'T' },
+    { label: t('false'), value: 'F' },
+    { label: t('notGiven'), value: 'NG' },
+  ];
 
   // ── Two-phase streaming state ──────────────────────────────────────────────
   const [streamPhase, setStreamPhase] = useState<StreamPhase>('idle');
@@ -141,19 +145,19 @@ export function ListeningPage() {
       } else if (ev.event === 'audio_unavailable') {
         setStreamPhase('no_audio');
       } else if (ev.event === 'error') {
-        setTaskError('Failed to generate listening task. Please try again.');
+        setTaskError(t('failedToGenerate'));
         setStreamPhase('idle');
       }
-    }, []),
+    }, [t]),
     onError: useCallback(() => {
-      setTaskError('Connection error while loading task. Please try again.');
+      setTaskError(t('connectionError'));
       setStreamPhase('idle');
-    }, []),
+    }, [t]),
   });
 
   const fetchTask = useCallback(() => {
     if (!user) {
-      setTaskError('You must be logged in to load a listening task.');
+      setTaskError(t('authError'));
       return;
     }
     listeningStream.cancel();
@@ -221,7 +225,7 @@ export function ListeningPage() {
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <section className="rounded-2xl bg-white p-5 shadow-float">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-2xl font-bold">Listening</h1>
+            <h1 className="text-2xl font-bold">{t('title')}</h1>
             <div className="flex gap-2">
               <div className="w-36">
                 <SelectDropdown
@@ -246,7 +250,7 @@ export function ListeningPage() {
               onClick={fetchTask}
               className="mt-4 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800"
             >
-              Play
+              {t('play')}
             </button>
           )}
 
@@ -254,7 +258,7 @@ export function ListeningPage() {
           {streamPhase === 'generating' && (
             <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-teal-600 border-t-transparent" />
-              Generating passage…
+              {t('generatingPassage')}
             </div>
           )}
 
@@ -264,11 +268,11 @@ export function ListeningPage() {
           {streamPhase === 'synthesizing' && (
             <div className="mt-4">
               <p className="mb-2 text-sm text-slate-500">
-                Passage ready — answering allowed. Audio is being synthesized…
+                {t('passageReadySynthesizing')}
               </p>
               <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5">
                 <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-teal-600" />
-                <span className="text-sm text-slate-500">Synthesizing audio…</span>
+                <span className="text-sm text-slate-500">{t('synthesizingAudio')}</span>
               </div>
             </div>
           )}
@@ -278,8 +282,8 @@ export function ListeningPage() {
             <div className="mt-4">
               <p className="mb-2 text-sm text-slate-500">
                 {isNewFormat
-                  ? `Listen carefully. You may play the audio up to ${MAX_PLAYS} times. Then answer all ${questions.length} questions below.`
-                  : 'Listen to the audio, then answer all questions below.'}
+                  ? t('listenCarefully', { maxPlays: MAX_PLAYS, count: questions.length })
+                  : t('listenAndAnswer')}
               </p>
               <div className="flex items-center gap-3">
                 <button
@@ -292,11 +296,11 @@ export function ListeningPage() {
                     <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
                   </svg>
                   {playsUsed >= MAX_PLAYS
-                    ? `Audio used (${MAX_PLAYS}/${MAX_PLAYS})`
-                    : `Play audio (${playsUsed}/${MAX_PLAYS})`}
+                    ? t('audioUsed', { max: MAX_PLAYS })
+                    : t('playAudio', { used: playsUsed, max: MAX_PLAYS })}
                 </button>
                 {playsUsed >= MAX_PLAYS && (
-                  <p className="text-xs text-amber-600">Play limit reached. Proceed with your answers.</p>
+                  <p className="text-xs text-amber-600">{t('playLimitReached')}</p>
                 )}
               </div>
               <audio
@@ -312,7 +316,7 @@ export function ListeningPage() {
           {/* Audio unavailable */}
           {streamPhase === 'no_audio' && (
             <p className="mt-4 text-sm text-amber-600">
-              Audio unavailable — read the passage silently and answer based on the questions below.
+              {t('audioUnavailable')}
             </p>
           )}
         </section>
@@ -388,7 +392,7 @@ export function ListeningPage() {
                       <SelectDropdown
                         value={typeof chosen === 'number' ? String(chosen) : ''}
                         options={[
-                          { value: '', label: 'Select an answer…' },
+                          { value: '', label: t('selectAnswer') },
                           ...q.options.map((option, optIdx) => ({
                             value: String(optIdx),
                             label: `${OPTION_LABELS[optIdx]}. ${option}`,
@@ -435,18 +439,18 @@ export function ListeningPage() {
                   {qResult && (
                     <p className={`mt-2 text-xs font-medium ${qResult.correct ? 'text-teal-700' : 'text-red-600'}`}>
                       {qResult.correct
-                        ? `Correct! (+${qResult.points}pt${qResult.points !== 1 ? 's' : ''})`
+                        ? t('correct', { points: qResult.points })
                         : (() => {
                             const ca = qResult.correctAnswer;
                             if (qType === 'multiple_choice' || qType === 'paraphrase' || qType === 'short_answer') {
                               const idx = typeof ca === 'number' ? ca : parseInt(String(ca), 10);
-                              return `Incorrect — correct answer: ${OPTION_LABELS[idx]}. ${qResult.correctOptionText ?? ''}`;
+                              return t('incorrect', { answer: `${OPTION_LABELS[idx]}. ${qResult.correctOptionText ?? ''}` });
                             }
                             if (qType === 'true_false_ng') {
-                              const map: Record<string, string> = { T: 'True', F: 'False', NG: 'Not Given' };
-                              return `Incorrect — correct answer: ${map[String(ca)] ?? ca}`;
+                              const tfngMap: Record<string, string> = { T: t('true'), F: t('false'), NG: t('notGiven') };
+                              return t('incorrect', { answer: tfngMap[String(ca)] ?? String(ca) });
                             }
-                            return `Incorrect — correct answer: ${ca}`;
+                            return t('incorrect', { answer: String(ca) });
                           })()}
                     </p>
                   )}
@@ -468,11 +472,11 @@ export function ListeningPage() {
                 disabled={!allAnswered || submitting || isStreaming}
                 className="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-40"
               >
-                {submitting ? 'Submitting…' : 'Submit Answers'}
+                {submitting ? t('submitting') : t('submitAnswers')}
               </button>
               {!allAnswered && (
                 <p className="text-xs text-slate-500">
-                  Answer all {questions.length} questions to submit
+                  {t('answerAll', { count: questions.length })}
                 </p>
               )}
             </div>
@@ -482,7 +486,7 @@ export function ListeningPage() {
         {/* ── Result ───────────────────────────────────────────────────────── */}
         {result && (
           <section className="rounded-2xl bg-white p-5 shadow-float">
-            <h2 className="text-lg font-semibold">Result</h2>
+            <h2 className="text-lg font-semibold">{t('result')}</h2>
 
             <div className="mt-3 flex items-center gap-4">
               {isNewFormat ? (
@@ -503,11 +507,11 @@ export function ListeningPage() {
                   </div>
                   <div>
                     <p className="text-sm text-slate-700">
-                      {result.correct} of {result.total} correct.
+                      {t('resultSummary', { correct: result.correct, total: result.total })}
                     </p>
                     {result.cefrLevel && (
                       <p className="mt-1 text-sm font-semibold text-slate-800">
-                        Comprehension level:{' '}
+                        {t('comprehensionLevel')}{' '}
                         <span className={`rounded-full px-2 py-0.5 text-xs ${DIFFICULTY_BADGE[result.cefrLevel as ListeningDifficulty] ?? 'bg-slate-100 text-slate-700'}`}>
                           {result.cefrLevel}
                         </span>
@@ -529,12 +533,12 @@ export function ListeningPage() {
                     {scorePercent}%
                   </div>
                   <p className="text-sm text-slate-700">
-                    {result.correct} out of {result.total} correct.{' '}
+                    {t('resultSummaryOld', { correct: result.correct, total: result.total })}{' '}
                     {scorePercent === 100
-                      ? 'Perfect score!'
+                      ? t('perfectScore')
                       : scorePercent! >= 60
-                        ? 'Good effort — review the incorrect answers above.'
-                        : 'Keep practising — listen again and try a new task.'}
+                        ? t('goodEffort')
+                        : t('keepPractising')}
                   </p>
                 </>
               )}
@@ -546,7 +550,7 @@ export function ListeningPage() {
               disabled={isStreaming}
               className="mt-4 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-40"
             >
-              Next Task
+              {t('nextTask')}
             </button>
           </section>
         )}

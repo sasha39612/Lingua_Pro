@@ -6,10 +6,10 @@ import { LabFrame } from '@/components/lab-frame';
 import { useAppStore } from '@/store/app-store';
 import { useAiStream } from '@/lib/use-ai-stream';
 import {
-  STAT_LABELS,
   type FeedbackResult,
   type SpeakingMistake,
 } from '@/lib/speaking-mocks';
+import { useTranslations } from 'next-intl';
 
 function speakWord(word: string) {
   if (typeof window === 'undefined') return;
@@ -18,7 +18,7 @@ function speakWord(word: string) {
   window.speechSynthesis.speak(utterance);
 }
 
-function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[], generatedText: string) {
+function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[], generatedText: string, statAdded: string) {
   const mistakeByExpected = new Map(mistakes.map((m) => [m.expected.toLowerCase(), m]));
   const mistakeSpokenSet = new Set(mistakes.map((m) => m.spoken.toLowerCase()));
   const generatedWordSet = new Set(
@@ -70,7 +70,7 @@ function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[], gener
 
       {extraWords.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3">
-          <span className="text-xs font-medium text-orange-500">{STAT_LABELS.extra}:</span>
+          <span className="text-xs font-medium text-orange-500">{statAdded}:</span>
           {extraWords.map((w, i) => (
             <span
               key={i}
@@ -86,6 +86,7 @@ function renderSpokenText(spokenText: string, mistakes: SpeakingMistake[], gener
 }
 
 export function SpeakingPage() {
+  const t = useTranslations('speaking');
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const user = useAppStore((s) => s.user);
@@ -192,16 +193,16 @@ export function SpeakingPage() {
       <div className="mx-auto max-w-5xl">
         {/* Block 1: Header */}
         <section className="rounded-2xl bg-white p-5 shadow-float">
-          <h1 className="text-2xl font-bold">Speaking</h1>
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Read the generated text aloud, record yourself, and get pronunciation feedback.
+            {t('description')}
           </p>
         </section>
 
         {/* Block 2: Generated text */}
         <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Generated Text</h2>
+            <h2 className="text-lg font-semibold">{t('generatedText')}</h2>
             <div className="flex gap-2">
               <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-700">
                 {language}
@@ -214,13 +215,13 @@ export function SpeakingPage() {
           <div className="mt-3 min-h-[80px] rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
             {generatedText || (
               <span className="text-slate-400">
-                Click &quot;Generate text&quot; to get a passage to read aloud.
+                {t('clickToGenerate')}
               </span>
             )}
           </div>
           {focusPhonemes.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="text-xs text-slate-400">Focus sounds:</span>
+              <span className="text-xs text-slate-400">{t('focusSounds')}</span>
               {focusPhonemes.map((p) => (
                 <span
                   key={p}
@@ -237,7 +238,7 @@ export function SpeakingPage() {
             disabled={isGenerating}
             className="mt-3 rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
-            {isGenerating ? 'Generating…' : 'Generate text'}
+            {isGenerating ? t('generating') : t('generateText')}
           </button>
         </section>
 
@@ -246,7 +247,7 @@ export function SpeakingPage() {
           {recordedBlob ? (
             <div className="mb-2 flex justify-end">
               <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                Recording ready
+                {t('recordingReady')}
               </span>
             </div>
           ) : null}
@@ -261,28 +262,28 @@ export function SpeakingPage() {
         {/* Block 4: Pronunciation Feedback */}
         <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">Pronunciation Feedback</h2>
+            <h2 className="text-lg font-semibold">{t('pronunciationFeedback')}</h2>
             {stats ? (
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-bold text-teal-700">{stats.score}</span>
-                  <span className="text-sm text-slate-400">/ 100</span>
+                  <span className="text-sm text-slate-400">{t('scoreOf100')}</span>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs">
                   <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 font-medium text-red-600">
-                    {STAT_LABELS.pronunciation}
+                    {t('statPronunciation')}
                     <span className="ml-1 rounded-full bg-red-100 px-1.5 py-0.5 font-bold">
                       {stats.pronunciation}
                     </span>
                   </span>
                   <span className="flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 font-medium text-orange-600">
-                    {STAT_LABELS.extra}
+                    {t('statAdded')}
                     <span className="ml-1 rounded-full bg-orange-100 px-1.5 py-0.5 font-bold">
                       {stats.extra}
                     </span>
                   </span>
                   <span className="flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-1 font-medium text-yellow-600">
-                    {STAT_LABELS.missed}
+                    {t('statMissed')}
                     <span className="ml-1 rounded-full bg-yellow-100 px-1.5 py-0.5 font-bold">
                       {stats.forgotten}
                     </span>
@@ -297,14 +298,14 @@ export function SpeakingPage() {
             disabled={!canAnalyze || isAnalyzing}
             className="mt-3 rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
-            {isAnalyzing ? 'Analyzing…' : 'Analyze pronunciation'}
+            {isAnalyzing ? t('analyzing') : t('analyzePronunciation')}
           </button>
           {analyzeError ? (
             <p className="mt-2 text-sm text-red-600">{analyzeError}</p>
           ) : null}
           {!canAnalyze && !feedbackResult ? (
             <p className="mt-2 text-xs text-slate-400">
-              Generate a text and record yourself to enable analysis.
+              {t('generateToEnable')}
             </p>
           ) : null}
           {feedbackResult && feedbackResult.mistakes.length > 0 ? (
@@ -318,14 +319,14 @@ export function SpeakingPage() {
                         <span className="font-mono text-xs text-slate-500">{m.ipa}</span>
                       </div>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        You said: <span className="text-red-500">{m.spoken}</span>
+                        {t('youSaid')} <span className="text-red-500">{m.spoken}</span>
                       </p>
                       <p className="mt-1 text-sm text-slate-700">{m.feedback}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => speakWord(m.expected)}
-                      title={`Listen to "${m.expected}"`}
+                      title={t('listenTo', { word: m.expected })}
                       className="shrink-0 rounded-full bg-teal-50 p-2 text-teal-700 hover:bg-teal-100"
                     >
                       <svg
@@ -347,14 +348,14 @@ export function SpeakingPage() {
         {/* Block 5: Mistakes Details */}
         {feedbackResult ? (
           <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
-            <h2 className="text-lg font-semibold">Mistakes Details</h2>
+            <h2 className="text-lg font-semibold">{t('mistakesDetails')}</h2>
             <p className="mt-1 text-xs text-slate-400">
-              <span className="text-red-400">Red</span> — mispronounced (IPA below) &nbsp;·&nbsp;
-              <span className="text-orange-600">Yellow box</span> — missed &nbsp;·&nbsp;
-              <span className="text-yellow-400 line-through">Strikethrough</span> — added
+              {t('legendMispronounced')} &nbsp;·&nbsp;
+              {t('legendMissed')} &nbsp;·&nbsp;
+              {t('legendAdded')}
             </p>
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">
-              {renderSpokenText(feedbackResult.spokenText, feedbackResult.mistakes, generatedText)}
+              {renderSpokenText(feedbackResult.spokenText, feedbackResult.mistakes, generatedText, t('statAdded'))}
             </div>
           </section>
         ) : null}

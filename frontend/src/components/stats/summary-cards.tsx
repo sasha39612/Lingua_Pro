@@ -1,5 +1,8 @@
+'use client';
+
 import { SummaryStats } from './types';
 import { DeltaResult } from './utils';
+import { useTranslations } from 'next-intl';
 
 interface CardProps {
   title: string;
@@ -25,6 +28,7 @@ interface SummaryCardsProps {
 }
 
 export function SummaryCards({ stats, delta, isLoading }: SummaryCardsProps) {
+  const t = useTranslations('stats');
   const placeholder = '…';
 
   const readinessSub = isLoading
@@ -36,25 +40,25 @@ export function SummaryCards({ stats, delta, isLoading }: SummaryCardsProps) {
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
       <StatCard
-        title="Target Level"
+        title={t('targetLevel')}
         value={stats.targetLevel}
         sub={isLoading ? '' : stats.targetLevelSub}
       />
       <StatCard
-        title="Active Days"
+        title={t('activeDays')}
         value={isLoading ? placeholder : String(stats.activeDays)}
         sub={stats.periodLabel}
       />
       <StatCard
-        title="Exam Readiness"
+        title={t('examReadiness')}
         value={isLoading ? placeholder : `${stats.examReadiness}%`}
         sub={readinessSub}
         highlight
       />
       <StatCard
-        title="Streak"
-        value={isLoading ? placeholder : `${stats.streak} days`}
-        sub={stats.streak > 0 ? 'Keep going!' : 'Start today'}
+        title={t('streak')}
+        value={isLoading ? placeholder : t('streakDays', { count: stats.streak })}
+        sub={stats.streak > 0 ? t('keepGoing') : t('startToday')}
       />
     </div>
   );

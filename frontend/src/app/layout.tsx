@@ -3,6 +3,9 @@ import { IBM_Plex_Mono, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { AppProviders } from '@/components/providers';
 import { AppShell } from '@/components/app-shell';
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages, getLocale } from 'next-intl/server';
+import '@/i18n/types';
 
 const heading = Space_Grotesk({
   subsets: ['latin'],
@@ -20,13 +23,17 @@ export const metadata: Metadata = {
   description: 'Student and admin interface for Lingua Pro',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
-    <html lang="en" className={`${heading.variable} ${mono.variable}`}>
+    <html lang={locale} className={`${heading.variable} ${mono.variable}`}>
       <body className="font-[var(--font-heading)] antialiased">
-        <AppProviders>
-          <AppShell>{children}</AppShell>
-        </AppProviders>
+        <NextIntlClientProvider messages={messages}>
+          <AppProviders>
+            <AppShell>{children}</AppShell>
+          </AppProviders>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

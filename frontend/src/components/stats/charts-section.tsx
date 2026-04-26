@@ -1,5 +1,8 @@
+'use client';
+
 import { ChartData, TargetLevel } from './types';
 import { LEVEL_THRESHOLDS } from './utils';
+import { useTranslations } from 'next-intl';
 
 // ── Progress Line Chart ────────────────────────────────────────────────────────
 
@@ -9,10 +12,11 @@ function ProgressLineChart({
   pronunciationScores,
   targetLevel,
 }: ChartData['progressOverTime'] & { targetLevel: TargetLevel }) {
+  const t = useTranslations('stats');
   if (labels.length === 0) {
     return (
       <div className="flex h-40 items-center justify-center text-sm text-slate-400">
-        No data for this period
+        {t('noData')}
       </div>
     );
   }
@@ -71,13 +75,14 @@ function ProgressLineChart({
 // ── Mistake Bar Chart ──────────────────────────────────────────────────────────
 
 function MistakeBarChart({ labels, values }: ChartData['mistakesByType']) {
+  const t = useTranslations('stats');
   const top = labels.slice(0, 7);
   const vals = values.slice(0, 7);
 
   if (top.length === 0) {
     return (
       <div className="flex h-40 items-center justify-center text-sm text-slate-400">
-        No mistake data for this period
+        {t('noMistakeData')}
       </div>
     );
   }
@@ -109,9 +114,10 @@ function MistakeBarChart({ labels, values }: ChartData['mistakesByType']) {
 // ── Loading skeleton ───────────────────────────────────────────────────────────
 
 function ChartSkeleton() {
+  const t = useTranslations('stats');
   return (
     <div className="flex h-40 items-center justify-center text-sm text-slate-400">
-      Loading…
+      {t('loadingChart')}
     </div>
   );
 }
@@ -125,23 +131,24 @@ interface ChartsSectionProps {
 }
 
 export function ChartsSection({ charts, targetLevel, isLoading }: ChartsSectionProps) {
+  const t = useTranslations('stats');
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {/* Progress over time */}
       <div className="rounded-2xl bg-white p-6 shadow-float">
-        <h3 className="font-semibold text-slate-800">Progress Over Time</h3>
+        <h3 className="font-semibold text-slate-800">{t('progressOverTime')}</h3>
         <div className="mt-1 flex gap-4 text-xs text-slate-500">
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-2 w-4 rounded-sm bg-sky-500" />
-            Reading+Writing
+            {t('readingWriting')}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-2 w-4 rounded-sm bg-violet-500" />
-            Speaking+Listening
+            {t('speakingListening')}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-2 w-4 rounded-sm bg-amber-400" style={{ borderTop: '2px dashed #f59e0b', background: 'none' }} />
-            Target
+            {t('target')}
           </span>
         </div>
         <div className="mt-3">
@@ -160,7 +167,7 @@ export function ChartsSection({ charts, targetLevel, isLoading }: ChartsSectionP
 
       {/* Mistakes by type */}
       <div className="rounded-2xl bg-white p-6 shadow-float">
-        <h3 className="font-semibold text-slate-800">Mistakes by Type</h3>
+        <h3 className="font-semibold text-slate-800">{t('mistakesByType')}</h3>
         <div className="mt-3">
           {isLoading ? (
             <ChartSkeleton />

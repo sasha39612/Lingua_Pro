@@ -1,9 +1,12 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { LabFrame } from '@/components/lab-frame';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
+import { useTranslations } from 'next-intl';
 import type { AppLanguage } from '@/lib/types';
+import { VALID_LOCALES, type Locale } from '@/i18n/request';
 
 const LEVEL_OPTIONS = [
   { value: 'A1', label: 'A1' },
@@ -14,12 +17,6 @@ const LEVEL_OPTIONS = [
   { value: 'C2', label: 'C2' },
 ];
 
-const THEME_OPTIONS = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
-];
-
 const LANGUAGE_OPTIONS = [
   { value: 'English', label: 'English' },
   { value: 'German', label: 'German' },
@@ -28,56 +25,88 @@ const LANGUAGE_OPTIONS = [
   { value: 'Ukrainian', label: 'Ukrainian' },
 ];
 
+const UI_LOCALE_OPTIONS: { value: Locale; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'sq', label: 'Shqip' },
+  { value: 'pl', label: 'Polski' },
+  { value: 'uk', label: 'Українська' },
+];
+
 export function SettingsPage() {
+  const t = useTranslations('settings');
+  const router = useRouter();
   const user = useAppStore((s) => s.user);
   const level = useAppStore((s) => s.level);
   const theme = useAppStore((s) => s.theme);
   const language = useAppStore((s) => s.language);
+  const uiLocale = useAppStore((s) => s.uiLocale);
   const setLevel = useAppStore((s) => s.setLevel);
   const setTheme = useAppStore((s) => s.setTheme);
   const setLanguage = useAppStore((s) => s.setLanguage);
+  const setUiLocale = useAppStore((s) => s.setUiLocale);
   const logout = useAppStore((s) => s.logout);
+
+  const themeOptions = [
+    { value: 'light', label: t('themeLight') },
+    { value: 'dark', label: t('themeDark') },
+    { value: 'system', label: t('themeSystem') },
+  ];
+
+  const handleLocaleChange = (locale: string) => {
+    const validLocale = VALID_LOCALES.includes(locale as Locale) ? (locale as Locale) : 'en';
+    document.cookie = `NEXT_LOCALE=${validLocale}; path=/; max-age=31536000; SameSite=Lax`;
+    setUiLocale(validLocale);
+    router.refresh();
+  };
 
   return (
     <LabFrame>
       <div className="mx-auto max-w-4xl">
       <section className="rounded-2xl bg-white p-5 shadow-float">
-        <h1 className="text-2xl font-bold">Profile / Settings</h1>
-        <p className="mt-2 text-sm text-slate-600">Manage level, theme, language, and account session.</p>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
+        <p className="mt-2 text-sm text-slate-600">{t('subtitle')}</p>
       </section>
 
       <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
-        <h2 className="text-lg font-semibold">Learning Settings</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <h2 className="text-lg font-semibold">{t('learningSettings')}</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <SelectDropdown
-            label="Level"
+            label={t('levelLabel')}
             value={level}
             options={LEVEL_OPTIONS}
             onChange={setLevel}
             testId="select-level"
           />
           <SelectDropdown
-            label="Theme"
+            label={t('themeLabel')}
             value={theme}
-            options={THEME_OPTIONS}
+            options={themeOptions}
             onChange={(v) => setTheme(v as 'light' | 'dark' | 'system')}
             testId="select-theme"
           />
           <SelectDropdown
-            label="Language"
+            label={t('languageLabel')}
             value={language}
             options={LANGUAGE_OPTIONS}
             onChange={(v) => setLanguage(v as AppLanguage)}
             testId="select-language"
           />
+          <SelectDropdown
+            label={t('uiLanguageLabel')}
+            value={uiLocale}
+            options={UI_LOCALE_OPTIONS}
+            onChange={handleLocaleChange}
+            testId="select-ui-locale"
+          />
         </div>
       </section>
 
       <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
-        <h2 className="text-lg font-semibold">Account Management</h2>
-        <p className="mt-2 text-sm text-slate-600">Signed in as: {user?.email ?? 'guest'}</p>
+        <h2 className="text-lg font-semibold">{t('accountManagement')}</h2>
+        <p className="mt-2 text-sm text-slate-600">{t('signedInAs')} {user?.email ?? '—'}</p>
         <button type="button" onClick={logout} className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">
-          Logout
+          {t('logout')}
         </button>
       </section>
       </div>

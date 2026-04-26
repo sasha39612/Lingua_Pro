@@ -6,6 +6,7 @@ import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
 import { useAdminStats, useAdminUsers } from '@/lib/admin-hooks';
 import type { AdminStatsOverview, AdminUser } from '@/lib/types';
+import { useTranslations } from 'next-intl';
 
 // ─── Date utilities ───────────────────────────────────────────────────────────
 
@@ -23,31 +24,17 @@ function parseUtcDate(dateStr: string): Date {
 type AdminTab = 'overview' | 'users' | 'learning' | 'ai-usage';
 type Period = 'week' | 'month' | 'all';
 
-const PERIOD_OPTIONS = [
-  { value: 'week',  label: 'This week' },
-  { value: 'month', label: 'This month' },
-  { value: 'all',   label: 'All time' },
-];
-
-const LANGUAGE_OPTIONS = [
-  { value: '',          label: 'All languages' },
-  { value: 'english',   label: 'English' },
-  { value: 'german',    label: 'German' },
-  { value: 'albanian',  label: 'Albanian' },
-  { value: 'polish',    label: 'Polish' },
-  { value: 'ukrainian', label: 'Ukrainian' },
-];
-
 // ─── Forbidden panel ──────────────────────────────────────────────────────────
 
 function ForbiddenPanel() {
+  const t = useTranslations('admin');
   return (
     <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
       <svg className="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
       </svg>
-      <p className="text-lg font-semibold">Access denied</p>
-      <p className="text-sm">Admin role required to view this page.</p>
+      <p className="text-lg font-semibold">{t('accessDenied')}</p>
+      <p className="text-sm">{t('adminRoleRequired')}</p>
     </div>
   );
 }
@@ -65,6 +52,7 @@ function AdminSkeleton() {
 }
 
 function AdminErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const t = useTranslations('admin');
   return (
     <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
       <p className="text-sm text-red-700">{message}</p>
@@ -72,16 +60,17 @@ function AdminErrorBanner({ message, onRetry }: { message: string; onRetry: () =
         onClick={onRetry}
         className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
       >
-        Retry
+        {t('retry')}
       </button>
     </div>
   );
 }
 
 function AdminEmptyState() {
+  const t = useTranslations('admin');
   return (
     <div className="flex h-32 items-center justify-center text-sm text-slate-400">
-      No data for this period
+      {t('noData')}
     </div>
   );
 }
@@ -182,15 +171,16 @@ function FunnelRow({ registered, activePeriod, completedTask }: {
   activePeriod: number;
   completedTask: number;
 }) {
+  const t = useTranslations('admin');
   const activeRate  = registered > 0 ? Math.round((activePeriod / registered) * 100) : 0;
   const taskRate    = activePeriod > 0 ? Math.round((completedTask / activePeriod) * 100) : 0;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
       {[
-        { label: 'Registered', value: registered },
-        { label: `Active (cross-service est.)`, value: activePeriod, rate: activeRate },
-        { label: 'Completed task',  value: completedTask, rate: taskRate },
+        { label: t('registered'), value: registered },
+        { label: t('active'), value: activePeriod, rate: activeRate },
+        { label: t('completedTask'), value: completedTask, rate: taskRate },
       ].map((step, i) => (
         <div key={i} className="flex items-center gap-3">
           <div className="rounded-xl bg-white p-4 text-center shadow-float min-w-[100px]">
@@ -207,14 +197,7 @@ function FunnelRow({ registered, activePeriod, completedTask }: {
   );
 }
 
-// ─── Tabs ─────────────────────────────────────────────────────────────────────
-
-const TABS: { id: AdminTab; label: string }[] = [
-  { id: 'overview',  label: 'Overview' },
-  { id: 'users',     label: 'Users' },
-  { id: 'learning',  label: 'Learning' },
-  { id: 'ai-usage',  label: 'AI Load (Proxy)' },
-];
+// ─── Tabs (built inside AdminPage to allow translations) ──────────────────────
 
 // ─── Overview tab ─────────────────────────────────────────────────────────────
 
@@ -224,6 +207,7 @@ function OverviewTab({ data, onRetry, isLoading, error }: {
   error: Error | null;
   onRetry: () => void;
 }) {
+  const t = useTranslations('admin');
   if (isLoading) return <AdminSkeleton />;
   if (error)     return <AdminErrorBanner message={error.message} onRetry={onRetry} />;
   if (!data)     return <AdminEmptyState />;
@@ -235,7 +219,7 @@ function OverviewTab({ data, onRetry, isLoading, error }: {
       {/* Funnel */}
       <div className="rounded-2xl bg-white p-5 shadow-float">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Conversion Funnel
+          {t('conversionFunnel')}
         </h2>
         <FunnelRow
           registered={funnel.registered}
@@ -246,17 +230,17 @@ function OverviewTab({ data, onRetry, isLoading, error }: {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Total sessions" value={platform.total_sessions.toLocaleString()} />
+        <KpiCard label={t('totalSessions')} value={platform.total_sessions.toLocaleString()} />
         <KpiCard
-          label="Top language"
+          label={t('topLanguage')}
           value={platform.most_popular_language ?? '—'}
         />
         <KpiCard
-          label="Avg reading score"
+          label={t('avgReadingScore')}
           value={`${Math.round(avg_scores.reading * 100)}%`}
         />
         <KpiCard
-          label="Avg speaking score"
+          label={t('avgSpeakingScore')}
           value={`${Math.round(avg_scores.speaking * 100)}%`}
         />
       </div>
@@ -264,7 +248,7 @@ function OverviewTab({ data, onRetry, isLoading, error }: {
       {/* Sessions by feature */}
       <div className="rounded-2xl bg-white p-5 shadow-float">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Sessions by Feature
+          {t('sessionsByFeature')}
         </h2>
         <SimpleBarChart
           data={[
@@ -282,13 +266,13 @@ function OverviewTab({ data, onRetry, isLoading, error }: {
       {/* Daily sessions */}
       <div className="rounded-2xl bg-white p-5 shadow-float">
         <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Daily Active Users <span className="text-slate-400 normal-case font-normal text-xs">(est. — may double-count users on multiple services)</span>
+          {t('dailyActiveUsers')} <span className="text-slate-400 normal-case font-normal text-xs">{t('dailyActiveUsersSub')}</span>
         </h2>
         <DailyLineChart data={time_series.daily_active_user_estimate} />
       </div>
 
       <p className="text-right text-xs text-slate-400">
-        Last updated: {new Date(data.last_updated).toLocaleTimeString()}
+        {t('lastUpdated', { time: new Date(data.last_updated).toLocaleTimeString() })}
       </p>
     </div>
   );
@@ -297,6 +281,7 @@ function OverviewTab({ data, onRetry, isLoading, error }: {
 // ─── Users tab ────────────────────────────────────────────────────────────────
 
 function UsersTab() {
+  const t = useTranslations('admin');
   const PAGE_SIZE = 100;
   const [offset, setOffset] = useState(0);
   const { data, isLoading, error, refetch } = useAdminUsers(PAGE_SIZE, offset);
@@ -314,10 +299,10 @@ function UsersTab() {
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-50">
               <tr className="text-xs uppercase tracking-wide text-slate-500">
-                <th className="px-5 py-3">Email</th>
-                <th className="px-5 py-3">Role</th>
-                <th className="px-5 py-3">Language</th>
-                <th className="px-5 py-3">Joined</th>
+                <th className="px-5 py-3">{t('emailHeader')}</th>
+                <th className="px-5 py-3">{t('roleHeader')}</th>
+                <th className="px-5 py-3">{t('languageHeader')}</th>
+                <th className="px-5 py-3">{t('joinedHeader')}</th>
               </tr>
             </thead>
             <tbody>
@@ -345,7 +330,7 @@ function UsersTab() {
       {/* Pagination */}
       <div className="flex items-center justify-between text-sm text-slate-600">
         <span>
-          Showing {offset + 1}–{offset + users.length}
+          {t('showing', { from: offset + 1, to: offset + users.length })}
         </span>
         <div className="flex gap-2">
           <button
@@ -353,14 +338,14 @@ function UsersTab() {
             onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
             className="rounded-lg border border-slate-200 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40"
           >
-            Previous
+            {t('previousPage')}
           </button>
           <button
             disabled={users.length < PAGE_SIZE}
             onClick={() => setOffset(offset + PAGE_SIZE)}
             className="rounded-lg border border-slate-200 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40"
           >
-            Next
+            {t('nextPage')}
           </button>
         </div>
       </div>
@@ -376,6 +361,7 @@ function LearningTab({ data, onRetry, isLoading, error }: {
   error: Error | null;
   onRetry: () => void;
 }) {
+  const t = useTranslations('admin');
   if (isLoading) return <AdminSkeleton />;
   if (error)     return <AdminErrorBanner message={error.message} onRetry={onRetry} />;
   if (!data)     return <AdminEmptyState />;
@@ -387,7 +373,7 @@ function LearningTab({ data, onRetry, isLoading, error }: {
       {/* Avg scores by skill */}
       <div className="rounded-2xl bg-white p-5 shadow-float">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Average Score by Skill
+          {t('averageScoreBySkill')}
         </h2>
         <SimpleBarChart
           data={[
@@ -405,7 +391,7 @@ function LearningTab({ data, onRetry, isLoading, error }: {
       {/* Per-language breakdown */}
       <div className="rounded-2xl bg-white p-5 shadow-float">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Per-Language Breakdown
+          {t('perLanguageBreakdown')}
         </h2>
         {by_language.length === 0 ? (
           <AdminEmptyState />
@@ -414,11 +400,11 @@ function LearningTab({ data, onRetry, isLoading, error }: {
             <table className="min-w-full text-left text-sm">
               <thead className="text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
                 <tr>
-                  <th className="py-2 pr-4">Language</th>
-                  <th className="py-2 pr-4 text-right">Text sessions</th>
-                  <th className="py-2 pr-4 text-right">Speaking sessions</th>
-                  <th className="py-2 pr-4 text-right">Avg text score</th>
-                  <th className="py-2 text-right">Avg speaking score</th>
+                  <th className="py-2 pr-4">{t('languageHeader')}</th>
+                  <th className="py-2 pr-4 text-right">{t('textSessions')}</th>
+                  <th className="py-2 pr-4 text-right">{t('speakingSessions')}</th>
+                  <th className="py-2 pr-4 text-right">{t('avgTextScore')}</th>
+                  <th className="py-2 text-right">{t('avgSpeakingScoreCol')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -448,6 +434,7 @@ function AiUsageTab({ data, onRetry, isLoading, error }: {
   error: Error | null;
   onRetry: () => void;
 }) {
+  const t = useTranslations('admin');
   if (isLoading) return <AdminSkeleton />;
   if (error)     return <AdminErrorBanner message={error.message} onRetry={onRetry} />;
   if (!data)     return <AdminEmptyState />;
@@ -461,16 +448,16 @@ function AiUsageTab({ data, onRetry, isLoading, error }: {
     <div className="space-y-5">
       {/* Session-derived AI load proxies */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Text ops" value={feature_usage_proxy.text_operations.toLocaleString()} sub="reading + writing sessions" />
-        <KpiCard label="Speech ops" value={feature_usage_proxy.speech_operations.toLocaleString()} sub="speaking sessions" />
-        <KpiCard label="Listening ops" value={feature_usage_proxy.listening_operations.toLocaleString()} sub="listening sessions" />
-        <KpiCard label="Total ops" value={totalProxy.toLocaleString()} sub="session-based proxy" />
+        <KpiCard label={t('textOps')} value={feature_usage_proxy.text_operations.toLocaleString()} sub={t('textOpsSub')} />
+        <KpiCard label={t('speechOps')} value={feature_usage_proxy.speech_operations.toLocaleString()} sub={t('speechOpsSub')} />
+        <KpiCard label={t('listeningOps')} value={feature_usage_proxy.listening_operations.toLocaleString()} sub={t('listeningOpsSub')} />
+        <KpiCard label={t('totalOps')} value={totalProxy.toLocaleString()} sub={t('totalOpsSub')} />
       </div>
 
       {/* Sessions by feature */}
       <div className="rounded-2xl bg-white p-5 shadow-float">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Sessions by Feature
+          {t('sessionsByFeature')}
         </h2>
         <SimpleBarChart
           data={[
@@ -488,36 +475,36 @@ function AiUsageTab({ data, onRetry, isLoading, error }: {
       {/* Cost & Tokens — populated when AI usage logging is active */}
       <div className="rounded-2xl bg-white p-5 shadow-float">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Cost &amp; Tokens
+          {t('costTokens')}
         </h2>
         {data.ai_cost === null ? (
           <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
             <svg className="h-5 w-5 shrink-0 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            No cost data yet. Token-level analytics accumulate after AI usage logging is active.
+            {t('noCostData')}
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
-              label="Total Tokens"
+              label={t('totalTokens')}
               value={data.ai_cost.total_tokens.toLocaleString()}
-              sub="all AI operations"
+              sub={t('totalTokensSub')}
             />
             <KpiCard
-              label="Est. Cost (USD)"
+              label={t('estCost')}
               value={`$${data.ai_cost.total_cost_usd.toFixed(4)}`}
-              sub="GPT models only"
+              sub={t('estCostSub')}
             />
             <KpiCard
-              label="Failure Rate"
+              label={t('failureRate')}
               value={`${(data.ai_cost.failure_rate * 100).toFixed(1)}%`}
-              sub="hard errors"
+              sub={t('failureRateSub')}
             />
             <KpiCard
-              label="Retry Rate"
+              label={t('retryRate')}
               value={`${(data.ai_cost.retry_rate * 100).toFixed(1)}%`}
-              sub="provider degradation"
+              sub={t('retryRateSub')}
             />
           </div>
         )}
@@ -529,6 +516,7 @@ function AiUsageTab({ data, onRetry, isLoading, error }: {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AdminPage() {
+  const ta = useTranslations('admin');
   const user  = useAppStore((s) => s.user);
 
   const [tab, setTab]         = useState<AdminTab>('overview');
@@ -536,6 +524,28 @@ export function AdminPage() {
   const [language, setLanguage] = useState('');
 
   const { data, isLoading, error, refetch } = useAdminStats(period, language);
+
+  const PERIOD_OPTIONS = [
+    { value: 'week',  label: ta('thisWeek') },
+    { value: 'month', label: ta('thisMonth') },
+    { value: 'all',   label: ta('allTime') },
+  ];
+
+  const LANGUAGE_OPTIONS = [
+    { value: '',          label: ta('allLanguages') },
+    { value: 'english',   label: 'English' },
+    { value: 'german',    label: 'German' },
+    { value: 'albanian',  label: 'Albanian' },
+    { value: 'polish',    label: 'Polish' },
+    { value: 'ukrainian', label: 'Ukrainian' },
+  ];
+
+  const TABS: { id: AdminTab; label: string }[] = [
+    { id: 'overview',  label: ta('tabOverview') },
+    { id: 'users',     label: ta('tabUsers') },
+    { id: 'learning',  label: ta('tabLearning') },
+    { id: 'ai-usage',  label: ta('tabAiUsage') },
+  ];
 
   // Guard — no API calls for non-admins
   if (!user || user.role !== 'admin') {
@@ -552,9 +562,9 @@ export function AdminPage() {
         {/* Header + global filters */}
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-float">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Admin Dashboard</h1>
+            <h1 className="text-2xl font-bold text-slate-800">{ta('title')}</h1>
             <p className="mt-0.5 text-sm text-slate-500">
-              Platform health, user growth, and learning effectiveness.
+              {ta('subtitle')}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
@@ -574,7 +584,7 @@ export function AdminPage() {
                 />
               </div>
             </div>
-            <p className="text-xs text-slate-400">Filters apply to analytics tabs only</p>
+            <p className="text-xs text-slate-400">{ta('filtersNote')}</p>
           </div>
         </section>
 

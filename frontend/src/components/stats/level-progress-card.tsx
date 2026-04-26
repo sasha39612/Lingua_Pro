@@ -1,5 +1,8 @@
+'use client';
+
 import { TargetLevel } from './types';
 import { NEXT_LEVEL } from './utils';
+import { useTranslations } from 'next-intl';
 
 interface ProgressBarProps {
   value: number;
@@ -34,11 +37,12 @@ export function LevelProgressCard({
   allSkillsMet,
   isLoading,
 }: LevelProgressCardProps) {
+  const t = useTranslations('stats');
   const nextTarget = NEXT_LEVEL[targetLevel];
 
   return (
     <div className="rounded-2xl bg-white p-6 shadow-float">
-      <h3 className="font-semibold text-slate-800">Exam Progress</h3>
+      <h3 className="font-semibold text-slate-800">{t('examProgress')}</h3>
       <div className="mt-4">
         <div className="flex justify-between text-sm text-slate-600">
           <span>{currentLevel}</span>
@@ -49,10 +53,10 @@ export function LevelProgressCard({
           {isLoading
             ? '…'
             : progressPct >= 100 && allSkillsMet && nextTarget
-            ? `→ Aim for ${nextTarget}`
+            ? t('aimFor', { level: nextTarget })
             : progressPct >= 100 && allSkillsMet
-            ? 'Highest level reached'
-            : `Based on text + speaking combined (${progressPct}%)`}
+            ? t('highestLevelReached')
+            : t('progressBased', { pct: progressPct })}
         </p>
       </div>
     </div>

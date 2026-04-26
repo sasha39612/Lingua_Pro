@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { LabFrame } from '@/components/lab-frame';
 import { useAppStore } from '@/store/app-store';
 import { StatsData } from '@/lib/types';
+import { useTranslations } from 'next-intl';
 
 import { StatsHeader } from '@/components/stats/stats-header';
 import { SummaryCards } from '@/components/stats/summary-cards';
@@ -32,6 +33,7 @@ import {
 import { Period, ChartData, ExamSkillScores, ExamSkillCounts, TargetLevel, FocusSkill } from '@/components/stats/types';
 
 export function StatsPage() {
+  const t = useTranslations('stats');
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const user = useAppStore((s) => s.user);
@@ -129,7 +131,7 @@ export function StatsPage() {
   const activeDays = data?.history.length ?? 0;
 
   const periodLabel =
-    period === 'week' ? 'this week' : period === 'month' ? 'this month' : 'all time';
+    period === 'week' ? t('periodWeek') : period === 'month' ? t('periodMonth') : t('periodAll');
 
   const focusSkill: FocusSkill | null =
     (['reading', 'writing', 'speaking', 'listening'] as const)
@@ -158,14 +160,14 @@ export function StatsPage() {
     overshoot > 0
       ? nextTargetLevel
         ? `→ ${nextTargetLevel}`
-        : `Mastered (${targetLevel})`
+        : t('mastered', { level: targetLevel })
       : examReadiness >= 100 && allSkillsMet
-      ? `${targetLevel} reached`
+      ? t('targetReached', { level: targetLevel })
       : blockedBy
-      ? `Improve: ${blockedBy}`
+      ? t('improve', { skill: blockedBy })
       : examReadiness >= 100
-      ? 'Almost ready'
-      : `${examReadiness}% toward goal`;
+      ? t('almostReady')
+      : t('towardGoal', { pct: examReadiness });
 
   const examSkillCounts: ExamSkillCounts = {
     reading: data?.reading_count ?? 0,
@@ -220,7 +222,7 @@ export function StatsPage() {
 
         {isError && (
           <p className="text-center text-sm text-red-500">
-            Could not load statistics. Check your connection or try again.
+            {t('connectionError')}
           </p>
         )}
 
