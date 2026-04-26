@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/oleksandrstolyarov/Desktop/JOB/Lingo_project/Lingua_Pro/scripts/run-affected-tests.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
