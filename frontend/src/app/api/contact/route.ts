@@ -30,26 +30,32 @@ export async function POST(req: NextRequest) {
   const host = process.env.CONTACT_SMTP_HOST;
   const user = process.env.CONTACT_SMTP_USER;
   const pass = process.env.CONTACT_SMTP_PASS;
-  const to = process.env.CONTACT_TO_EMAIL ?? 'stolyarov_396@icloud.com';
+  const to = process.env.CONTACT_TO_EMAIL;
 
-  if (!host || !user || !pass) {
+  if (!host || !user || !pass || !to) {
     console.error('[contact] SMTP env vars not configured');
     return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });
   }
 
+  const port = Number(process.env.CONTACT_SMTP_PORT ?? 587);
   const transporter = nodemailer.createTransport({
     host,
-    port: Number(process.env.CONTACT_SMTP_PORT ?? 587),
-    secure: false,
+    port,
+    secure: port === 465,
     auth: { user, pass },
   });
 
-  await transporter.sendMail({
-    from: `"LanguageLab FEEDBACK" <${user}>`,
-    to,
-    subject: 'LanguageLab FEEDBACK',
-    text: message.trim(),
-  });
+  try {
+    await transporter.sendMail({
+      from: `"LanguageLab FEEDBACK" <${user}>`,
+      to,
+      subject: 'LanguageLab FEEDBACK',
+      text: message.trim(),
+    });
+  } catch (err) {
+    console.error('[contact] sendMail failed:', err);
+    return NextResponse.json({ error: 'Failed to send message' }, { status: 502 });
+  }
 
   return NextResponse.json({ ok: true });
 }

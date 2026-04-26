@@ -57,20 +57,26 @@ export function ContactForm() {
   };
 
   return (
-    <section className="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow-float">
-      <h1 className="text-2xl font-bold">{t('title')}</h1>
+    <section
+      aria-labelledby="contact-form-heading"
+      className="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow-float"
+    >
+      <h1 id="contact-form-heading" className="text-2xl font-bold">{t('title')}</h1>
       <p className="mt-2 text-sm text-slate-600">{t('subtitle')}</p>
 
-      {status === 'success' && (
-        <p className="mt-4 rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-800">
-          {t('successMessage')}
-        </p>
-      )}
-      {status === 'error' && (
-        <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-          {t('errorMessage')}
-        </p>
-      )}
+      {/* Persistent live region — must be in DOM before content is injected */}
+      <div role="status" aria-live="polite" aria-atomic="true" className="mt-4 min-h-0">
+        {status === 'success' && (
+          <p className="rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-800">
+            {t('successMessage')}
+          </p>
+        )}
+        {status === 'error' && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {t('errorMessage')}
+          </p>
+        )}
+      </div>
 
       <form className="mt-4 space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
         {/* Honeypot — hidden from humans, filled by bots */}
@@ -84,30 +90,43 @@ export function ContactForm() {
         />
 
         <div>
+          <label htmlFor="contact-message" className="block text-sm font-medium text-slate-700">
+            {t('messageLabel')}
+          </label>
           <textarea
+            id="contact-message"
             placeholder={t('messagePlaceholder')}
             rows={6}
-            className="w-full rounded-xl border border-slate-300 px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500"
+            aria-invalid={!!form.formState.errors.message}
+            aria-describedby={form.formState.errors.message ? 'contact-message-error' : undefined}
+            className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500"
             {...form.register('message')}
           />
           {form.formState.errors.message && (
-            <p className="mt-1 text-xs text-red-600">{form.formState.errors.message.message}</p>
+            <p id="contact-message-error" className="mt-1 text-xs text-red-600">
+              {form.formState.errors.message.message}
+            </p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700">
+          <label htmlFor="contact-math" className="block text-sm font-medium text-slate-700">
             {t('mathLabel', { a, b })}
           </label>
           <input
+            id="contact-math"
             type="text"
             inputMode="numeric"
             placeholder={t('mathPlaceholder')}
+            aria-invalid={!!form.formState.errors.mathAnswer}
+            aria-describedby={form.formState.errors.mathAnswer ? 'contact-math-error' : undefined}
             className="mt-1 w-32 rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
             {...form.register('mathAnswer')}
           />
           {form.formState.errors.mathAnswer && (
-            <p className="mt-1 text-xs text-red-600">{form.formState.errors.mathAnswer.message}</p>
+            <p id="contact-math-error" className="mt-1 text-xs text-red-600">
+              {form.formState.errors.mathAnswer.message}
+            </p>
           )}
         </div>
 

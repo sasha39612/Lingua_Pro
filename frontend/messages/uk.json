@@ -311,6 +311,7 @@
   "contact": {
     "title": "Зв'яжіться з нами",
     "subtitle": "Надішліть нам повідомлення, і ми відповімо вам.",
+    "messageLabel": "Ваше повідомлення",
     "messagePlaceholder": "Ваше повідомлення…",
     "submitButton": "Надіслати повідомлення",
     "submittingButton": "Надсилання…",

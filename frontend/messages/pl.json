@@ -311,6 +311,7 @@
   "contact": {
     "title": "Kontakt",
     "subtitle": "Wyślij nam wiadomość, a my skontaktujemy się z Tobą.",
+    "messageLabel": "Twoja wiadomość",
     "messagePlaceholder": "Twoja wiadomość…",
     "submitButton": "Wyślij wiadomość",
     "submittingButton": "Wysyłanie…",

@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { LabFrame } from '@/components/lab-frame';
 import { ContactForm } from '@/components/contact-form';
 

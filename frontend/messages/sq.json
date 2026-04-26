@@ -311,6 +311,7 @@
   "contact": {
     "title": "Na Kontaktoni",
     "subtitle": "Dërgoni një mesazh dhe do t'ju kthejmë përgjigje.",
+    "messageLabel": "Mesazhi juaj",
     "messagePlaceholder": "Mesazhi juaj…",
     "submitButton": "Dërgo Mesazhin",
     "submittingButton": "Po dërgohet…",
