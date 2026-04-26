@@ -111,7 +111,7 @@ export function ReadingPage() {
     setAnswers({});
     setResult(null);
     readingStream.start({ language, level, userId: user.id });
-  }, [language, level, user, readingStream]);
+  }, [language, level, user, readingStream, t]);
 
   const setAnswer = (index: number, value: string) => {
     if (result) return;

@@ -169,7 +169,7 @@ export function WritingPage() {
       } else if (ev.event === 'error') {
         setError(t('streamError'));
       }
-    }, [user, language]),
+    }, [user, language, t]),
   });
 
   // ── Fetch task ─────────────────────────────────────────────────────────────
@@ -202,7 +202,7 @@ export function WritingPage() {
     } finally {
       setLoadingTask(false);
     }
-  }, [language, level, user, writingStream]);
+  }, [language, level, user, writingStream, t]);
 
   // ── Submit text (via SSE stream) ───────────────────────────────────────────
 

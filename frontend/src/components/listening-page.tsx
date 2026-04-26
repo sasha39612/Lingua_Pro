@@ -171,7 +171,7 @@ export function ListeningPage() {
     setSubmitError(null);
     setPlaysUsed(0);
     listeningStream.start({ language, level, userId: user.id });
-  }, [language, level, user, listeningStream]);
+  }, [language, level, user, listeningStream, t]);
 
   const handleSelectAnswer = (questionIndex: number, value: number | string) => {
     if (result) return;
