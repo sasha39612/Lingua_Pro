@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Documentation First
+
+Before implementing anything that involves a library, framework, or SDK (Next.js, NestJS, Prisma, Apollo, OpenAI, TanStack Query, Zod, etc.), always fetch current documentation via the context7 MCP server. Do not rely on training data — APIs change between versions.
+
 ## Commands
 
 ### Frontend (`frontend/`)
