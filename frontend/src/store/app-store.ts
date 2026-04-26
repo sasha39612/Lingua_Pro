@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AppLanguage, AuthUser, TextResult } from '@/lib/types';
-import type { Locale } from '@/i18n/request';
+import type { Locale } from '@/i18n/locales';
 
 interface AppState {
   user: AuthUser | null;

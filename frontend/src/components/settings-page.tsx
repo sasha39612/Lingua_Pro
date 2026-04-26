@@ -6,7 +6,7 @@ import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
 import { useTranslations } from 'next-intl';
 import type { AppLanguage } from '@/lib/types';
-import { VALID_LOCALES, type Locale } from '@/i18n/request';
+import { VALID_LOCALES, type Locale } from '@/i18n/locales';
 
 const LEVEL_OPTIONS = [
   { value: 'A1', label: 'A1' },
