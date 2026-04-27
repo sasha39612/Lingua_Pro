@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware';
 import { AppLanguage, AuthUser, TextResult } from '@/lib/types';
 import type { Locale } from '@/i18n/locales';
 
-interface AppState {
+export interface AppState {
   user: AuthUser | null;
   language: AppLanguage;
   level: string;

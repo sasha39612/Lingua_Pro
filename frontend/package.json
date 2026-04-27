@@ -12,7 +12,8 @@
     "e2e": "playwright test",
     "e2e:report": "playwright show-report",
     "analyze": "ANALYZE=true next build",
-    "size": "size-limit"
+    "size": "size-limit",
+    "lhci": "lhci autorun"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -30,9 +31,12 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@lhci/cli": "^0.15.1",
     "@next/bundle-analyzer": "^15.5.15",
     "@playwright/test": "^1.44.0",
     "@size-limit/file": "^11.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/jest-axe": "^3.5.9",
     "@types/node": "^22.13.11",
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^19.0.11",
@@ -41,6 +45,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.5.15",
+    "jest-axe": "^10.0.0",
     "jsdom": "^25.0.0",
     "postcss": "^8.5.10",
     "size-limit": "^11.0.0",

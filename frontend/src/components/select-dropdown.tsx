@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 interface Option {
   value: string;
@@ -17,9 +17,15 @@ interface SelectDropdownProps {
 
 export function SelectDropdown({ value, options, onChange, label, testId }: SelectDropdownProps) {
   const [open, setOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const labelId = useId();
+  const listboxId = useId();
 
   const current = options.find((o) => o.value === value) ?? options[0];
+  const optionId = (val: string) => `${listboxId}-opt-${val}`;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -31,14 +37,74 @@ export function SelectDropdown({ value, options, onChange, label, testId }: Sele
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Move DOM focus to the listbox after it renders
+  useEffect(() => {
+    if (open) listRef.current?.focus();
+  }, [open]);
+
+  function openList() {
+    const idx = options.findIndex((o) => o.value === value);
+    setFocusedIndex(idx >= 0 ? idx : 0);
+    setOpen(true);
+  }
+
+  function closeList() {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  function selectAndClose(index: number) {
+    onChange(options[index].value);
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  function handleTriggerKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openList();
+    }
+  }
+
+  function handleListKeyDown(e: React.KeyboardEvent<HTMLUListElement>) {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedIndex((i) => Math.min(i + 1, options.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedIndex((i) => Math.max(i - 1, 0));
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < options.length) selectAndClose(focusedIndex);
+        break;
+      case 'Escape':
+        closeList();
+        break;
+      case 'Tab':
+        // Let tab move focus naturally but close the list first
+        closeList();
+        break;
+      default:
+        break;
+    }
+  }
+
   return (
     <div className="text-sm" data-testid={testId}>
-      {label && <span className="mb-1 block text-slate-600">{label}</span>}
+      {label && <span id={labelId} className="mb-1 block text-slate-600">{label}</span>}
       <div ref={ref} className="relative">
-        {/* Trigger */}
         <button
+          ref={triggerRef}
           type="button"
-          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-labelledby={label ? labelId : undefined}
+          onClick={() => (open ? closeList() : openList())}
+          onKeyDown={handleTriggerKeyDown}
           className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-teal-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
         >
           <span>{current.label}</span>
@@ -46,6 +112,7 @@ export function SelectDropdown({ value, options, onChange, label, testId }: Sele
             className={`ml-2 h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
             viewBox="0 0 20 20"
             fill="currentColor"
+            aria-hidden="true"
           >
             <path
               fillRule="evenodd"
@@ -55,27 +122,34 @@ export function SelectDropdown({ value, options, onChange, label, testId }: Sele
           </svg>
         </button>
 
-        {/* Dropdown list */}
         {open && (
           <ul
+            ref={listRef}
             role="listbox"
-            className="absolute z-50 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-float"
+            id={listboxId}
+            tabIndex={-1}
+            aria-labelledby={label ? labelId : undefined}
+            aria-activedescendant={focusedIndex >= 0 ? optionId(options[focusedIndex].value) : undefined}
+            onKeyDown={handleListKeyDown}
+            className="absolute z-50 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-float focus:outline-none"
           >
-            {options.map((option) => {
+            {options.map((option, i) => {
               const isActive = option.value === value;
+              const isFocused = i === focusedIndex;
               return (
                 <li
                   key={option.value}
+                  id={optionId(option.value)}
                   role="option"
                   aria-selected={isActive}
-                  onClick={() => {
-                    onChange(option.value);
-                    setOpen(false);
-                  }}
+                  onClick={() => selectAndClose(i)}
+                  onMouseEnter={() => setFocusedIndex(i)}
                   className={`flex cursor-pointer items-center justify-between px-3 py-2 text-sm transition-colors ${
-                    isActive
-                      ? 'bg-teal-100 font-semibold text-teal-800'
-                      : 'text-slate-700 hover:bg-slate-100'
+                    isFocused
+                      ? 'bg-teal-50 ring-2 ring-inset ring-teal-500'
+                      : isActive
+                        ? 'bg-teal-100 font-semibold text-teal-800'
+                        : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   <span>{option.label}</span>
@@ -84,6 +158,7 @@ export function SelectDropdown({ value, options, onChange, label, testId }: Sele
                       className="h-4 w-4 text-teal-600"
                       viewBox="0 0 20 20"
                       fill="currentColor"
+                      aria-hidden="true"
                     >
                       <path
                         fillRule="evenodd"

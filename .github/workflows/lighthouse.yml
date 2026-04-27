@@ -1,0 +1,49 @@
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8080
+          ALLOWED_ORIGINS: http://localhost:3000
+
+      - name: Run Lighthouse CI
+        run: pnpm lhci
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - name: Upload Lighthouse report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: frontend/.lighthouseci/
+          retention-days: 14

@@ -78,23 +78,36 @@ export function LoginPage() {
       <section className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-float">
         <h1 className="text-2xl font-bold">{t('title')}</h1>
         <p className="mt-2 text-sm text-slate-600">{t('subtitle')}</p>
-        <p className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white">
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+        >
           {status || t('defaultStatus')}
         </p>
 
         <form className="mt-4 space-y-3" onSubmit={form.handleSubmit(onSubmit)}>
-          <input
-            type="email"
-            placeholder={t('emailPlaceholder')}
-            className="w-full rounded-xl border border-slate-300 px-3 py-2"
-            {...form.register('email')}
-          />
-          <input
-            type="password"
-            placeholder={t('passwordPlaceholder')}
-            className="w-full rounded-xl border border-slate-300 px-3 py-2"
-            {...form.register('password')}
-          />
+          <div>
+            <label htmlFor="login-email" className="sr-only">{t('emailPlaceholder')}</label>
+            <input
+              id="login-email"
+              type="email"
+              placeholder={t('emailPlaceholder')}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              {...form.register('email')}
+            />
+          </div>
+          <div>
+            <label htmlFor="login-password" className="sr-only">{t('passwordPlaceholder')}</label>
+            <input
+              id="login-password"
+              type="password"
+              placeholder={t('passwordPlaceholder')}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              {...form.register('password')}
+            />
+          </div>
           <button
             type="submit"
             className="w-full rounded-xl bg-teal-700 px-4 py-2 font-medium text-white"

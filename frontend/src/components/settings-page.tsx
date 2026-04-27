@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { LabFrame } from '@/components/lab-frame';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
@@ -36,6 +37,7 @@ const UI_LOCALE_OPTIONS: { value: Locale; label: string }[] = [
 export function SettingsPage() {
   const t = useTranslations('settings');
   const router = useRouter();
+  const queryClient = useQueryClient();
   const user = useAppStore((s) => s.user);
   const level = useAppStore((s) => s.level);
   const theme = useAppStore((s) => s.theme);
@@ -75,7 +77,12 @@ export function SettingsPage() {
             label={t('levelLabel')}
             value={level}
             options={LEVEL_OPTIONS}
-            onChange={setLevel}
+            onChange={(v) => {
+              setLevel(v);
+              void queryClient.invalidateQueries({ queryKey: ['stats'] });
+              void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+              // texts are keyed by userId only (not level), so no invalidation needed here
+            }}
             testId="select-level"
           />
           <SelectDropdown
@@ -89,7 +96,12 @@ export function SettingsPage() {
             label={t('languageLabel')}
             value={language}
             options={LANGUAGE_OPTIONS}
-            onChange={(v) => setLanguage(v as AppLanguage)}
+            onChange={(v) => {
+              setLanguage(v as AppLanguage);
+              void queryClient.invalidateQueries({ queryKey: ['stats'] });
+              void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+              void queryClient.invalidateQueries({ queryKey: ['texts'] });
+            }}
             testId="select-language"
           />
           <SelectDropdown
