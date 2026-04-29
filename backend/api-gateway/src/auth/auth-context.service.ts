@@ -2,6 +2,14 @@
 import { Injectable } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`[startup] Required env var ${name} is not set`);
+  return v;
+}
+
+const JWT_SECRET = requireEnv('JWT_SECRET');
+
 export interface AuthContext {
   userId?: string;
   user?: {
@@ -28,9 +36,7 @@ export class AuthContextService {
       if (parts.length === 2 && parts[0] === 'Bearer') {
         const token = parts[1];
         try {
-          // Verify token signature and decode payload for downstream context.
-          const secret = process.env.JWT_SECRET || 'dev-secret';
-          const payload = jwt.verify(token, secret) as any;
+          const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as any;
 
           context.userId = payload.sub || payload.id;
           context.user = payload;

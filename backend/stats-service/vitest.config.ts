@@ -5,5 +5,8 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['src/**/*.spec.ts'],
+    env: {
+      INTERNAL_SERVICE_SECRET: 'test-internal-secret',
+    },
   },
 });

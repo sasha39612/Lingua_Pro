@@ -1,22 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GRAPHQL_OPERATIONS } from '@/lib/graphql-operations';
-import { getAuthToken } from '@/lib/server-auth';
+import { getAuthToken, verifyAdminJwt } from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
-function getAdminPayload(token: string): { role?: string } | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    return JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-  } catch {
-    return null;
-  }
-}
-
 export async function GET(req: NextRequest) {
   const token = getAuthToken(req);
-  const payload = token ? getAdminPayload(token) : null;
+  const payload = token ? verifyAdminJwt(token) : null;
   if (!payload || payload.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }

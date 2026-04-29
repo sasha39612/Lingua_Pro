@@ -3,6 +3,14 @@ import { Reflector } from '@nestjs/core';
 import * as jwt from 'jsonwebtoken';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`[startup] Required env var ${name} is not set`);
+  return v;
+}
+
+const JWT_SECRET = requireEnv('JWT_SECRET');
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
@@ -38,8 +46,7 @@ export class JwtAuthGuard implements CanActivate {
 
     const token = parts[1];
     try {
-      const secret = process.env.JWT_SECRET || 'dev-secret';
-      const payload = jwt.verify(token, secret);
+      const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
       req.user = payload as any;
       return true;
     } catch {

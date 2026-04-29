@@ -42,11 +42,6 @@ function makeHttpContext(headers: Record<string, string> = {}): any {
 describe('JwtAuthGuard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.JWT_SECRET = 'test-secret';
-  });
-
-  afterEach(() => {
-    delete process.env.JWT_SECRET;
   });
 
   it('allows public routes without checking the token', async () => {
@@ -78,7 +73,7 @@ describe('JwtAuthGuard', () => {
     const result = await guard.canActivate(ctx);
 
     expect(result).toBe(true);
-    expect(mockJwtVerify).toHaveBeenCalledWith('valid.jwt.token', 'test-secret');
+    expect(mockJwtVerify).toHaveBeenCalledWith('valid.jwt.token', 'test-secret', { algorithms: ['HS256'] });
     expect(ctx._req.user).toEqual(payload);
   });
 
@@ -107,14 +102,13 @@ describe('JwtAuthGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 
-  it('falls back to dev-secret when JWT_SECRET env is not set', async () => {
+  it('uses JWT_SECRET env var to verify tokens', async () => {
     const { guard } = makeGuard();
-    delete process.env.JWT_SECRET;
     mockJwtVerify.mockReturnValue({ id: 1 });
 
     const ctx = makeHttpContext({ authorization: 'Bearer some.token' });
     await guard.canActivate(ctx);
 
-    expect(mockJwtVerify).toHaveBeenCalledWith('some.token', 'dev-secret');
+    expect(mockJwtVerify).toHaveBeenCalledWith('some.token', 'test-secret', { algorithms: ['HS256'] });
   });
 });

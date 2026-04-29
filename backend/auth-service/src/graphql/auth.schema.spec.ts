@@ -57,7 +57,7 @@ describe('verifyToken', () => {
 
     const result = await verifyToken(fakeToken);
 
-    expect(mockJwtVerify).toHaveBeenCalledWith(fakeToken, expect.any(String));
+    expect(mockJwtVerify).toHaveBeenCalledWith(fakeToken, expect.any(String), { algorithms: ['HS256'] });
     expect(mockPrismaInstance.session.findUnique).toHaveBeenCalledWith({ where: { token: fakeToken } });
     expect(result).toEqual(fakePayload);
   });
@@ -93,7 +93,7 @@ describe('verifyToken', () => {
     mockPrismaInstance.session.findUnique.mockResolvedValue(fakeSession);
 
     await verifyToken(fakeToken);
-    expect(mockJwtVerify).toHaveBeenCalledWith(fakeToken, expect.any(String));
+    expect(mockJwtVerify).toHaveBeenCalledWith(fakeToken, expect.any(String), { algorithms: ['HS256'] });
   });
 });
 

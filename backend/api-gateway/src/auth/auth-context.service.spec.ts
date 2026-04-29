@@ -22,11 +22,6 @@ function makeRequest(authHeader?: string): any {
 describe('AuthContextService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.JWT_SECRET = 'test-secret';
-  });
-
-  afterEach(() => {
-    delete process.env.JWT_SECRET;
   });
 
   it('returns empty context when no Authorization header is present', async () => {
@@ -44,7 +39,7 @@ describe('AuthContextService', () => {
 
     const result = await service.extractContext(makeRequest('Bearer valid.jwt.token'));
 
-    expect(mockJwtVerify).toHaveBeenCalledWith('valid.jwt.token', 'test-secret');
+    expect(mockJwtVerify).toHaveBeenCalledWith('valid.jwt.token', 'test-secret', { algorithms: ['HS256'] });
     expect(result.userId).toBe('42');
     expect(result.user).toEqual(payload);
     expect(result.token).toBe('valid.jwt.token');
@@ -86,14 +81,13 @@ describe('AuthContextService', () => {
     expect(mockJwtVerify).not.toHaveBeenCalled();
   });
 
-  it('uses dev-secret when JWT_SECRET env is not set', async () => {
-    delete process.env.JWT_SECRET;
+  it('uses JWT_SECRET env var to verify tokens', async () => {
     const service = makeService();
     mockJwtVerify.mockReturnValue({ id: '1' });
 
     await service.extractContext(makeRequest('Bearer some.token'));
 
-    expect(mockJwtVerify).toHaveBeenCalledWith('some.token', 'dev-secret');
+    expect(mockJwtVerify).toHaveBeenCalledWith('some.token', 'test-secret', { algorithms: ['HS256'] });
   });
 
   it('handles uppercase Authorization header key', async () => {

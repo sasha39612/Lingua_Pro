@@ -14,18 +14,24 @@ import * as argon2 from 'argon2';
 import * as jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`[startup] Required env var ${name} is not set`);
+  return v;
+}
+
 const DATABASE_URL =
   process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/lingua_pro_auth?schema=public';
 const pool = new Pool({ connectionString: DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-const JWT_EXPIRY = process.env.JWT_EXPIRY || '7d'; // 7 days by default
+const JWT_SECRET = requireEnv('JWT_SECRET');
+const JWT_EXPIRY = process.env.JWT_EXPIRY || '7d';
 
 const ALLOWED_ROLES = new Set(['student', 'admin']);
 
-const INTERNAL_SERVICE_SECRET = process.env.INTERNAL_SERVICE_SECRET || '';
+const INTERNAL_SERVICE_SECRET = requireEnv('INTERNAL_SERVICE_SECRET');
 const ALLOWED_INTERNAL_SERVICES = new Set(['stats-service', 'api-gateway']);
 
 function isInternalServiceCall(context: any): boolean {
@@ -296,7 +302,7 @@ export const authSchema = buildSubgraphSchema([
 // ensure the session backing a token is still active. Returns decoded
 // payload if valid, otherwise throws.
 export async function verifyToken(token: string) {
-  const payload = jwt.verify(token, JWT_SECRET) as any;
+  const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as any;
   const session = await prisma.session.findUnique({ where: { token } });
   if (!session) {
     throw new Error('Session revoked');

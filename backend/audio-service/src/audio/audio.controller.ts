@@ -3,7 +3,13 @@ import type { Request, Response } from 'express';
 import { AudioService } from './audio.service';
 import { validateAudioBase64 } from './audio-validation';
 
-const AUDIO_INTERNAL_SECRET = process.env.INTERNAL_SERVICE_SECRET || '';
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`[startup] Required env var ${name} is not set`);
+  return v;
+}
+
+const AUDIO_INTERNAL_SECRET = requireEnv('INTERNAL_SERVICE_SECRET');
 const AUDIO_ALLOWED_SERVICES = new Set(['stats-service', 'api-gateway']);
 
 function requireAudioInternalToken(token: string | undefined, service: string | undefined): void {

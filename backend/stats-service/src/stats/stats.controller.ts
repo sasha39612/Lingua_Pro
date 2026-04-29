@@ -3,7 +3,13 @@ import { GetStatsQueryDto } from './dto/get-stats-query.dto';
 import { StatsService } from './stats.service';
 import { AdminStatsService } from './admin-stats.service';
 
-const STATS_INTERNAL_SECRET = process.env.INTERNAL_SERVICE_SECRET || '';
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`[startup] Required env var ${name} is not set`);
+  return v;
+}
+
+const STATS_INTERNAL_SECRET = requireEnv('INTERNAL_SERVICE_SECRET');
 const STATS_ALLOWED_SERVICES = new Set(['api-gateway']);
 
 @Controller()

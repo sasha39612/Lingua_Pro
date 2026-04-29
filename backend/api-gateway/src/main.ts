@@ -69,7 +69,11 @@ async function bootstrap() {
       }),
   });
 
-  const apolloServer = new ApolloServer({ gateway, plugins: [SentryApolloPlugin] });
+  const apolloServer = new ApolloServer({
+    gateway,
+    plugins: [SentryApolloPlugin],
+    introspection: process.env.NODE_ENV !== 'production',
+  });
   await apolloServer.start();
 
   const authContextService = new AuthContextService();

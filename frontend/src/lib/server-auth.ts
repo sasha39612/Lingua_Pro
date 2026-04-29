@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import * as jwt from 'jsonwebtoken';
 
 /**
  * Extract the JWT from the incoming Next.js server request.
@@ -14,4 +15,20 @@ export function getAuthToken(req: NextRequest): string | null {
   if (authHeader?.startsWith('Bearer ')) return authHeader.slice(7);
 
   return null;
+}
+
+/**
+ * Verify JWT signature and return payload. Returns null if the token is
+ * missing, the signature is invalid, or JWT_SECRET is not configured.
+ * Never use a plain base64 decode here — the payload is unsigned and forgeable
+ * without signature verification.
+ */
+export function verifyAdminJwt(token: string): { role?: string; id?: string } | null {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return null;
+  try {
+    return jwt.verify(token, secret, { algorithms: ['HS256'] }) as { role?: string; id?: string };
+  } catch {
+    return null;
+  }
 }

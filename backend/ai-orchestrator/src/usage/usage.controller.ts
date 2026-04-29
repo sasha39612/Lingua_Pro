@@ -1,6 +1,13 @@
 import { Controller, ForbiddenException, Get, Headers, Query } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`[startup] Required env var ${name} is not set`);
+  return v;
+}
+
+const USAGE_INTERNAL_SECRET = requireEnv('INTERNAL_SERVICE_SECRET');
 const ALLOWED_INTERNAL_SERVICES = new Set(['stats-service', 'api-gateway']);
 
 @Controller('usage')
@@ -14,7 +21,7 @@ export class UsageController {
     @Headers('x-internal-token') internalToken: string,
     @Headers('x-internal-service') internalService: string,
   ) {
-    const isInternal = internalToken === (process.env.INTERNAL_SERVICE_SECRET || '')
+    const isInternal = internalToken === USAGE_INTERNAL_SECRET
       && ALLOWED_INTERNAL_SERVICES.has(internalService);
     if (!isInternal && userRole !== 'admin') {
       throw new ForbiddenException('Admin or internal access only');
