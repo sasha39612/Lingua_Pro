@@ -51,28 +51,6 @@ export function LoginPage() {
     }
   };
 
-  const demoLogin = async (type: 'student' | 'admin') => {
-    setIsPending(true);
-    try {
-      const res = await fetch('/api/auth/demo-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setStatus(data.error ?? t('demoLoginFailed'));
-        return;
-      }
-      setUser(data.user as AuthUser);
-      router.push('/dashboard');
-    } catch {
-      setStatus(t('demoLoginFailedRetry'));
-    } finally {
-      setIsPending(false);
-    }
-  };
-
   return (
     <LabFrame>
       <section className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-float">
@@ -117,27 +95,6 @@ export function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-600">{t('temporaryAccess')}</p>
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              onClick={() => demoLogin('student')}
-              disabled={isPending}
-              className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
-            >
-              {t('demoUser')}
-            </button>
-            <button
-              type="button"
-              onClick={() => demoLogin('admin')}
-              disabled={isPending}
-              className="flex-1 rounded-lg bg-indigo-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
-            >
-              {t('demoAdmin')}
-            </button>
-          </div>
-        </div>
       </section>
     </LabFrame>
   );

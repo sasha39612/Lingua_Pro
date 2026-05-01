@@ -223,7 +223,8 @@ export const authSchema = buildSubgraphSchema([
         }
       },
       Mutation: {
-        register: async (_: any, { email, password, language }: any) => {
+        register: async (_: any, { email, password, language }: any, context: any) => {
+          requireAdmin(context);
           validateEmail(email);
           validatePassword(password);
           const normalizedEmail = email.trim().toLowerCase();

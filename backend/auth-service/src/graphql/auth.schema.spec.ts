@@ -198,8 +198,26 @@ describe('Auth resolvers (captured from buildSubgraphSchema)', () => {
   // ─── Mutation.register ────────────────────────────────────────────────────
 
   describe('Mutation.register', () => {
-    it('creates user and returns token + user on success', async () => {
-      mockPrismaInstance.user.findUnique.mockResolvedValue(null); // no existing user
+    const adminCtx = { userId: '1', role: 'admin' };
+
+    it('throws Unauthorized for unauthenticated callers', async () => {
+      await expect(
+        capturedSchema.resolvers.Mutation.register(null, { email: 'x@x.com', password: 'Test1234' }, {}),
+      ).rejects.toThrow('Unauthorized');
+    });
+
+    it('throws Forbidden for non-admin users', async () => {
+      await expect(
+        capturedSchema.resolvers.Mutation.register(
+          null,
+          { email: 'x@x.com', password: 'Test1234' },
+          { userId: '2', role: 'student' },
+        ),
+      ).rejects.toThrow('Forbidden');
+    });
+
+    it('admin creates user and returns token + user on success', async () => {
+      mockPrismaInstance.user.findUnique.mockResolvedValue(null);
       mockArgon2Hash.mockResolvedValue('hashed-pw');
       mockPrismaInstance.user.create.mockResolvedValue(fakeUser);
       mockPrismaInstance.session.create.mockResolvedValue(fakeSession);
@@ -207,6 +225,7 @@ describe('Auth resolvers (captured from buildSubgraphSchema)', () => {
       const result = await capturedSchema.resolvers.Mutation.register(
         null,
         { email: 'new@example.com', password: 'Test1234', language: 'english' },
+        adminCtx,
       );
 
       expect(mockPrismaInstance.user.create).toHaveBeenCalledWith(
@@ -224,25 +243,26 @@ describe('Auth resolvers (captured from buildSubgraphSchema)', () => {
         capturedSchema.resolvers.Mutation.register(
           null,
           { email: 'test@example.com', password: 'Test1234' },
+          adminCtx,
         ),
       ).rejects.toThrow('Email already in use');
     });
 
     it('throws on invalid email format', async () => {
       await expect(
-        capturedSchema.resolvers.Mutation.register(null, { email: 'not-an-email', password: 'Test1234' }),
+        capturedSchema.resolvers.Mutation.register(null, { email: 'not-an-email', password: 'Test1234' }, adminCtx),
       ).rejects.toThrow('Invalid email format');
     });
 
     it('throws on weak password (too short)', async () => {
       await expect(
-        capturedSchema.resolvers.Mutation.register(null, { email: 'a@b.com', password: 'abc' }),
+        capturedSchema.resolvers.Mutation.register(null, { email: 'a@b.com', password: 'abc' }, adminCtx),
       ).rejects.toThrow('Password must be at least 8 characters');
     });
 
     it('throws on password missing uppercase/digit', async () => {
       await expect(
-        capturedSchema.resolvers.Mutation.register(null, { email: 'a@b.com', password: 'alllower1' }),
+        capturedSchema.resolvers.Mutation.register(null, { email: 'a@b.com', password: 'alllower1' }, adminCtx),
       ).rejects.toThrow('Password must include upper');
     });
 
@@ -254,6 +274,7 @@ describe('Auth resolvers (captured from buildSubgraphSchema)', () => {
       await capturedSchema.resolvers.Mutation.register(
         null,
         { email: 'UPPER@EXAMPLE.COM', password: 'Test1234' },
+        adminCtx,
       );
 
       expect(mockPrismaInstance.user.findUnique).toHaveBeenCalledWith({
