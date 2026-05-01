@@ -27,6 +27,7 @@ services:
       - CONTACT_SMTP_USER=${CONTACT_SMTP_USER}
       - CONTACT_SMTP_PASS=${CONTACT_SMTP_PASS}
       - CONTACT_TO_EMAIL=${CONTACT_TO_EMAIL}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
       interval: 30s
