@@ -194,23 +194,13 @@ export function SpeakingPage() {
         {/* Block 1: Header */}
         <section className="rounded-2xl bg-white p-5 shadow-float">
           <h1 className="text-2xl font-bold">{t('title')}</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            {t('description')}
-          </p>
+          <p className="mt-1 text-sm text-slate-600">{language} · {level}</p>
         </section>
 
         {/* Block 2: Generated text */}
         <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">{t('generatedText')}</h2>
-            <div className="flex gap-2">
-              <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-700">
-                {language}
-              </span>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                {level}
-              </span>
-            </div>
           </div>
           <div className="mt-3 min-h-[80px] rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
             {generatedText || (
