@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { LabFrame } from '@/components/lab-frame';
@@ -117,9 +118,9 @@ export function SettingsPage() {
       <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
         <h2 className="text-lg font-semibold">{t('accountManagement')}</h2>
         <p className="mt-2 text-sm text-slate-600">{t('signedInAs')} {user?.email ?? '—'}</p>
-        <button type="button" onClick={logout} className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">
-          {t('logout')}
-        </button>
+        <Link href="/" className="mt-3 inline-block rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">
+          {t('apply')}
+        </Link>
       </section>
       </div>
     </LabFrame>

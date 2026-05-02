@@ -236,11 +236,11 @@ export function WritingPage() {
                 type="button"
                 onClick={fetchTask}
                 disabled={loadingTask}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-amber-400 disabled:opacity-50"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50"
               >
                 {loadingTask ? (
                   <>
-                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     {t('generatingTask')}
                   </>
                 ) : (

@@ -3,13 +3,14 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useAppStore } from '@/store/app-store';
 
 const SKILL_LINKS = [
-  { href: '/speaking', icon: '/icons/speaking-inverted.svg', label: 'Speaking' },
-  { href: '/listening', icon: '/icons/listening-inverted.svg', label: 'Listening' },
-  { href: '/reading', icon: '/icons/reading-inverted.svg', label: 'Reading' },
-  { href: '/writing', icon: '/icons/writing-inverted.svg', label: 'Writing' },
+  { href: '/speaking', icon: '/icons/speaking-inverted.svg', key: 'speaking' as const },
+  { href: '/listening', icon: '/icons/listening-inverted.svg', key: 'listening' as const },
+  { href: '/reading', icon: '/icons/reading-inverted.svg', key: 'reading' as const },
+  { href: '/writing', icon: '/icons/writing-inverted.svg', key: 'writing' as const },
 ];
 
 export function LabFrame({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,7 @@ export function LabFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
+  const t = useTranslations('nav');
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
@@ -36,8 +38,9 @@ export function LabFrame({ children }: { children: React.ReactNode }) {
                 </Link>
                 <span className="h-6 w-px bg-white/30" />
                 <nav className="flex items-center gap-1">
-                  {SKILL_LINKS.map(({ href, icon, label }) => {
+                  {SKILL_LINKS.map(({ href, icon, key }) => {
                     const isActive = pathname === href;
+                    const label = t(key);
                     return (
                       <Link
                         key={href}
