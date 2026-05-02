@@ -149,6 +149,7 @@
     "audioUsed": "Audio used ({max}/{max})",
     "playLimitReached": "Play limit reached. Proceed with your answers.",
     "audioUnavailable": "Audio unavailable — read the passage silently and answer based on the questions below.",
+    "audioPlaybackError": "Could not play audio. Your browser may not support this format.",
     "submitAnswers": "Submit Answers",
     "submitting": "Submitting…",
     "answerAll": "Answer all {count} questions to submit",

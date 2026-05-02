@@ -256,7 +256,7 @@ export function WritingPage() {
                 type="button"
                 onClick={fetchTask}
                 disabled={loadingTask || isAnalyzing}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
               >
                 {loadingTask ? t('loadingTask') : t('newTask')}
               </button>
@@ -273,7 +273,7 @@ export function WritingPage() {
                 <button
                   type="button"
                   onClick={() => setTaskCollapsed((v) => !v)}
-                  className="text-xs text-slate-400 hover:text-slate-600"
+                  className="text-sm text-slate-400 hover:text-slate-600"
                 >
                   {taskCollapsed ? t('showTask') : t('hideTask')}
                 </button>
@@ -339,7 +339,7 @@ export function WritingPage() {
                   setPhase('editor');
                   setTimeout(() => textareaRef.current?.focus(), 50);
                 }}
-                className="mt-5 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-amber-400"
+                className="mt-5 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800"
               >
                 {t('startWriting')}
               </button>
@@ -381,7 +381,7 @@ export function WritingPage() {
                 type="button"
                 onClick={submitText}
                 disabled={!canSubmit || isAnalyzing}
-                className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-amber-400 disabled:opacity-40"
+                className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50"
               >
                 {t('submit')}
               </button>
@@ -458,7 +458,7 @@ export function WritingPage() {
                   <button
                     type="button"
                     onClick={() => setShowCorrected((v) => !v)}
-                    className="text-xs text-slate-400 hover:text-slate-600"
+                    className="text-sm text-slate-400 hover:text-slate-600"
                   >
                     {showCorrected ? t('hideCorrected') : t('showCorrected')}
                   </button>
@@ -487,7 +487,7 @@ export function WritingPage() {
                     setStreamedComplete(null);
                     setError(null);
                   }}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                 >
                   {t('editResubmit')}
                 </button>
@@ -495,7 +495,7 @@ export function WritingPage() {
                   type="button"
                   onClick={fetchTask}
                   disabled={loadingTask}
-                  className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-slate-900 hover:bg-amber-400 disabled:opacity-40"
+                  className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50"
                 >
                   {t('tryAnotherTask')}
                 </button>

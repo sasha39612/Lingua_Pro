@@ -236,7 +236,7 @@ export function SpeakingPage() {
             type="button"
             onClick={handleGenerateText}
             disabled={isGenerating}
-            className="mt-3 rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="mt-3 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50"
           >
             {isGenerating ? t('generating') : t('generateText')}
           </button>
@@ -296,7 +296,7 @@ export function SpeakingPage() {
             type="button"
             onClick={handleAnalyze}
             disabled={!canAnalyze || isAnalyzing}
-            className="mt-3 rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="mt-3 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50"
           >
             {isAnalyzing ? t('analyzing') : t('analyzePronunciation')}
           </button>

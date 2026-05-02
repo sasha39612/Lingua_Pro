@@ -149,6 +149,7 @@
     "audioUsed": "Audio e përdorur ({max}/{max})",
     "playLimitReached": "Limiti i luajtjes u arrit. Vazhdoni me përgjigjet tuaja.",
     "audioUnavailable": "Audio e padisponueshme — lexoni pasazhin në heshtje dhe përgjigjuni bazuar në pyetjet më poshtë.",
+    "audioPlaybackError": "Nuk mund të luhet audio. Shfletuesi juaj mund të mos mbështesë këtë format.",
     "submitAnswers": "Dërgo përgjigjet",
     "submitting": "Duke dërguar…",
     "answerAll": "Përgjigjuni të gjitha {count} pyetjeve për të dërguar",

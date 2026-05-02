@@ -252,7 +252,7 @@ export function Dashboard() {
             <button
               type="submit"
               disabled={checkTextMutation.isPending || tasksQuery.isLoading}
-              className="w-full rounded-xl bg-amber-500 px-4 py-2 font-semibold text-slate-900 disabled:opacity-60"
+              className="w-full rounded-xl bg-teal-700 px-4 py-2 font-medium text-white hover:bg-teal-800 disabled:opacity-50"
             >
               Analyze Text
             </button>

@@ -122,8 +122,10 @@ export function ListeningPage() {
   const [taskError, setTaskError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [playsUsed, setPlaysUsed] = useState(0);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioBlobUrlRef = useRef<string | null>(null);
 
   const isNewFormat = questions.some((q) => 'difficulty' in q && q.difficulty !== undefined);
 
@@ -139,7 +141,13 @@ export function ListeningPage() {
         setSelectedAnswers(new Array(ev.data.questions.length).fill(null));
         setStreamPhase('synthesizing');
       } else if (ev.event === 'audio_ready') {
-        const src = `data:${ev.data.mimeType};base64,${ev.data.audioBase64}`;
+        if (audioBlobUrlRef.current) URL.revokeObjectURL(audioBlobUrlRef.current);
+        const binary = atob(ev.data.audioBase64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: ev.data.mimeType });
+        const src = URL.createObjectURL(blob);
+        audioBlobUrlRef.current = src;
         setAudioSrcState(src);
         setStreamPhase('ready');
       } else if (ev.event === 'audio_unavailable') {
@@ -161,6 +169,10 @@ export function ListeningPage() {
       return;
     }
     listeningStream.cancel();
+    if (audioBlobUrlRef.current) {
+      URL.revokeObjectURL(audioBlobUrlRef.current);
+      audioBlobUrlRef.current = null;
+    }
     setStreamPhase('generating');
     setTaskError(null);
     setTaskId(null);
@@ -170,6 +182,7 @@ export function ListeningPage() {
     setResult(null);
     setSubmitError(null);
     setPlaysUsed(0);
+    setAudioError(null);
     listeningStream.start({ language, level, userId: user.id });
   }, [language, level, user, listeningStream, t]);
 
@@ -248,7 +261,7 @@ export function ListeningPage() {
             <button
               type="button"
               onClick={fetchTask}
-              className="mt-4 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800"
+              className="mt-4 rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50"
             >
               {t('play')}
             </button>
@@ -288,7 +301,13 @@ export function ListeningPage() {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => { if (playsUsed < MAX_PLAYS) audioRef.current?.play(); }}
+                  onClick={() => {
+                    if (playsUsed < MAX_PLAYS) {
+                      audioRef.current?.play().catch(() => {
+                        setAudioError(t('audioPlaybackError'));
+                      });
+                    }
+                  }}
                   disabled={playsUsed >= MAX_PLAYS}
                   className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -308,8 +327,12 @@ export function ListeningPage() {
                 key={taskId ?? undefined}
                 src={audioSrcState}
                 onPlay={() => setPlaysUsed((p) => p + 1)}
+                onError={() => setAudioError(t('audioPlaybackError'))}
                 className="hidden"
               />
+              {audioError && (
+                <p className="mt-2 text-xs text-red-500">{audioError}</p>
+              )}
             </div>
           )}
 

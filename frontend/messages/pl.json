@@ -149,6 +149,7 @@
     "audioUsed": "Audio wykorzystane ({max}/{max})",
     "playLimitReached": "Osiągnięto limit odtworzeń. Przejdź do swoich odpowiedzi.",
     "audioUnavailable": "Audio niedostępne — przeczytaj tekst w ciszy i odpowiedz na pytania poniżej.",
+    "audioPlaybackError": "Nie można odtworzyć audio. Twoja przeglądarka może nie obsługiwać tego formatu.",
     "submitAnswers": "Prześlij odpowiedzi",
     "submitting": "Przesyłanie…",
     "answerAll": "Odpowiedz na wszystkie {count} pytań, aby przesłać",

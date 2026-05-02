@@ -149,6 +149,7 @@
     "audioUsed": "Audio verwendet ({max}/{max})",
     "playLimitReached": "Wiedergabelimit erreicht. Fahren Sie mit Ihren Antworten fort.",
     "audioUnavailable": "Audio nicht verfügbar — lesen Sie den Text still und antworten Sie anhand der Fragen unten.",
+    "audioPlaybackError": "Audio konnte nicht abgespielt werden. Ihr Browser unterstützt möglicherweise dieses Format nicht.",
     "submitAnswers": "Antworten absenden",
     "submitting": "Wird abgesendet…",
     "answerAll": "Beantworten Sie alle {count} Fragen zum Absenden",
