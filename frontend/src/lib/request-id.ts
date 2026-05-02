@@ -1,8 +1,10 @@
-/**
- * Generates a unique request ID for correlating frontend API calls with
- * backend AI usage log entries. Pass as `x-request-id` on all outbound
- * fetches from Next.js API routes.
- */
 export function generateRequestId(): string {
-  return 'req-' + crypto.randomUUID();
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return 'req-' + crypto.randomUUID();
+  }
+  // Fallback for non-secure contexts (HTTP) where randomUUID is unavailable
+  return 'req-' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }
