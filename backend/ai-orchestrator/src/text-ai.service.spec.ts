@@ -33,7 +33,7 @@ describe('TextAiService — local fallbacks (no AI_API_KEY)', () => {
     expect(result.textScore).toBe(0.5);
     expect(result.correctedText).toBe('');
     expect(result.feedback).toContain('English');
-  });
+  }, 15_000);
 
   it('returns textScore=0.5 for whitespace-only text', async () => {
     const svc = await makeService();

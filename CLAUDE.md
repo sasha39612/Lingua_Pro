@@ -248,6 +248,7 @@ Lingua_Pro/
 │       │   ├── graphql-hooks.ts         # TanStack Query hooks
 │       │   ├── admin-hooks.ts           # useAdminStats, useAdminUsers (staleTime: 60_000)
 │       │   ├── persisted-queries.ts     # SHA-256 hash map per operation name
+│       │   ├── request-id.ts            # generateRequestId() — crypto.randomUUID() with Math.random fallback for non-secure (HTTP) contexts
 │       │   └── types.ts                 # Includes AdminUser, AdminStatsOverview
 │       ├── store/app-store.ts           # Zustand (user metadata, language, level, theme, uiLocale) — no token; auth is httpOnly cookie
 │       └── i18n/
@@ -393,3 +394,9 @@ This pattern is used instead of trusting `x-user-role` (which is forgeable by an
 - `withRetryTracked()` returns `{ result, attempts }` — declare `let attempts = 0` **outside** the try block so the catch block can read it; `retryCount = attempts - 1` (0 = clean first-attempt success)
 - Log **after** the full retry sequence completes, never inside the retry callback — logging inside inflates counts and creates misleading failure data
 - `requestId` is generated once per incoming HTTP request (or read from `x-request-id` header) and passed through all service calls so multiple AI operations triggered by one user action can be correlated
+- `generateRequestId()` in `frontend/src/lib/request-id.ts` uses `crypto.randomUUID()` with a `Math.random`-based fallback — `randomUUID` is unavailable in non-secure (HTTP) contexts; do not replace the fallback with a bare `crypto.randomUUID()` call
+
+### TTS audio playback
+- Base64 MP3 returned by `POST /audio/tts` must be converted to a `blob:` URL before being set as an `<audio>` `src` — `data:` URIs are blocked by the project's `media-src 'self' blob:` CSP policy
+- Pattern: `URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }))` where `bytes` is decoded from base64 via `atob()`
+- Always revoke the previous blob URL with `URL.revokeObjectURL()` before creating a new one to avoid memory leaks
