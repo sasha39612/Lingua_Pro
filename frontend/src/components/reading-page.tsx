@@ -361,9 +361,9 @@ function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }:
   // ── True / False / Not Given ─────────────────────────────────────────────
   if (q.type === 'true_false_ng') {
     const tfOptions = [
-      { label: 'T', value: 'T' },
-      { label: 'F', value: 'F' },
-      { label: 'NG', value: 'NG' },
+      { label: t('true'), value: 'T' },
+      { label: t('false'), value: 'F' },
+      { label: t('notGiven'), value: 'NG' },
     ];
     return (
       <div>
@@ -398,7 +398,10 @@ function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }:
         </div>
         {qResult && (
           <p className={`mt-2 text-xs font-medium ${qResult.correct ? 'text-teal-700' : 'text-red-600'}`}>
-            {qResult.correct ? t('correct') : t('incorrect', { answer: q.correctAnswer ?? '' })}
+            {qResult.correct ? t('correct') : (() => {
+              const tfngMap: Record<string, string> = { T: t('true'), F: t('false'), NG: t('notGiven') };
+              return t('incorrect', { answer: tfngMap[String(q.correctAnswer)] ?? q.correctAnswer ?? '' });
+            })()}
           </p>
         )}
       </div>
