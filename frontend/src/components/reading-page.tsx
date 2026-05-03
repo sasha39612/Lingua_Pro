@@ -6,6 +6,7 @@ import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
 import { useAiStream } from '@/lib/use-ai-stream';
 import { useTranslations } from 'next-intl';
+import type { ReactNode } from 'react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,77 @@ const SECTION_ORDER: ReadingQuestionType[] = [
   'main_idea',
 ];
 
+// ── Highlight helpers ────────────────────────────────────────────────────────
+
+const HIGHLIGHT_COLORS = [
+  { bg: 'bg-yellow-200',  badge: 'bg-yellow-500'  },
+  { bg: 'bg-sky-200',     badge: 'bg-sky-500'      },
+  { bg: 'bg-violet-200',  badge: 'bg-violet-500'   },
+  { bg: 'bg-rose-200',    badge: 'bg-rose-500'     },
+  { bg: 'bg-emerald-200', badge: 'bg-emerald-500'  },
+] as const;
+
+function getCorrectAnswerText(q: ReadingQuestion): string | null {
+  if (q.type === 'multiple_choice' || q.type === 'vocabulary' || q.type === 'main_idea') {
+    if (!q.correctAnswer || !q.options) return null;
+    const idx = OPTION_LABELS.indexOf(q.correctAnswer as typeof OPTION_LABELS[number]);
+    return idx >= 0 ? (q.options[idx] ?? null) : null;
+  }
+  if (q.type === 'true_false_ng') return q.question ?? null;
+  if (q.type === 'matching') return q.matchingIdea ?? null;
+  return null;
+}
+
+interface HighlightSpec {
+  text: string;
+  colorIndex: number;
+  questionNumber: number;
+}
+
+interface TextSegment {
+  text: string;
+  highlights: Array<{ colorIndex: number; questionNumber: number }>;
+}
+
+function buildHighlightedSegments(passage: string, specs: HighlightSpec[]): TextSegment[] {
+  if (specs.length === 0) return [{ text: passage, highlights: [] }];
+
+  interface Range { start: number; end: number; colorIndex: number; questionNumber: number }
+  const ranges: Range[] = [];
+
+  for (const spec of specs) {
+    if (!spec.text.trim()) continue;
+    const lower = passage.toLowerCase();
+    const target = spec.text.toLowerCase().trim();
+    let pos = 0;
+    while (pos < lower.length) {
+      const idx = lower.indexOf(target, pos);
+      if (idx === -1) break;
+      ranges.push({ start: idx, end: idx + target.length, colorIndex: spec.colorIndex, questionNumber: spec.questionNumber });
+      pos = idx + target.length;
+    }
+  }
+
+  if (ranges.length === 0) return [{ text: passage, highlights: [] }];
+
+  const boundaries = new Set<number>([0, passage.length]);
+  for (const r of ranges) { boundaries.add(r.start); boundaries.add(r.end); }
+  const sorted = Array.from(boundaries).sort((a, b) => a - b);
+
+  const segments: TextSegment[] = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const start = sorted[i];
+    const end = sorted[i + 1];
+    segments.push({
+      text: passage.slice(start, end),
+      highlights: ranges
+        .filter((r) => r.start <= start && r.end >= end)
+        .map(({ colorIndex, questionNumber }) => ({ colorIndex, questionNumber })),
+    });
+  }
+  return segments;
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function ReadingPage() {
@@ -69,6 +141,7 @@ export function ReadingPage() {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [result, setResult] = useState<AnswersResult | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [activeHighlights, setActiveHighlights] = useState<Set<number>>(new Set());
 
   // ── SSE event types ──────────────────────────────────────────────────────
   type ReadingStreamEvent =
@@ -110,12 +183,21 @@ export function ReadingPage() {
     setTask(null);
     setAnswers({});
     setResult(null);
+    setActiveHighlights(new Set());
     readingStream.start({ language, level, userId: user.id });
   }, [language, level, user, readingStream, t]);
 
   const setAnswer = (index: number, value: string) => {
     if (result) return;
     setAnswers((prev) => ({ ...prev, [index]: value }));
+  };
+
+  const toggleHighlight = (index: number) => {
+    setActiveHighlights((prev) => {
+      const next = new Set(prev);
+      next.has(index) ? next.delete(index) : next.add(index);
+      return next;
+    });
   };
 
   const allAnswered =
@@ -198,7 +280,33 @@ export function ReadingPage() {
           <section className="sticky top-4 z-10 rounded-2xl bg-white p-5 shadow-float">
             <h2 className="mb-3 text-base font-semibold text-slate-800">{t('readTheText')}</h2>
             <article className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
-              {task.passage}
+              {result && activeHighlights.size > 0 ? (() => {
+                const specs: HighlightSpec[] = [];
+                task.questions.forEach((q, idx) => {
+                  if (!activeHighlights.has(idx)) return;
+                  const text = getCorrectAnswerText(q);
+                  if (!text) return;
+                  specs.push({ text, colorIndex: idx % HIGHLIGHT_COLORS.length, questionNumber: idx + 1 });
+                });
+                return buildHighlightedSegments(task.passage, specs).map((seg, si) => {
+                  if (seg.highlights.length === 0) return <span key={si}>{seg.text}</span>;
+                  let content: ReactNode = (
+                    <>
+                      {seg.text}
+                      {seg.highlights.map((h) => (
+                        <sup key={h.questionNumber} className={`ml-0.5 rounded-full px-1 text-[9px] font-bold text-white ${HIGHLIGHT_COLORS[h.colorIndex].badge}`}>
+                          {h.questionNumber}
+                        </sup>
+                      ))}
+                    </>
+                  );
+                  for (const h of [...seg.highlights].reverse()) {
+                    const prev = content;
+                    content = <span key={h.colorIndex} className={`${HIGHLIGHT_COLORS[h.colorIndex].bg} rounded-sm`}>{prev}</span>;
+                  }
+                  return <span key={si}>{content}</span>;
+                });
+              })() : task.passage}
             </article>
           </section>
         )}
@@ -223,6 +331,8 @@ export function ReadingPage() {
                     qResult={qResult}
                     locked={!!result}
                     onAnswer={setAnswer}
+                    highlighted={activeHighlights.has(idx)}
+                    onToggleHighlight={toggleHighlight}
                   />
                 );
               })}
@@ -300,10 +410,33 @@ interface QuestionBlockProps {
   qResult: QuestionResult | undefined;
   locked: boolean;
   onAnswer: (index: number, value: string) => void;
+  highlighted: boolean;
+  onToggleHighlight: (index: number) => void;
 }
 
-function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }: QuestionBlockProps) {
+function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer, highlighted, onToggleHighlight }: QuestionBlockProps) {
   const t = useTranslations('reading');
+
+  const color = HIGHLIGHT_COLORS[index % HIGHLIGHT_COLORS.length];
+  const findToggle = qResult ? (
+    <label className={`mt-2 inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+      highlighted
+        ? `${color.bg} border-transparent text-slate-700`
+        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+    }`}>
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={highlighted}
+        onChange={() => onToggleHighlight(index)}
+      />
+      <svg className="h-3 w-3 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M6.5 1a5.5 5.5 0 1 0 3.613 9.72l3.584 3.583a.75.75 0 1 0 1.06-1.06L11.174 9.66A5.5 5.5 0 0 0 6.5 1zM2.5 6.5a4 4 0 1 1 8 0 4 4 0 0 1-8 0z" />
+      </svg>
+      Find in passage
+    </label>
+  ) : null;
+
   const questionLabel = (
     <p className="mb-3 text-sm font-medium text-slate-800">
       <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">
@@ -354,6 +487,7 @@ function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }:
             {qResult.correct ? t('correct') : t('incorrect', { answer: q.correctAnswer ?? '' })}
           </p>
         )}
+        {findToggle}
       </div>
     );
   }
@@ -404,6 +538,7 @@ function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }:
             })()}
           </p>
         )}
+        {findToggle}
       </div>
     );
   }
@@ -432,6 +567,7 @@ function QuestionBlock({ question: q, index, given, qResult, locked, onAnswer }:
               : t('incorrect', { answer: opts[q.correctMatchIndex ?? 0] ?? '' })}
           </p>
         )}
+        {findToggle}
       </div>
     );
   }
