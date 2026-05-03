@@ -195,9 +195,9 @@ export function ReadingPage() {
 
         {/* ── Passage ───────────────────────────────────────────────────────── */}
         {task && (
-          <section className="rounded-2xl bg-white p-5 shadow-float">
+          <section className="sticky top-4 z-10 rounded-2xl bg-white p-5 shadow-float">
             <h2 className="mb-3 text-base font-semibold text-slate-800">{t('readTheText')}</h2>
-            <article className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
+            <article className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
               {task.passage}
             </article>
           </section>
