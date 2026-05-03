@@ -29,6 +29,11 @@ function makeService() {
       findMany: vi.fn(),
       create: vi.fn(),
     },
+    userTaskSet: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn(),
+      update: vi.fn(),
+    },
   };
 
   const mockHttp = {
@@ -207,7 +212,7 @@ describe('TextService', () => {
       const saved = { id: 99, skill: 'reading', textScore: 0.85, createdAt: new Date() };
       mockPrisma.text.create.mockResolvedValue(saved);
 
-      const result = await service.recordScore(7, 'English', 'reading', 0.85);
+      const result = await service.recordScore(7, 'English', 'B1', 'reading', 0.85);
 
       expect(mockPrisma.text.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -226,7 +231,7 @@ describe('TextService', () => {
       const { service, mockPrisma } = makeService();
       mockPrisma.text.create.mockResolvedValue({ id: 100, createdAt: new Date() });
 
-      const result = await service.recordScore(3, 'German', 'writing', 0.72);
+      const result = await service.recordScore(3, 'German', 'B2', 'writing', 0.72);
 
       expect(mockPrisma.text.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ skill: 'writing', textScore: 0.72 }) }),
@@ -238,7 +243,7 @@ describe('TextService', () => {
       const { service, mockPrisma } = makeService();
       mockPrisma.text.create.mockRejectedValue(new Error('DB error'));
 
-      const result = await service.recordScore(5, 'English', 'reading', 0.6);
+      const result = await service.recordScore(5, 'English', 'A2', 'reading', 0.6);
 
       expect(result).toMatchObject({ id: -1, skill: 'reading', score: 0.6 });
     });

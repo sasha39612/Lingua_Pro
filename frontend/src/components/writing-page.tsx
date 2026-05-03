@@ -163,8 +163,8 @@ export function WritingPage() {
           fetch('/api/text/score', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.id, language, skill: 'writing', score: ev.data.overallScore }),
-          }).catch(() => { /* best-effort */ });
+            body: JSON.stringify({ userId: user.id, language, level, skill: 'writing', score: ev.data.overallScore }),
+          }).catch((err) => console.warn('Score submission failed', err));
         }
       } else if (ev.event === 'error') {
         setError(t('streamError'));

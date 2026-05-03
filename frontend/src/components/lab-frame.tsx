@@ -33,8 +33,8 @@ export function LabFrame({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <main className="min-h-screen bg-[#0a54c2] p-4 sm:p-8">
-      <section className="mx-auto flex max-w-6xl rounded-2xl bg-white shadow-[0_28px_80px_rgba(4,23,71,0.35)]">
+    <main className="min-h-screen bg-[#0a54c2] dark:bg-[#060c1a] p-4 sm:p-8">
+      <section className="mx-auto flex max-w-6xl rounded-2xl bg-white dark:bg-slate-900 shadow-[0_28px_80px_rgba(4,23,71,0.35)] dark:shadow-[0_28px_80px_rgba(0,0,0,0.6)]">
         <div className="w-full">
           <header className="overflow-hidden rounded-t-2xl border-b border-white/25 bg-gradient-to-r from-[#0a54c2] to-[#1a6be0] text-white shadow-[0_10px_30px_rgba(10,52,128,0.35)]">
             <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-7">
@@ -95,7 +95,7 @@ export function LabFrame({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <div className="bg-[#efeff2] px-4 pb-12 pt-10 sm:px-8 sm:pb-14 sm:pt-12">{children}</div>
+          <div className="bg-[#efeff2] dark:bg-slate-900 px-4 pb-12 pt-10 sm:px-8 sm:pb-14 sm:pt-12">{children}</div>
 
           <footer className="overflow-hidden rounded-b-2xl bg-gradient-to-r from-[#1e3358] to-[#101d35] px-6 py-6 text-sm text-slate-200">
             <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-4 sm:gap-8">

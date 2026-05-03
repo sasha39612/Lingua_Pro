@@ -73,24 +73,38 @@ export class TextService {
     }
   }
 
-  async recordScore(userId: number, language: string, skill: string, score: number) {
+  async recordScore(userId: number, language: string, level: string, skill: string, score: number) {
     language = (language || 'english').toLowerCase();
+    let recordId = -1;
+    let createdAt: Date | string = new Date().toISOString();
+
     try {
       const record = await this.prisma.text.create({
-        data: {
-          userId,
-          language,
-          skill,
-          originalText: '',
-          textScore: score,
-          feedback: null,
-        },
+        data: { userId, language, skill, originalText: '', textScore: score, feedback: null },
       });
-      return { id: record.id, skill, score, createdAt: record.createdAt };
+      recordId = record.id;
+      createdAt = record.createdAt;
     } catch (err: any) {
       this.logger.error('failed to record score', err?.message || err);
-      return { id: -1, skill, score, createdAt: new Date().toISOString() };
     }
+
+    const db = this.prisma as any;
+    try {
+      const existing = await db.userTaskSet.findUnique({
+        where: { userId_language_level_skill: { userId, language, level, skill } },
+        select: { score: true },
+      });
+      if (existing && score > (existing.score ?? 0)) {
+        await db.userTaskSet.update({
+          where: { userId_language_level_skill: { userId, language, level, skill } },
+          data: { score },
+        });
+      }
+    } catch (err: any) {
+      this.logger.error('failed to update user task set score', err?.message || err);
+    }
+
+    return { id: recordId, skill, score, createdAt };
   }
 
   async recordWritingAnalysis(

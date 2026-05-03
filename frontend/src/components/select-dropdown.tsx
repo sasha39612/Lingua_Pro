@@ -96,7 +96,7 @@ export function SelectDropdown({ value, options, onChange, label, testId, disabl
 
   return (
     <div className="text-sm" data-testid={testId}>
-      {label && <span id={labelId} className="mb-1 block text-slate-600">{label}</span>}
+      {label && <span id={labelId} className="mb-1 block text-slate-600 dark:text-slate-400">{label}</span>}
       <div ref={ref} className="relative">
         <button
           ref={triggerRef}
@@ -107,7 +107,7 @@ export function SelectDropdown({ value, options, onChange, label, testId, disabl
           disabled={disabled}
           onClick={() => (open ? closeList() : openList())}
           onKeyDown={handleTriggerKeyDown}
-          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-teal-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-left text-sm font-medium text-slate-800 dark:text-slate-100 shadow-sm transition-colors hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/30 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span>{current.label}</span>
           <svg
@@ -133,7 +133,7 @@ export function SelectDropdown({ value, options, onChange, label, testId, disabl
             aria-labelledby={label ? labelId : undefined}
             aria-activedescendant={focusedIndex >= 0 ? optionId(options[focusedIndex].value) : undefined}
             onKeyDown={handleListKeyDown}
-            className="absolute z-50 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-float focus:outline-none"
+            className="absolute z-50 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1 shadow-float focus:outline-none"
           >
             {options.map((option, i) => {
               const isActive = option.value === value;
@@ -148,10 +148,10 @@ export function SelectDropdown({ value, options, onChange, label, testId, disabl
                   onMouseEnter={() => setFocusedIndex(i)}
                   className={`flex cursor-pointer items-center justify-between px-3 py-2 text-sm transition-colors ${
                     isFocused
-                      ? 'bg-teal-50 ring-2 ring-inset ring-teal-500'
+                      ? 'bg-teal-50 dark:bg-teal-900/40 ring-2 ring-inset ring-teal-500'
                       : isActive
-                        ? 'bg-teal-100 font-semibold text-teal-800'
-                        : 'text-slate-700 hover:bg-slate-100'
+                        ? 'bg-teal-100 dark:bg-teal-900/60 font-semibold text-teal-800 dark:text-teal-300'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
                   <span>{option.label}</span>

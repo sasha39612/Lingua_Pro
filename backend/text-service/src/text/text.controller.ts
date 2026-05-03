@@ -70,12 +70,14 @@ export class TextController {
   async score(
     @Body('userId') userId: string,
     @Body('language') language: string,
+    @Body('level') level: string,
     @Body('skill') skill: string,
     @Body('score') score: number,
   ) {
-    this.logger.log(`score: userId=${userId} language=${language} skill=${skill} score=${score}`);
+    if (!level) throw new BadRequestException('level is required');
+    this.logger.log(`score: userId=${userId} language=${language} level=${level} skill=${skill} score=${score}`);
     const uid = parseInt(userId, 10);
-    return this.textService.recordScore(uid, language, skill, score);
+    return this.textService.recordScore(uid, language, level, skill, score);
   }
 
   @Get('tasks')

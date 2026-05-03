@@ -45,6 +45,7 @@ export function SettingsPage() {
   const theme = useAppStore((s) => s.theme);
   const language = useAppStore((s) => s.language);
   const uiLocale = useAppStore((s) => s.uiLocale);
+  const setLevel = useAppStore((s) => s.setLevel);
   const setTheme = useAppStore((s) => s.setTheme);
   const setLanguage = useAppStore((s) => s.setLanguage);
   const setUiLocale = useAppStore((s) => s.setUiLocale);
@@ -67,12 +68,12 @@ export function SettingsPage() {
   return (
     <LabFrame>
       <div className="mx-auto max-w-4xl">
-      <section className="rounded-2xl bg-white p-5 shadow-float">
+      <section className="rounded-2xl bg-white dark:bg-slate-800 p-5 shadow-float">
         <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <p className="mt-2 text-sm text-slate-600">{t('subtitle')}</p>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t('subtitle')}</p>
       </section>
 
-      <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
+      <section className="mt-5 rounded-2xl bg-white dark:bg-slate-800 p-5 shadow-float">
         <h2 className="text-lg font-semibold">{t('learningSettings')}</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <SelectDropdown
@@ -81,10 +82,15 @@ export function SettingsPage() {
             options={LEVEL_OPTIONS}
             disabled={updateLevelMutation.isPending}
             onChange={(v) => {
-              updateLevelMutation.mutate({ level: v as CEFRLevel });
+              const newLevel = v as CEFRLevel;
+              const previous = level;
+              setLevel(newLevel); // optimistic — dropdown updates immediately
+              updateLevelMutation.mutate(
+                { level: newLevel },
+                { onError: () => setLevel(previous) }, // rollback on server failure
+              );
               void queryClient.invalidateQueries({ queryKey: ['stats'] });
               void queryClient.invalidateQueries({ queryKey: ['tasks'] });
-              // texts are keyed by userId only (not level), so no invalidation needed here
             }}
             testId="select-level"
           />
@@ -117,9 +123,9 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="mt-5 rounded-2xl bg-white p-5 shadow-float">
+      <section className="mt-5 rounded-2xl bg-white dark:bg-slate-800 p-5 shadow-float">
         <h2 className="text-lg font-semibold">{t('accountManagement')}</h2>
-        <p className="mt-2 text-sm text-slate-600">{t('signedInAs')} {user?.email ?? '—'}</p>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t('signedInAs')} {user?.email ?? '—'}</p>
         <Link href="/" className="mt-3 inline-block rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">
           {t('apply')}
         </Link>

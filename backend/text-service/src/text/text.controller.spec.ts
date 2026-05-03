@@ -69,9 +69,9 @@ describe('TextController', () => {
       const expected = { id: 10, skill: 'reading', score: 0.85, createdAt: new Date().toISOString() };
       mockService.recordScore.mockResolvedValue(expected);
 
-      const result = await controller.score('7', 'English', 'reading', 0.85);
+      const result = await controller.score('7', 'English', 'B1', 'reading', 0.85);
 
-      expect(mockService.recordScore).toHaveBeenCalledWith(7, 'English', 'reading', 0.85);
+      expect(mockService.recordScore).toHaveBeenCalledWith(7, 'English', 'B1', 'reading', 0.85);
       expect(result).toEqual(expected);
     });
 
@@ -79,16 +79,16 @@ describe('TextController', () => {
       const { controller, mockService } = makeController();
       mockService.recordScore.mockResolvedValue({ id: 11, skill: 'writing', score: 0.7 });
 
-      await controller.score('3', 'German', 'writing', 0.7);
+      await controller.score('3', 'German', 'B2', 'writing', 0.7);
 
-      expect(mockService.recordScore).toHaveBeenCalledWith(3, 'German', 'writing', 0.7);
+      expect(mockService.recordScore).toHaveBeenCalledWith(3, 'German', 'B2', 'writing', 0.7);
     });
 
     it('propagates service errors', async () => {
       const { controller, mockService } = makeController();
       mockService.recordScore.mockRejectedValue(new Error('DB connection lost'));
 
-      await expect(controller.score('1', 'English', 'reading', 0.5)).rejects.toThrow('DB connection lost');
+      await expect(controller.score('1', 'English', 'A2', 'reading', 0.5)).rejects.toThrow('DB connection lost');
     });
   });
 
