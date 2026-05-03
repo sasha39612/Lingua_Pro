@@ -54,7 +54,7 @@ export function LabFrame({ children }: { children: React.ReactNode }) {
                         title={label}
                         className={`group relative flex flex-col items-center rounded-xl p-1.5 transition ${isActive ? 'bg-white/20' : 'hover:bg-white/10'}`}
                       >
-                        <Image src={icon} alt={label} width={28} height={28} className="h-7 w-7 object-contain" />
+                        <Image src={icon} alt={label} width={20} height={20} className="h-5 w-5 object-contain" />
                         <span className="mt-0.5 text-[10px] font-medium leading-none opacity-75">{label}</span>
                       </Link>
                     );
