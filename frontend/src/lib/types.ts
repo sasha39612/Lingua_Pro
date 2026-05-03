@@ -2,11 +2,14 @@ export type AppLanguage = 'English' | 'German' | 'Albanian' | 'Polish' | 'Ukrain
 
 export type UserRole = 'student' | 'admin';
 
+export type CEFRLevel = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+
 export interface AuthUser {
   id: string;
   email: string;
   role: UserRole;
   language: string;
+  level: CEFRLevel;
 }
 
 export interface TextResult {

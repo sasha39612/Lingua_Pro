@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/store/app-store';
 
 const SKILL_LINKS = [
@@ -18,12 +19,17 @@ export function LabFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
+  const queryClient = useQueryClient();
   const t = useTranslations('nav');
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-    logout();
-    router.push('/login');
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    } finally {
+      queryClient.clear();
+      logout();
+      router.push('/login');
+    }
   };
 
   return (

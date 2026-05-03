@@ -12,10 +12,23 @@ import $Result = runtime.Types.Result
 
 export type PrismaPromise<T> = $Public.PrismaPromise<T>
 
+/**
+ * Enums
+ */
+export const CEFRLevel: {
+  A0: 'A0',
+  A1: 'A1',
+  A2: 'A2',
+  B1: 'B1',
+  B2: 'B2',
+  C1: 'C1',
+  C2: 'C2'
+};
+export type CEFRLevel = (typeof CEFRLevel)[keyof typeof CEFRLevel]
 
 /**
  * Model User
- * 
+ *
  */
 export type User = $Result.DefaultSelection<Prisma.$UserPayload>
 /**
@@ -1013,6 +1026,7 @@ export namespace Prisma {
     passwordHash: string | null
     role: string | null
     language: string | null
+    level: CEFRLevel | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1023,6 +1037,7 @@ export namespace Prisma {
     passwordHash: string | null
     role: string | null
     language: string | null
+    level: CEFRLevel | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1033,6 +1048,7 @@ export namespace Prisma {
     passwordHash: number
     role: number
     language: number
+    level: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -1053,6 +1069,7 @@ export namespace Prisma {
     passwordHash?: true
     role?: true
     language?: true
+    level?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1063,6 +1080,7 @@ export namespace Prisma {
     passwordHash?: true
     role?: true
     language?: true
+    level?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1073,6 +1091,7 @@ export namespace Prisma {
     passwordHash?: true
     role?: true
     language?: true
+    level?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1170,6 +1189,7 @@ export namespace Prisma {
     passwordHash: string
     role: string
     language: string
+    level: CEFRLevel
     createdAt: Date
     updatedAt: Date
     _count: UserCountAggregateOutputType | null
@@ -1199,6 +1219,7 @@ export namespace Prisma {
     passwordHash?: boolean
     role?: boolean
     language?: boolean
+    level?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     sessions?: boolean | User$sessionsArgs<ExtArgs>
@@ -1211,6 +1232,7 @@ export namespace Prisma {
     passwordHash?: boolean
     role?: boolean
     language?: boolean
+    level?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["user"]>
@@ -1221,6 +1243,7 @@ export namespace Prisma {
     passwordHash?: boolean
     role?: boolean
     language?: boolean
+    level?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["user"]>
@@ -1231,11 +1254,12 @@ export namespace Prisma {
     passwordHash?: boolean
     role?: boolean
     language?: boolean
+    level?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "passwordHash" | "role" | "language" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "passwordHash" | "role" | "language" | "level" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     sessions?: boolean | User$sessionsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -1254,6 +1278,7 @@ export namespace Prisma {
       passwordHash: string
       role: string
       language: string
+      level: CEFRLevel
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["user"]>
@@ -1685,6 +1710,7 @@ export namespace Prisma {
     readonly passwordHash: FieldRef<"User", 'String'>
     readonly role: FieldRef<"User", 'String'>
     readonly language: FieldRef<"User", 'String'>
+    readonly level: FieldRef<"User", 'CEFRLevel'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
     readonly updatedAt: FieldRef<"User", 'DateTime'>
   }
@@ -3233,8 +3259,19 @@ export namespace Prisma {
     passwordHash: 'passwordHash',
     role: 'role',
     language: 'language',
+    level: 'level',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
+  };
+
+  export const CEFRLevel: {
+    A0: 'A0',
+    A1: 'A1',
+    A2: 'A2',
+    B1: 'B1',
+    B2: 'B2',
+    C1: 'C1',
+    C2: 'C2'
   };
 
   export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -3340,6 +3377,7 @@ export namespace Prisma {
     passwordHash?: StringFilter<"User"> | string
     role?: StringFilter<"User"> | string
     language?: StringFilter<"User"> | string
+    level?: StringFilter<"User"> | CEFRLevel
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     sessions?: SessionListRelationFilter
@@ -3351,6 +3389,7 @@ export namespace Prisma {
     passwordHash?: SortOrder
     role?: SortOrder
     language?: SortOrder
+    level?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     sessions?: SessionOrderByRelationAggregateInput
@@ -3365,6 +3404,7 @@ export namespace Prisma {
     passwordHash?: StringFilter<"User"> | string
     role?: StringFilter<"User"> | string
     language?: StringFilter<"User"> | string
+    level?: StringFilter<"User"> | CEFRLevel
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     sessions?: SessionListRelationFilter
@@ -3376,6 +3416,7 @@ export namespace Prisma {
     passwordHash?: SortOrder
     role?: SortOrder
     language?: SortOrder
+    level?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: UserCountOrderByAggregateInput
@@ -3394,6 +3435,7 @@ export namespace Prisma {
     passwordHash?: StringWithAggregatesFilter<"User"> | string
     role?: StringWithAggregatesFilter<"User"> | string
     language?: StringWithAggregatesFilter<"User"> | string
+    level?: StringWithAggregatesFilter<"User"> | CEFRLevel
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
   }
@@ -3460,6 +3502,7 @@ export namespace Prisma {
     passwordHash: string
     role?: string
     language?: string
+    level?: CEFRLevel
     createdAt?: Date | string
     updatedAt?: Date | string
     sessions?: SessionCreateNestedManyWithoutUserInput
@@ -3471,6 +3514,7 @@ export namespace Prisma {
     passwordHash: string
     role?: string
     language?: string
+    level?: CEFRLevel
     createdAt?: Date | string
     updatedAt?: Date | string
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
@@ -3481,6 +3525,7 @@ export namespace Prisma {
     passwordHash?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     language?: StringFieldUpdateOperationsInput | string
+    level?: CEFRLevel | StringFieldUpdateOperationsInput
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     sessions?: SessionUpdateManyWithoutUserNestedInput
@@ -3492,6 +3537,7 @@ export namespace Prisma {
     passwordHash?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     language?: StringFieldUpdateOperationsInput | string
+    level?: CEFRLevel | StringFieldUpdateOperationsInput
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
@@ -3503,6 +3549,7 @@ export namespace Prisma {
     passwordHash: string
     role?: string
     language?: string
+    level?: CEFRLevel
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -3512,6 +3559,7 @@ export namespace Prisma {
     passwordHash?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     language?: StringFieldUpdateOperationsInput | string
+    level?: CEFRLevel | StringFieldUpdateOperationsInput
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3522,6 +3570,7 @@ export namespace Prisma {
     passwordHash?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     language?: StringFieldUpdateOperationsInput | string
+    level?: CEFRLevel | StringFieldUpdateOperationsInput
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

@@ -13,9 +13,10 @@ interface SelectDropdownProps {
   onChange: (value: string) => void;
   label?: string;
   testId?: string;
+  disabled?: boolean;
 }
 
-export function SelectDropdown({ value, options, onChange, label, testId }: SelectDropdownProps) {
+export function SelectDropdown({ value, options, onChange, label, testId, disabled }: SelectDropdownProps) {
   const [open, setOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
@@ -103,9 +104,10 @@ export function SelectDropdown({ value, options, onChange, label, testId }: Sele
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-labelledby={label ? labelId : undefined}
+          disabled={disabled}
           onClick={() => (open ? closeList() : openList())}
           onKeyDown={handleTriggerKeyDown}
-          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-teal-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-teal-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500/30 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span>{current.label}</span>
           <svg

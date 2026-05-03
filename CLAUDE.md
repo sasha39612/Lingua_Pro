@@ -104,7 +104,7 @@ All frontend GraphQL goes through the Next.js `/api/graphql` route, which proxie
 
 | Service | Port | Framework | GraphQL subgraph? | Database | Notes |
 |---------|------|-----------|-------------------|----------|-------|
-| auth-service | 4001 | Raw Node.js `http` + `buildSubgraphSchema` | ✅ yes | `auth_db` | No NestJS, uses argon2, JWT via `jsonwebtoken`; exposes `users(limit,offset,cursor)` + `usersCount` queries (admin + internal-token gated) |
+| auth-service | 4001 | Raw Node.js `http` + `buildSubgraphSchema` | ✅ yes | `auth_db` | No NestJS, uses argon2, JWT via `jsonwebtoken`; exposes `users(limit,offset,cursor)` + `usersCount` queries (admin + internal-token gated); `updateLevel(level: CEFRLevel!): User!` mutation (authenticated users); `CEFRLevel` enum |
 | text-service | 4002 | NestJS + Apollo subgraph | ✅ yes | `text_db` | Calls ai-orchestrator for analysis; `GET /text/admin/summary` (internal-token gated) |
 | audio-service | 4003 | NestJS | ❌ REST only | `audio_db` | Custom Prisma output path; frontend calls it directly; `GET /audio/admin/summary` (internal-token gated) |
 | stats-service | 4004 | NestJS | ❌ REST only | **none** | Aggregates via fetch to text-service + audio-service; `GET /admin/stats` aggregates all services (internal-token gated) |
@@ -115,7 +115,7 @@ One PostgreSQL container (`postgres:5432`) with four isolated databases:
 
 | Database | Owner | Tables |
 |----------|-------|--------|
-| `auth_db` | auth-service | `users`, `sessions` |
+| `auth_db` | auth-service | `users` (with `level CEFRLevel` column, default `'A2'`), `sessions` |
 | `text_db` | text-service | `texts` (with `skill` column, default `'writing'`), `tasks` |
 | `audio_db` | audio-service | `audio_records`, `tasks`, `listening_scores` |
 | `ai_orchestrator_db` | ai-orchestrator | `ai_usage_events` (Phase 2 — accumulates token/cost/failure data) |
@@ -245,12 +245,12 @@ Lingua_Pro/
 │       │   ├── csrf-guard.ts            # checkOrigin() — rejects POST with a disallowed Origin header (defense-in-depth); applied to all 8 state-changing routes
 │       │   ├── graphql-client.ts        # fetch wrapper (persisted queries + fallback)
 │       │   ├── graphql-operations.ts    # All GQL query/mutation strings (includes AdminUsers)
-│       │   ├── graphql-hooks.ts         # TanStack Query hooks
+│       │   ├── graphql-hooks.ts         # TanStack Query hooks; includes `useUpdateLevelMutation` (persists `CEFRLevel` to auth-service via `updateLevel` mutation, with React Query optimistic update + rollback)
 │       │   ├── admin-hooks.ts           # useAdminStats, useAdminUsers (staleTime: 60_000)
 │       │   ├── persisted-queries.ts     # SHA-256 hash map per operation name
 │       │   ├── request-id.ts            # generateRequestId() — crypto.randomUUID() with Math.random fallback for non-secure (HTTP) contexts
 │       │   └── types.ts                 # Includes AdminUser, AdminStatsOverview
-│       ├── store/app-store.ts           # Zustand (user metadata, language, level, theme, uiLocale) — no token; auth is httpOnly cookie
+│       ├── store/app-store.ts           # Zustand (user metadata, language, level: CEFRLevel, theme, uiLocale) — no token; auth is httpOnly cookie; level is synced from server via meQuery (single source of truth)
 │       └── i18n/
 │           ├── request.ts               # next-intl getRequestConfig — reads NEXT_LOCALE cookie, falls back to 'en'
 │           └── types.ts                 # IntlMessages augmentation for type-safe translation keys
@@ -264,7 +264,7 @@ Lingua_Pro/
     │
     ├── auth-service/                # Plain Node.js http, :4001 → auth_db
     │   ├── prisma/schema.prisma         # users, sessions only
-    │   └── src/graphql/auth.schema.ts   # register, login, me, logout; users(limit,offset,cursor) + usersCount (admin JWT or x-internal-token + x-internal-service)
+    │   └── src/graphql/auth.schema.ts   # register, login, me, logout; users(limit,offset,cursor) + usersCount (admin JWT or x-internal-token + x-internal-service); CEFRLevel enum; updateLevel(level: CEFRLevel!): User! (auth required); User type includes level: CEFRLevel!
     │
     ├── text-service/                # NestJS + Apollo subgraph, :4002 → text_db
     │   ├── prisma/schema.prisma         # texts, tasks (no User model — userId is plain Int)
@@ -369,7 +369,9 @@ Service-level env (with defaults):
 - `x-user-id`, `x-user-role`, `x-user-language` headers propagate auth context from gateway to subservices — services trust these headers without re-validation
 - **No cross-DB foreign keys** — each service stores `userId` as a plain `Int`; user identity is trusted from headers
 - Stats-service uses Node 20 native `fetch()` — no `@nestjs/axios` or Prisma dependency
-- CEFR levels: A0, A1, A2, B1, B2, C1, C2
+- CEFR levels: A0, A1, A2, B1, B2, C1, C2 — defined as `CEFRLevel` enum in the auth-service Prisma schema and GraphQL schema; typed as a union in `frontend/src/lib/types.ts`
+- **User `level` is server-authoritative** — stored in `auth_db.users.level`; synced to Zustand via `meQuery` only (single hydration point in `dashboard.tsx`); Settings page persists changes via `updateLevel` mutation with optimistic rollback
+- **Logout clears React Query cache** — `queryClient.clear()` runs in the `finally` block of `handleLogout` (in `lab-frame.tsx` and `dashboard-home.tsx`) to prevent stale user data from leaking across sessions
 - Supported languages: English, German, Albanian, Polish, Ukrainian
 
 ### Internal service authentication

@@ -4,7 +4,7 @@ import { useAppStore } from './app-store';
 const initialState = {
   user: null,
   language: 'English' as const,
-  level: 'A2',
+  level: 'A2' as const,
   theme: 'system' as const,
   lastTaskTitle: null,
   audioScores: [0.62, 0.7, 0.68, 0.77],
@@ -19,13 +19,13 @@ beforeEach(() => {
 describe('useAppStore', () => {
   describe('setUser', () => {
     it('sets user', () => {
-      const user = { id: '1', email: 'a@b.com', role: 'student' as const, language: 'English' as const };
+      const user = { id: '1', email: 'a@b.com', role: 'student' as const, language: 'English' as const, level: 'A2' as const };
       useAppStore.getState().setUser(user);
       expect(useAppStore.getState().user).toEqual(user);
     });
 
     it('clears user', () => {
-      const user = { id: '1', email: 'a@b.com', role: 'student' as const, language: 'English' as const };
+      const user = { id: '1', email: 'a@b.com', role: 'student' as const, language: 'English' as const, level: 'A2' as const };
       useAppStore.getState().setUser(user);
       useAppStore.getState().setUser(null);
       expect(useAppStore.getState().user).toBeNull();
@@ -92,7 +92,7 @@ describe('useAppStore', () => {
   describe('logout', () => {
     it('clears user, recentResults, and lastTaskTitle', () => {
       useAppStore.setState({
-        user: { id: '1', email: 'a@b.com', role: 'student', language: 'English' },
+        user: { id: '1', email: 'a@b.com', role: 'student' as const, language: 'English', level: 'A2' as const },
         lastTaskTitle: 'Write an essay',
         recentResults: [{ id: '1', originalText: 'Hi', createdAt: '2026-01-01T00:00:00Z' }],
       });

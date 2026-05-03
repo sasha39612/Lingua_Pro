@@ -16,7 +16,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/store/app-store', () => ({
   useAppStore: (selector: (s: AppState) => unknown) =>
     selector({
-      user: { id: '1', email: 'test@test.com', role: 'student', language: 'English' },
+      user: { id: '1', email: 'test@test.com', role: 'student' as const, language: 'English', level: 'A2' as const },
       level: 'A2',
       theme: 'system',
       language: 'English',

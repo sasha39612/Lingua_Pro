@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/store/app-store';
 import { useTranslations } from 'next-intl';
 
@@ -19,11 +20,16 @@ export function DashboardHome() {
   const router = useRouter();
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
+  const queryClient = useQueryClient();
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-    logout();
-    router.push('/login');
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    } finally {
+      queryClient.clear();
+      logout();
+      router.push('/login');
+    }
   };
   const recentResults = useAppStore((s) => s.recentResults);
   const audioScores = useAppStore((s) => s.audioScores);

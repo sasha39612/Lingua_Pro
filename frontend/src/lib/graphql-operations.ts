@@ -7,6 +7,7 @@ export const GRAPHQL_OPERATIONS = {
         email
         role
         language
+        level
       }
     }
   }`,
@@ -18,6 +19,7 @@ export const GRAPHQL_OPERATIONS = {
         email
         role
         language
+        level
       }
     }
   }`,
@@ -27,6 +29,13 @@ export const GRAPHQL_OPERATIONS = {
       email
       role
       language
+      level
+    }
+  }`,
+  UpdateLevel: `mutation UpdateLevel($level: CEFRLevel!) {
+    updateLevel(level: $level) {
+      id
+      level
     }
   }`,
   CheckText: `mutation CheckText($input: CheckTextInput!) {

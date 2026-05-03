@@ -1,7 +1,8 @@
 'use client';
 
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/lib/graphql-client';
+import { CEFRLevel } from '@/lib/types';
 import {
   CheckTextData,
   CheckTextVariables,
@@ -84,5 +85,35 @@ export function useMeQuery(input: { enabled: boolean }) {
       graphqlRequest<MeData>({
         operationName: 'Me',
       }),
+  });
+}
+
+type UpdateLevelVars = { level: CEFRLevel };
+type UpdateLevelData = { updateLevel: { id: string; level: CEFRLevel } };
+type UpdateLevelContext = { previous: unknown };
+
+export function useUpdateLevelMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<UpdateLevelData, Error, UpdateLevelVars, UpdateLevelContext>({
+    mutationFn: (variables) =>
+      graphqlRequest<UpdateLevelData, UpdateLevelVars>({
+        operationName: 'UpdateLevel',
+        variables,
+      }),
+    onMutate: async ({ level }) => {
+      await queryClient.cancelQueries({ queryKey: ['me'] });
+      const previous = queryClient.getQueryData(['me']);
+      queryClient.setQueryData(['me'], (old: any) => {
+        if (!old?.me) return old;
+        return { ...old, me: { ...old.me, level } };
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      queryClient.setQueryData(['me'], context?.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
   });
 }

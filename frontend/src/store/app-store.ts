@@ -2,13 +2,13 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { AppLanguage, AuthUser, TextResult } from '@/lib/types';
+import { AppLanguage, AuthUser, CEFRLevel, TextResult } from '@/lib/types';
 import type { Locale } from '@/i18n/locales';
 
 export interface AppState {
   user: AuthUser | null;
   language: AppLanguage;
-  level: string;
+  level: CEFRLevel;
   theme: 'light' | 'dark' | 'system';
   uiLocale: Locale;
   lastTaskTitle: string | null;
@@ -16,7 +16,7 @@ export interface AppState {
   recentResults: TextResult[];
   setUser: (user: AuthUser | null) => void;
   setLanguage: (language: AppLanguage) => void;
-  setLevel: (level: string) => void;
+  setLevel: (level: CEFRLevel) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setUiLocale: (locale: Locale) => void;
   setLastTaskTitle: (title: string | null) => void;

@@ -141,11 +141,14 @@ export const authTypeDefs = gql`
   extend schema
     @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key"])
 
+  enum CEFRLevel { A0 A1 A2 B1 B2 C1 C2 }
+
   type User @key(fields: "id") {
     id: ID!
     email: String!
     role: String!
     language: String!
+    level: CEFRLevel!
     createdAt: String!
   }
 
@@ -164,6 +167,7 @@ export const authTypeDefs = gql`
     refreshToken(token: String!): AuthPayload
     logout: Boolean!
     updateUserRole(userId: ID!, role: String!): User!
+    updateLevel(level: CEFRLevel!): User!
   }
 
   type AuthPayload {
@@ -283,6 +287,13 @@ export const authSchema = buildSubgraphSchema([
           return prisma.user.update({
             where: { id },
             data: { role: normalizedRole }
+          });
+        },
+        updateLevel: async (_: any, { level }: any, context: any) => {
+          const { userId } = requireAuth(context);
+          return prisma.user.update({
+            where: { id: userId },
+            data: { level }
           });
         }
       },

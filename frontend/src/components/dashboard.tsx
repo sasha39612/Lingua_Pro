@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AppLanguage, LearningTask, TextResult } from '@/lib/types';
+import { AppLanguage, CEFRLevel, LearningTask, TextResult } from '@/lib/types';
 import { AudioRecorder } from '@/components/audio-recorder';
 import { StreamedFeedback } from '@/components/streamed-feedback';
 import { StatsChart } from '@/components/stats-chart';
@@ -40,6 +40,7 @@ export function Dashboard() {
   const language = useAppStore((s) => s.language);
   const recentResults = useAppStore((s) => s.recentResults);
   const setLanguage = useAppStore((s) => s.setLanguage);
+  const setLevel = useAppStore((s) => s.setLevel);
   const setUser = useAppStore((s) => s.setUser);
   const addResult = useAppStore((s) => s.addResult);
   const logout = useAppStore((s) => s.logout);
@@ -54,6 +55,17 @@ export function Dashboard() {
   const checkTextMutation = useCheckTextMutation();
 
   const meQuery = useMeQuery({ enabled: Boolean(user) });
+
+  // Single sync point: meQuery is the sole source of truth for level after hydration.
+  // Do not call setLevel anywhere else (login payload, etc.) to avoid race conditions.
+  useEffect(() => {
+    if (meQuery.data?.me) {
+      setUser(meQuery.data.me as unknown as Parameters<typeof setUser>[0]);
+      setLanguage(meQuery.data.me.language as AppLanguage);
+      setLevel(meQuery.data.me.level as CEFRLevel);
+    }
+  }, [meQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const tasksQuery = useTasksQuery({
     enabled: Boolean(user && taskInput),
     variables: {

@@ -7,7 +7,8 @@ import { LabFrame } from '@/components/lab-frame';
 import { SelectDropdown } from '@/components/select-dropdown';
 import { useAppStore } from '@/store/app-store';
 import { useTranslations } from 'next-intl';
-import type { AppLanguage } from '@/lib/types';
+import type { AppLanguage, CEFRLevel } from '@/lib/types';
+import { useUpdateLevelMutation } from '@/lib/graphql-hooks';
 import { VALID_LOCALES, type Locale } from '@/i18n/locales';
 
 const LEVEL_OPTIONS = [
@@ -44,11 +45,11 @@ export function SettingsPage() {
   const theme = useAppStore((s) => s.theme);
   const language = useAppStore((s) => s.language);
   const uiLocale = useAppStore((s) => s.uiLocale);
-  const setLevel = useAppStore((s) => s.setLevel);
   const setTheme = useAppStore((s) => s.setTheme);
   const setLanguage = useAppStore((s) => s.setLanguage);
   const setUiLocale = useAppStore((s) => s.setUiLocale);
   const logout = useAppStore((s) => s.logout);
+  const updateLevelMutation = useUpdateLevelMutation();
 
   const themeOptions = [
     { value: 'light', label: t('themeLight') },
@@ -78,8 +79,9 @@ export function SettingsPage() {
             label={t('levelLabel')}
             value={level}
             options={LEVEL_OPTIONS}
+            disabled={updateLevelMutation.isPending}
             onChange={(v) => {
-              setLevel(v);
+              updateLevelMutation.mutate({ level: v as CEFRLevel });
               void queryClient.invalidateQueries({ queryKey: ['stats'] });
               void queryClient.invalidateQueries({ queryKey: ['tasks'] });
               // texts are keyed by userId only (not level), so no invalidation needed here
