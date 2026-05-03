@@ -119,6 +119,7 @@ export function WritingPage() {
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const user = useAppStore((s) => s.user);
+  const taskTopic = useAppStore((s) => s.taskTopic);
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [task, setTask] = useState<WritingTask | null>(null);
@@ -191,6 +192,7 @@ export function WritingPage() {
 
     try {
       const params = new URLSearchParams({ language, level, userId: String(user.id) });
+      if (taskTopic) params.set('topic', taskTopic);
       const res = await fetch(`/api/writing/task?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || data.error || 'Failed to load task');

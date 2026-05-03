@@ -182,6 +182,7 @@ export class AudioController {
   async streamListeningTask(
     @Body('language') language: string,
     @Body('level') level: string,
+    @Body('topic') topic: string | undefined,
     @Headers('x-user-id') userId: string,
     @Req() req: Request,
     @Res() res: Response,
@@ -198,7 +199,7 @@ export class AudioController {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
-    await this.audioService.streamListeningTask(userId, language, level, req, res);
+    await this.audioService.streamListeningTask(userId, language, level, req, res, topic);
   }
 
   @Post('listening-answers')

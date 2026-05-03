@@ -28,6 +28,20 @@ const LANGUAGE_OPTIONS = [
   { value: 'Ukrainian', label: 'Ukrainian' },
 ];
 
+const TOPIC_OPTIONS = [
+  { value: '',               label: 'topicAny' as const },
+  { value: 'Technology',     label: 'Technology' },
+  { value: 'Sports',         label: 'Sports' },
+  { value: 'Science',        label: 'Science' },
+  { value: 'History',        label: 'History' },
+  { value: 'Travel',         label: 'Travel' },
+  { value: 'Food & Cooking', label: 'Food & Cooking' },
+  { value: 'Business',       label: 'Business' },
+  { value: 'Arts & Culture', label: 'Arts & Culture' },
+  { value: 'Health',         label: 'Health' },
+  { value: 'Nature',         label: 'Nature' },
+];
+
 const UI_LOCALE_OPTIONS: { value: Locale; label: string }[] = [
   { value: 'en', label: 'English' },
   { value: 'de', label: 'Deutsch' },
@@ -45,10 +59,12 @@ export function SettingsPage() {
   const theme = useAppStore((s) => s.theme);
   const language = useAppStore((s) => s.language);
   const uiLocale = useAppStore((s) => s.uiLocale);
+  const taskTopic = useAppStore((s) => s.taskTopic);
   const setLevel = useAppStore((s) => s.setLevel);
   const setTheme = useAppStore((s) => s.setTheme);
   const setLanguage = useAppStore((s) => s.setLanguage);
   const setUiLocale = useAppStore((s) => s.setUiLocale);
+  const setTaskTopic = useAppStore((s) => s.setTaskTopic);
   const logout = useAppStore((s) => s.logout);
   const updateLevelMutation = useUpdateLevelMutation();
 
@@ -75,7 +91,7 @@ export function SettingsPage() {
 
       <section className="mt-5 rounded-2xl bg-white dark:bg-slate-800 p-5 shadow-float">
         <h2 className="text-lg font-semibold">{t('learningSettings')}</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <SelectDropdown
             label={t('levelLabel')}
             value={level}
@@ -119,6 +135,16 @@ export function SettingsPage() {
             options={UI_LOCALE_OPTIONS}
             onChange={handleLocaleChange}
             testId="select-ui-locale"
+          />
+          <SelectDropdown
+            label={t('topicLabel')}
+            value={taskTopic}
+            options={TOPIC_OPTIONS.map((o) => ({
+              value: o.value,
+              label: o.value === '' ? t('topicAny') : o.label,
+            }))}
+            onChange={setTaskTopic}
+            testId="select-topic"
           />
         </div>
       </section>

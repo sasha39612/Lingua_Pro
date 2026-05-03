@@ -19,20 +19,20 @@ export class TaskService {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  async generateTasks(language: string, level: string, skill?: string, requestId?: string): Promise<GeneratedTask[]> {
+  async generateTasks(language: string, level: string, skill?: string, requestId?: string, topic?: string): Promise<GeneratedTask[]> {
     const safeLanguage = (language || 'English').trim() || 'English';
     const safeLevel = (level || 'A1').trim() || 'A1';
     const safeSkill = (skill || 'reading').trim() || 'reading';
 
     if (safeSkill === 'reading') {
       // Delegate — logging is done inside generateReadingExercise
-      const exercise = await this.generateReadingExercise(safeLanguage, safeLevel, requestId);
+      const exercise = await this.generateReadingExercise(safeLanguage, safeLevel, requestId, topic);
       return [exercise];
     }
 
     if (safeSkill === 'writing') {
       // Delegate — logging is done inside generateWritingTask
-      const task = await this.generateWritingTask(safeLanguage, safeLevel, requestId);
+      const task = await this.generateWritingTask(safeLanguage, safeLevel, requestId, topic);
       const promptJson = JSON.stringify(task);
       return [{
         language: safeLanguage,
@@ -68,6 +68,7 @@ export class TaskService {
                   role: 'system',
                   content: isSpeaking
                     ? `Generate 3 speaking practice passages for a ${safeLanguage} learner at CEFR ${safeLevel}. ` +
+                      (topic ? `The passages MUST be about the topic: "${topic}".\n` : '') +
                       `IMPORTANT: ALL text content (prompt, referenceText) MUST be written in ${safeLanguage}, not in English. ` +
                       'Each passage is meant to be read aloud by the student for pronunciation practice. ' +
                       'DO NOT generate multiple-choice questions, options, or any quiz content. ' +
@@ -87,7 +88,7 @@ export class TaskService {
                 },
                 {
                   role: 'user',
-                  content: `language=${safeLanguage}, level=${safeLevel}, skill=${safeSkill}`,
+                  content: `language=${safeLanguage}, level=${safeLevel}, skill=${safeSkill}${topic ? `, topic=${topic}` : ''}`,
                 },
               ],
             }),
@@ -256,7 +257,7 @@ export class TaskService {
 
   // ── Listening exercise v2 generation (8 questions, CEFR-graded) ───────────
 
-  async generateListeningExercise(language: string, level: string, requestId?: string): Promise<ListeningPassageV2> {
+  async generateListeningExercise(language: string, level: string, requestId?: string, topic?: string): Promise<ListeningPassageV2> {
     const safeLanguage = (language || 'English').trim() || 'English';
     const safeLevel = (level || 'B1').trim() || 'B1';
 
@@ -321,6 +322,7 @@ export class TaskService {
                     const passageNote = passageDifficultyNote[safeLevel] ?? passageDifficultyNote['B1'];
                     return (
                       `You are a language-learning content creator. Generate a CEFR-graded listening comprehension exercise for a ${safeLanguage} learner at level ${safeLevel}.\n` +
+                      (topic ? `The passage MUST be about the topic: "${topic}".\n` : '') +
                       `IMPORTANT: ALL text (passageText, questions, options) MUST be written in ${safeLanguage}.\n` +
                       'Return strict JSON with exactly two keys:\n' +
                       `1. "passageText": a natural spoken monologue, approximately 450 words, written as continuous speech (no headers, no bullet points). Choose an engaging real-world topic. ${passageNote}\n` +
@@ -331,7 +333,7 @@ export class TaskService {
                 },
                 {
                   role: 'user',
-                  content: `language=${safeLanguage}, level=${safeLevel}`,
+                  content: `language=${safeLanguage}, level=${safeLevel}${topic ? `, topic=${topic}` : ''}`,
                 },
               ],
             }),
@@ -459,7 +461,7 @@ export class TaskService {
 
   // ── Reading exercise generation ────────────────────────────────────────────
 
-  async generateReadingExercise(language: string, level: string, requestId?: string): Promise<GeneratedTask> {
+  async generateReadingExercise(language: string, level: string, requestId?: string, topic?: string): Promise<GeneratedTask> {
     if (!this.openai) {
       return this.localReadingExercise(language, level);
     }
@@ -480,6 +482,7 @@ export class TaskService {
                   role: 'system',
                   content:
                     `You are a language-learning content creator. Generate a reading comprehension exercise for a ${language} learner at CEFR level ${level}.\n` +
+                    (topic ? `The passage MUST be about the topic: "${topic}".\n` : '') +
                     `IMPORTANT: ALL text (passage, questions, options, labels) MUST be written in ${language}.\n` +
                     'Return strict JSON with exactly two keys:\n' +
                     `1. "passageText": a natural narrative passage, 600–700 characters long, no headers or bullet points, written in ${language}.\n` +
@@ -492,7 +495,7 @@ export class TaskService {
                 },
                 {
                   role: 'user',
-                  content: `language=${language}, level=${level}`,
+                  content: `language=${language}, level=${level}${topic ? `, topic=${topic}` : ''}`,
                 },
               ],
             }),
@@ -582,7 +585,7 @@ export class TaskService {
 
   // ── Writing task generation ────────────────────────────────────────────────
 
-  async generateWritingTask(language: string, level: string, requestId?: string): Promise<WritingTask> {
+  async generateWritingTask(language: string, level: string, requestId?: string, topic?: string): Promise<WritingTask> {
     if (!this.openai) {
       return this.localWritingTask(language, level);
     }
@@ -603,6 +606,7 @@ export class TaskService {
                   role: 'system',
                   content:
                     `You are a language-learning content creator. Generate a writing task for a ${language} learner at CEFR level ${level}.\n` +
+                    (topic ? `The writing task MUST be about the topic: "${topic}".\n` : '') +
                     `IMPORTANT: ALL text content MUST be written in ${language}, not in English.\n` +
                     'Return strict JSON with exactly these keys:\n' +
                     '"situation": a 1-2 sentence real-life scenario that motivates the writing task.\n' +
@@ -616,7 +620,7 @@ export class TaskService {
                 },
                 {
                   role: 'user',
-                  content: `language=${language}, level=${level}, skill=writing`,
+                  content: `language=${language}, level=${level}, skill=writing${topic ? `, topic=${topic}` : ''}`,
                 },
               ],
             }),

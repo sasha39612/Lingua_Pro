@@ -73,7 +73,9 @@
     "apply": "Apliko",
     "themeLight": "E ndritur",
     "themeDark": "E errët",
-    "themeSystem": "Sistemi"
+    "themeSystem": "Sistemi",
+    "topicLabel": "Tema",
+    "topicAny": "Çdo temë"
   },
   "writing": {
     "title": "Shkrimi",

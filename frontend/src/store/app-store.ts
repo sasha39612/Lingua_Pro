@@ -11,6 +11,7 @@ export interface AppState {
   level: CEFRLevel;
   theme: 'light' | 'dark' | 'system';
   uiLocale: Locale;
+  taskTopic: string;
   lastTaskTitle: string | null;
   audioScores: number[];
   recentResults: TextResult[];
@@ -19,6 +20,7 @@ export interface AppState {
   setLevel: (level: CEFRLevel) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setUiLocale: (locale: Locale) => void;
+  setTaskTopic: (topic: string) => void;
   setLastTaskTitle: (title: string | null) => void;
   addAudioScore: (score: number) => void;
   addResult: (result: TextResult) => void;
@@ -34,6 +36,7 @@ export const useAppStore = create<AppState>()(
       level: 'A2',
       theme: 'system',
       uiLocale: 'en',
+      taskTopic: '',
       lastTaskTitle: null,
       audioScores: [0.62, 0.7, 0.68, 0.77],
       recentResults: [],
@@ -42,6 +45,7 @@ export const useAppStore = create<AppState>()(
       setLevel: (level) => set({ level }),
       setTheme: (theme) => set({ theme }),
       setUiLocale: (uiLocale) => set({ uiLocale }),
+      setTaskTopic: (taskTopic) => set({ taskTopic }),
       setLastTaskTitle: (title) => set({ lastTaskTitle: title }),
       addAudioScore: (score) =>
         set((state) => ({
@@ -62,6 +66,7 @@ export const useAppStore = create<AppState>()(
         level: state.level,
         theme: state.theme,
         uiLocale: state.uiLocale,
+        taskTopic: state.taskTopic,
         lastTaskTitle: state.lastTaskTitle,
       }),
     },

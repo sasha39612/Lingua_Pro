@@ -144,7 +144,7 @@ Then aggregates scores (merging speaking + listening into `avg_pronunciation_sco
 |----------|---------------|-----------------|
 | `SpeechService` | Audio transcription, phoneme extraction, word alignment | Azure Speech SDK (primary); Whisper fallback |
 | `TextAiService` | Text analysis — grammar, corrections, feedback | `OPENAI_TEXT_MODEL` (default `gpt-4o`) |
-| `TaskService` | CEFR task generation; `skill=writing` → `WritingTask` JSON in `prompt`; `skill=reading` → passage + 16 questions; `generateListeningExercise()` → 8-question CEFR-graded exercise (2×B1 MC, 2×B2 T/F/NG, 2×C1 short_answer, 2×C2 paraphrase) with weighted scoring 1–4 pts, total 20; **all question types use 4 options + numeric `correctAnswer` 0-3** — `short_answer` and `paraphrase` render as dropdowns on the frontend | `OPENAI_TASK_MODEL` (default `gpt-4o-mini`) |
+| `TaskService` | CEFR task generation; `skill=writing` → `WritingTask` JSON in `prompt`; `skill=reading` → passage + 16 questions; `generateListeningExercise()` → 8-question CEFR-graded exercise (2×B1 MC, 2×B2 T/F/NG, 2×C1 short_answer, 2×C2 paraphrase) with weighted scoring 1–4 pts, total 20; **all question types use 4 options + numeric `correctAnswer` 0-3** — `short_answer` and `paraphrase` render as dropdowns on the frontend; all 4 generator methods accept optional `topic?: string` — when provided it is injected into the GPT system prompt to constrain the passage/task to that topic | `OPENAI_TASK_MODEL` (default `gpt-4o-mini`) |
 | `PronunciationAiService` | Human-readable pronunciation feedback string **only** | `OPENAI_EVAL_MODEL` (default `gpt-4o`) |
 | `TtsService` | Text-to-speech audio generation → base64 MP3 | `OPENAI_TTS_MODEL` (default `gpt-4o-mini-tts`) |
 
@@ -168,8 +168,8 @@ type: 'correct' | 'missing' | 'extra' | 'mispronounced'
 - `POST /text/analyze` — text correction + feedback
 - `POST /text/analyze-writing` — structured writing evaluation: 4 scored criteria (task achievement, grammar/vocabulary, coherence/structure, style) + corrected text; feedback written in the task language
 - `POST /text/analyze-writing/stream` — SSE version of the above; emits `analysis_started`, `criterion` (one per validated marker), `analysis_complete` (or partial on 45 s timeout); uses `[CRITERION]`/`[FINAL]` marker protocol; manual SSE via `@Post` + `res.write()`
-- `POST /tasks/generate` — CEFR task generation; `skill=writing` returns a `WritingTask` JSON stored in `prompt` field (situation, taskPoints, instructions, exampleStructure, wordCountMin/Max, style)
-- `POST /tasks/generate-listening` — listening passage generation; without `version` param returns old 5-question MC format (`ListeningPassage`); with `version: '2'` returns 8-question CEFR-graded `ListeningPassageV2` (used by audio-service)
+- `POST /tasks/generate` — CEFR task generation; accepts optional `topic` body field to constrain GPT prompt; `skill=writing` returns a `WritingTask` JSON stored in `prompt` field (situation, taskPoints, instructions, exampleStructure, wordCountMin/Max, style)
+- `POST /tasks/generate-listening` — listening passage generation; accepts optional `topic` body field; without `version` param returns old 5-question MC format (`ListeningPassage`); with `version: '2'` returns 8-question CEFR-graded `ListeningPassageV2` (used by audio-service)
 - `POST /audio/transcribe` — transcription with `words[]` and `source`
 - `POST /audio/pronunciation/analyze` — Azure scores + GPT feedback + word alignment
 - `POST /audio/tts` — TTS audio generation
@@ -217,8 +217,8 @@ Lingua_Pro/
 │       │   │   ├── graphql/route.ts     # Proxy → API Gateway :8080
 │       │   │   ├── ai-feedback/route.ts # SSE streaming endpoint
 │       │   │   ├── audio/analyze/route.ts # Multipart audio → base64 → audio-service POST /audio/analyze-base64
-│       │   │   ├── reading/task/route.ts  # GET ?language&level&userId → text-service GET /text/tasks?skill=reading
-│       │   │   ├── writing/task/route.ts  # GET ?language&level&userId → text-service GET /text/tasks?skill=writing; returns { taskId, writingTask }
+│       │   │   ├── reading/task/route.ts  # GET ?language&level&userId&topic → text-service GET /text/tasks?skill=reading (topic bypasses DB cache when set)
+│       │   │   ├── writing/task/route.ts  # GET ?language&level&userId&topic → text-service GET /text/tasks?skill=writing; returns { taskId, writingTask }
 │       │   │   ├── writing/analyze/route.ts # POST { text, language, taskContext } → ai-orchestrator POST /text/analyze-writing; returns WritingAnalysisResult
 │       │   │   ├── stats/route.ts         # GET ?language&period → stats-service GET /stats; proxy with auth headers
 │       │   │   ├── admin/
@@ -250,7 +250,7 @@ Lingua_Pro/
 │       │   ├── persisted-queries.ts     # SHA-256 hash map per operation name
 │       │   ├── request-id.ts            # generateRequestId() — crypto.randomUUID() with Math.random fallback for non-secure (HTTP) contexts
 │       │   └── types.ts                 # Includes AdminUser, AdminStatsOverview
-│       ├── store/app-store.ts           # Zustand (user metadata, language, level: CEFRLevel, theme, uiLocale) — no token; auth is httpOnly cookie; level is synced from server via meQuery (single source of truth)
+│       ├── store/app-store.ts           # Zustand (user metadata, language, level: CEFRLevel, theme, uiLocale, taskTopic) — no token; auth is httpOnly cookie; level is synced from server via meQuery (single source of truth); taskTopic persisted to localStorage, threaded through all skill task-generation requests
 │       └── i18n/
 │           ├── request.ts               # next-intl getRequestConfig — reads NEXT_LOCALE cookie, falls back to 'en'
 │           └── types.ts                 # IntlMessages augmentation for type-safe translation keys
@@ -271,15 +271,15 @@ Lingua_Pro/
     │   └── src/
     │       ├── graphql/text.schema.ts
     │       └── text/
-    │           ├── text.service.ts      # analyzeText, getTextsByLanguage, getTasks, recordScore, getAdminSummary (raw SQL, UTC)
-    │           └── text.controller.ts   # POST /text/check, POST /text/score, GET /text/tasks, POST /text/tasks/stream (SSE), GET /text/by-language, GET /text/admin/summary
+    │           ├── text.service.ts      # analyzeText, getTextsByLanguage, getTasks (when `topic` provided: skips DB cache, calls ai-orchestrator directly, result NOT persisted), recordScore, getAdminSummary (raw SQL, UTC)
+    │           └── text.controller.ts   # POST /text/check, POST /text/score, GET /text/tasks?skill&language&level&userId&topic, POST /text/tasks/stream (SSE, accepts topic), GET /text/by-language, GET /text/admin/summary
     │
     ├── audio-service/               # NestJS, :4003 → audio_db
     │   ├── prisma/schema.prisma         # audio_records, tasks (no User model)
     │   └── src/
     │       ├── audio/
     │       │   ├── audio.controller.ts  # POST /check, POST /analyze-base64, GET /records/:id, GET /by-language, GET /listening-by-language, GET /listening-task, POST /listening-task/stream (SSE — two-phase: task_ready then audio_ready/audio_unavailable), POST /listening-answers, GET /audio/admin/summary
-    │       │   ├── audio.service.ts     # getAdminSummary, adminActiveUserIds (raw SQL, UTC); streamListeningTask() — phase 1 persists task, phase 2 TTS with best-effort cancellation
+    │       │   ├── audio.service.ts     # getAdminSummary, adminActiveUserIds (raw SQL, UTC); streamListeningTask() — when `topic` provided skips DB task lookup and generates fresh; phase 1 persists task, phase 2 TTS with best-effort cancellation
     │       │   └── audio.repository.ts  # Prisma queries (uses src/generated/prisma); admin SQL helpers (getDailyCounts, getTopUsers, etc.); exports AudioPeriod, audioPeriodToFromDate, audioSafeAvg
     │       └── generated/prisma/        # Custom Prisma output (committed type stubs only)
     │
@@ -371,6 +371,7 @@ Service-level env (with defaults):
 - Stats-service uses Node 20 native `fetch()` — no `@nestjs/axios` or Prisma dependency
 - CEFR levels: A0, A1, A2, B1, B2, C1, C2 — defined as `CEFRLevel` enum in the auth-service Prisma schema and GraphQL schema; typed as a union in `frontend/src/lib/types.ts`
 - **User `level` is server-authoritative** — stored in `auth_db.users.level`; synced to Zustand via `meQuery` only (single hydration point in `dashboard.tsx`); Settings page persists changes via `updateLevel` mutation with optimistic rollback
+- **`taskTopic` is client-authoritative** — stored in Zustand (localStorage only, no DB); set via the Topic dropdown on the Settings page; when non-empty it is forwarded through all four skill pipelines (reading/writing/speaking/listening) and injected into GPT prompts to constrain generated passages/tasks to that topic; bypasses text-service and audio-service DB task caches (result not persisted)
 - **Logout clears React Query cache** — `queryClient.clear()` runs in the `finally` block of `handleLogout` (in `lab-frame.tsx` and `dashboard-home.tsx`) to prevent stale user data from leaking across sessions
 - Supported languages: English, German, Albanian, Polish, Ukrainian
 

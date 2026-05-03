@@ -90,6 +90,7 @@ export function SpeakingPage() {
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const user = useAppStore((s) => s.user);
+  const taskTopic = useAppStore((s) => s.taskTopic);
 
   const [generatedText, setGeneratedText] = useState('');
   const [focusPhonemes, setFocusPhonemes] = useState<string[]>([]);
@@ -122,8 +123,8 @@ export function SpeakingPage() {
     speakingStream.cancel();
     setGeneratedText('');
     setFocusPhonemes([]);
-    speakingStream.start({ language, level, userId: user?.id });
-  }, [language, level, user, speakingStream]);
+    speakingStream.start({ language, level, userId: user?.id, ...(taskTopic ? { topic: taskTopic } : {}) });
+  }, [language, level, user, taskTopic, speakingStream]);
 
   const handleAnalyze = async () => {
     if (!recordedBlob || !generatedText || !user) return;

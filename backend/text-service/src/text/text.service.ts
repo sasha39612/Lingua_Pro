@@ -166,10 +166,29 @@ export class TextService {
     }
   }
 
-  async getTasks(language: string, level: string, skill?: string, userId?: number | null) {
+  async getTasks(language: string, level: string, skill?: string, userId?: number | null, topic?: string) {
     language = language.toLowerCase();
     const effectiveSkill = skill || 'reading';
     const db = this.prisma as any;
+
+    // ── Topic-scoped path: skip cache, generate fresh, don't persist ─────────
+    if (topic) {
+      try {
+        const resp = await lastValueFrom(
+          this.http.post(`${this.orchestratorUrl}/tasks/generate`, { language, level, skill: effectiveSkill, topic })
+        );
+        if (resp.data?.tasks?.length) {
+          return resp.data.tasks.map((t: any) => ({
+            ...t,
+            id: -1,
+            language: t.language?.toLowerCase() ?? language,
+            createdAt: new Date().toISOString(),
+          }));
+        }
+      } catch (err: any) {
+        this.logger.error('failed to generate topic task from orchestrator', err?.message || err);
+      }
+    }
 
     // ── Per-user path ────────────────────────────────────────────────────────
     if (userId) {

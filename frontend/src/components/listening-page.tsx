@@ -84,6 +84,7 @@ export function ListeningPage() {
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const user = useAppStore((s) => s.user);
+  const taskTopic = useAppStore((s) => s.taskTopic);
   const TFNG_OPTIONS = [
     { label: t('true'), value: 'T' },
     { label: t('false'), value: 'F' },
@@ -162,8 +163,8 @@ export function ListeningPage() {
     setSubmitError(null);
     setPlaysUsed(0);
     setAudioError(null);
-    listeningStream.start({ language, level, userId: user.id });
-  }, [language, level, user, listeningStream, t]);
+    listeningStream.start({ language, level, userId: user.id, ...(taskTopic ? { topic: taskTopic } : {}) });
+  }, [language, level, user, listeningStream, taskTopic, t]);
 
   const handleSelectAnswer = (questionIndex: number, value: number | string) => {
     if (result) return;

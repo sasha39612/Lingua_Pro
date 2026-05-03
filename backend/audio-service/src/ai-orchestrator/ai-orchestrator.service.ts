@@ -200,14 +200,14 @@ export class AiOrchestratorService {
 
   // ── Listening exercise v2 generation ──────────────────────────────────────
 
-  async generateListeningExercise(language: string, level: string): Promise<ListeningPassageV2> {
+  async generateListeningExercise(language: string, level: string, requestId?: string, topic?: string): Promise<ListeningPassageV2> {
     if (!this.orchestratorBaseUrl) {
       return this.localListeningExerciseFallback(level);
     }
     try {
       const response = await axios.post(
         `${this.orchestratorBaseUrl.replace(/\/$/, '')}/tasks/generate-listening`,
-        { language, level, version: '2' },
+        { language, level, version: '2', ...(topic ? { topic } : {}) },
         { timeout: 35_000 },
       );
       const d = response?.data;

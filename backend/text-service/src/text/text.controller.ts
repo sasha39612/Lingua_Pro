@@ -85,12 +85,13 @@ export class TextController {
     @Query('language') language: string,
     @Query('level') level: string,
     @Query('skill') skill?: string,
+    @Query('topic') topic?: string,
     @Headers('x-user-id') rawUserId?: string,
   ) {
     if (!language) throw new BadRequestException('language is required');
     if (!level) throw new BadRequestException('level is required');
     const userId = rawUserId ? parseInt(rawUserId, 10) : null;
-    return this.textService.getTasks(language, level, skill, userId);
+    return this.textService.getTasks(language, level, skill, userId, topic);
   }
 
   @Post('tasks/stream')
@@ -99,6 +100,7 @@ export class TextController {
     @Body('level') level: string,
     @Body('skill') skill: string | undefined,
     @Body('userId') rawUserId: string | undefined,
+    @Body('topic') topic: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ) {
@@ -122,7 +124,7 @@ export class TextController {
 
     try {
       write({ event: 'task_generating' });
-      const tasks = await this.textService.getTasks(language, level, skill, userId);
+      const tasks = await this.textService.getTasks(language, level, skill, userId, topic);
       write({ event: 'task_ready', data: tasks });
     } catch (err: any) {
       this.logger.error(`tasksStream failed: ${err?.message ?? err}`);

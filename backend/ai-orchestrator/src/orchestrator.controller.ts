@@ -23,6 +23,10 @@ class GenerateTasksDto {
   @IsOptional()
   @IsString()
   skill?: string;
+
+  @IsOptional()
+  @IsString()
+  topic?: string;
 }
 
 class GenerateListeningDto {
@@ -35,6 +39,10 @@ class GenerateListeningDto {
   @IsOptional()
   @IsString()
   version?: string;
+
+  @IsOptional()
+  @IsString()
+  topic?: string;
 }
 
 class TranscribeAudioDto {
@@ -105,7 +113,7 @@ export class OrchestratorController {
   ) {
     const requestId = requestIdHeader || randomUUID();
     return {
-      tasks: await this.orchestratorService.generateTasks(body.language, body.level, body.skill, requestId),
+      tasks: await this.orchestratorService.generateTasks(body.language, body.level, body.skill, requestId, body.topic),
     };
   }
 
@@ -116,7 +124,7 @@ export class OrchestratorController {
   ) {
     const requestId = requestIdHeader || randomUUID();
     if (body.version === '2') {
-      return this.orchestratorService.generateListeningExercise(body.language, body.level, requestId);
+      return this.orchestratorService.generateListeningExercise(body.language, body.level, requestId, body.topic);
     }
     return this.orchestratorService.generateListeningPassage(body.language, body.level, requestId);
   }

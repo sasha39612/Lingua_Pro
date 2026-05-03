@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
   const language = searchParams.get('language');
   const level = searchParams.get('level');
   const userId = searchParams.get('userId');
+  const topic = searchParams.get('topic');
 
   if (!language || !level) {
     return NextResponse.json({ error: 'language and level are required' }, { status: 400 });
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const params = new URLSearchParams({ language, level, skill: 'writing' });
+    if (topic) params.set('topic', topic);
     const response = await fetch(`${textServiceUrl}/text/tasks?${params.toString()}`, {
       headers: { 'x-user-id': userId, 'x-request-id': requestId },
       signal: AbortSignal.timeout(55_000),

@@ -54,7 +54,7 @@ describe('OrchestratorController', () => {
 
       const result = await controller.generateTasks({ language: 'English', level: 'A1' });
 
-      expect(mockService.generateTasks).toHaveBeenCalledWith('English', 'A1', undefined, expect.any(String));
+      expect(mockService.generateTasks).toHaveBeenCalledWith('English', 'A1', undefined, expect.any(String), undefined);
       expect(result).toEqual({ tasks });
     });
 
@@ -64,7 +64,7 @@ describe('OrchestratorController', () => {
 
       await controller.generateTasks({ language: 'German', level: 'B1', skill: 'writing' });
 
-      expect(mockService.generateTasks).toHaveBeenCalledWith('German', 'B1', 'writing', expect.any(String));
+      expect(mockService.generateTasks).toHaveBeenCalledWith('German', 'B1', 'writing', expect.any(String), undefined);
     });
   });
 

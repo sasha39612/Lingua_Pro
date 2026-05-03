@@ -67,7 +67,7 @@ describe('OrchestratorService — facade delegation', () => {
 
     const result = await svc.generateTasks('English', 'A1', 'reading');
 
-    expect(mockTasks.generateTasks).toHaveBeenCalledWith('English', 'A1', 'reading', undefined);
+    expect(mockTasks.generateTasks).toHaveBeenCalledWith('English', 'A1', 'reading', undefined, undefined);
     expect(result).toEqual(tasks);
   });
 

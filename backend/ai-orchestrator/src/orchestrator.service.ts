@@ -40,16 +40,16 @@ export class OrchestratorService {
 
   // ── Tasks ──────────────────────────────────────────────────────────────────
 
-  generateTasks(language: string, level: string, skill?: string, requestId?: string): Promise<GeneratedTask[]> {
-    return this.tasks.generateTasks(language, level, skill, requestId);
+  generateTasks(language: string, level: string, skill?: string, requestId?: string, topic?: string): Promise<GeneratedTask[]> {
+    return this.tasks.generateTasks(language, level, skill, requestId, topic);
   }
 
   generateListeningPassage(language: string, level: string, requestId?: string): Promise<ListeningPassage> {
     return this.tasks.generateListeningPassage(language, level, requestId);
   }
 
-  generateListeningExercise(language: string, level: string, requestId?: string): Promise<ListeningPassageV2> {
-    return this.tasks.generateListeningExercise(language, level, requestId);
+  generateListeningExercise(language: string, level: string, requestId?: string, topic?: string): Promise<ListeningPassageV2> {
+    return this.tasks.generateListeningExercise(language, level, requestId, topic);
   }
 
   // ── Audio transcription ────────────────────────────────────────────────────

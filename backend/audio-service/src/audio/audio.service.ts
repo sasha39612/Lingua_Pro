@@ -386,6 +386,7 @@ export class AudioService {
     level: string,
     req: Request,
     res: Response,
+    topic?: string,
   ): Promise<void> {
     const normalizedLanguage = language.toLowerCase();
     const userIdInt = parseInt(userId, 10);
@@ -405,7 +406,7 @@ export class AudioService {
       let questions: ListeningQuestionForClient[];
       let passageText: string;
 
-      const existingTask = await this.audioRepository.getNextListeningTask(
+      const existingTask = topic ? null : await this.audioRepository.getNextListeningTask(
         userIdInt,
         normalizedLanguage,
         level,
@@ -436,7 +437,7 @@ export class AudioService {
         } else {
           // Old format — generate fresh
           const { taskId: newId, questions: newQuestions, passageText: newPassage } =
-            await this.generateAndPersistListeningTask(language, normalizedLanguage, level);
+            await this.generateAndPersistListeningTask(language, normalizedLanguage, level, topic);
           taskId = newId;
           questions = newQuestions;
           passageText = newPassage;
@@ -444,7 +445,7 @@ export class AudioService {
         }
       } else {
         const { taskId: newId, questions: newQuestions, passageText: newPassage } =
-          await this.generateAndPersistListeningTask(language, normalizedLanguage, level);
+          await this.generateAndPersistListeningTask(language, normalizedLanguage, level, topic);
         taskId = newId;
         questions = newQuestions;
         passageText = newPassage;
@@ -480,9 +481,10 @@ export class AudioService {
     language: string,
     normalizedLanguage: string,
     level: string,
+    topic?: string,
   ): Promise<{ taskId: number; questions: ListeningQuestionForClient[]; passageText: string }> {
-    this.logger.log(`streamListeningTask: generating new exercise lang=${normalizedLanguage} level=${level}`);
-    const passage = await this.aiOrchestrator.generateListeningExercise(language, level);
+    this.logger.log(`streamListeningTask: generating new exercise lang=${normalizedLanguage} level=${level}${topic ? ` topic=${topic}` : ''}`);
+    const passage = await this.aiOrchestrator.generateListeningExercise(language, level, undefined, topic);
 
     const savedTask = await this.audioRepository.createTask({
       language: normalizedLanguage,

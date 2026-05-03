@@ -73,7 +73,9 @@
     "apply": "Apply",
     "themeLight": "Light",
     "themeDark": "Dark",
-    "themeSystem": "System"
+    "themeSystem": "System",
+    "topicLabel": "Topic",
+    "topicAny": "Any topic"
   },
   "writing": {
     "title": "Writing",

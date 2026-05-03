@@ -136,6 +136,7 @@ export function ReadingPage() {
   const language = useAppStore((s) => s.language);
   const level = useAppStore((s) => s.level);
   const user = useAppStore((s) => s.user);
+  const taskTopic = useAppStore((s) => s.taskTopic);
 
   const [task, setTask] = useState<ReadingTask | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -184,7 +185,7 @@ export function ReadingPage() {
     setAnswers({});
     setResult(null);
     setActiveHighlights(new Set());
-    readingStream.start({ language, level, userId: user.id });
+    readingStream.start({ language, level, userId: user.id, ...(taskTopic ? { topic: taskTopic } : {}) });
   }, [language, level, user, readingStream, t]);
 
   const setAnswer = (index: number, value: string) => {

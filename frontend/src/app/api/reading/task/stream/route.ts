@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const { language, level, userId } = body;
+  const { language, level, userId, topic } = body;
   if (!language || !level) {
     return new Response(JSON.stringify({ error: 'language and level are required' }), {
       status: 400,
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
         'x-user-id': userId ? String(userId) : '',
         'x-request-id': requestId,
       },
-      body: JSON.stringify({ language, level, skill: 'reading', userId: userId ? String(userId) : undefined }),
+      body: JSON.stringify({ language, level, skill: 'reading', userId: userId ? String(userId) : undefined, ...(topic ? { topic } : {}) }),
       // @ts-ignore — Node 20 fetch supports duplex streaming
       duplex: 'half',
     });

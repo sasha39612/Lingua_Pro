@@ -73,7 +73,9 @@
     "apply": "Zastosuj",
     "themeLight": "Jasny",
     "themeDark": "Ciemny",
-    "themeSystem": "Systemowy"
+    "themeSystem": "Systemowy",
+    "topicLabel": "Temat",
+    "topicAny": "Dowolny temat"
   },
   "writing": {
     "title": "Pisanie",

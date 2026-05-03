@@ -73,7 +73,9 @@
     "apply": "Застосувати",
     "themeLight": "Світла",
     "themeDark": "Темна",
-    "themeSystem": "Системна"
+    "themeSystem": "Системна",
+    "topicLabel": "Тема",
+    "topicAny": "Будь-яка тема"
   },
   "writing": {
     "title": "Письмо",

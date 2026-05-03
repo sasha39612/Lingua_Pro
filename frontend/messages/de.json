@@ -73,7 +73,9 @@
     "apply": "Anwenden",
     "themeLight": "Hell",
     "themeDark": "Dunkel",
-    "themeSystem": "System"
+    "themeSystem": "System",
+    "topicLabel": "Thema",
+    "topicAny": "Beliebiges Thema"
   },
   "writing": {
     "title": "Schreiben",
