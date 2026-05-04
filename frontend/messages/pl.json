@@ -174,7 +174,11 @@
     "notGiven": "Nie podano",
     "authError": "Musisz być zalogowany, aby załadować zadanie słuchania.",
     "connectionError": "Błąd połączenia podczas ładowania zadania. Spróbuj ponownie.",
-    "failedToGenerate": "Nie udało się wygenerować zadania słuchania. Spróbuj ponownie."
+    "failedToGenerate": "Nie udało się wygenerować zadania słuchania. Spróbuj ponownie.",
+    "passageTitle": "Tekst do słuchania",
+    "showPassage": "Pokaż tekst",
+    "hidePassage": "Ukryj tekst",
+    "noPassageAvailable": "Brak tekstu."
   },
   "speaking": {
     "title": "Mówienie",

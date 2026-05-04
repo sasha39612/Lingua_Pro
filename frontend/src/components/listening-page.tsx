@@ -106,6 +106,10 @@ export function ListeningPage() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioBlobUrlRef = useRef<string | null>(null);
+  const resultRef = useRef<AnswersResult | null>(null);
+
+  const [passage, setPassage] = useState<string | null>(null);
+  const [showPassage, setShowPassage] = useState(false);
 
   const isNewFormat = questions.some((q) => 'difficulty' in q && q.difficulty !== undefined);
 
@@ -120,6 +124,9 @@ export function ListeningPage() {
         setQuestions(ev.data.questions);
         setSelectedAnswers(new Array(ev.data.questions.length).fill(null));
         setStreamPhase('synthesizing');
+        if (!resultRef.current) {
+          setPassage(ev.data?.passage ?? null);
+        }
       } else if (ev.event === 'audio_ready') {
         if (audioBlobUrlRef.current) URL.revokeObjectURL(audioBlobUrlRef.current);
         const binary = atob(ev.data.audioBase64);
@@ -163,6 +170,9 @@ export function ListeningPage() {
     setSubmitError(null);
     setPlaysUsed(0);
     setAudioError(null);
+    setPassage(null);
+    setShowPassage(false);
+    resultRef.current = null;
     listeningStream.start({ language, level, userId: user.id, ...(taskTopic ? { topic: taskTopic } : {}) });
   }, [language, level, user, listeningStream, taskTopic, t]);
 
@@ -198,7 +208,9 @@ export function ListeningPage() {
       if (!res.ok) {
         throw new Error(data.detail || data.error || 'Failed to submit answers');
       }
-      setResult(data as AnswersResult);
+      const answersResult = data as AnswersResult;
+      setResult(answersResult);
+      resultRef.current = answersResult;
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to submit answers.');
     } finally {
@@ -538,6 +550,53 @@ export function ListeningPage() {
             >
               {t('nextTask')}
             </button>
+          </section>
+        )}
+
+        {/* ── Passage reveal ──────────────────────────────────────────────── */}
+        {result && passage != null && (
+          <section className="rounded-2xl bg-white p-5 shadow-float">
+            <button
+              type="button"
+              onClick={() => setShowPassage((v) => !v)}
+              aria-expanded={showPassage}
+              aria-controls="listening-passage"
+              aria-label={showPassage ? t('hidePassage') : t('showPassage')}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <h2 className="text-base font-semibold text-slate-800">
+                {t('passageTitle')}
+              </h2>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-500" aria-hidden="true">
+                  {showPassage ? t('hidePassage') : t('showPassage')}
+                </span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className={`h-4 w-4 text-slate-400 transition-transform ${showPassage ? 'rotate-180' : ''}`}
+                  aria-hidden="true"
+                >
+                  <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </button>
+
+            {showPassage && (
+              passage.trim() ? (
+                <p
+                  id="listening-passage"
+                  className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-700"
+                >
+                  {passage}
+                </p>
+              ) : (
+                <p id="listening-passage" className="mt-3 text-sm italic text-slate-400">
+                  {t('noPassageAvailable')}
+                </p>
+              )
+            )}
           </section>
         )}
 

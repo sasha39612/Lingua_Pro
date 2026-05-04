@@ -174,7 +174,11 @@
     "notGiven": "Nicht angegeben",
     "authError": "Sie müssen angemeldet sein, um eine Höraufgabe zu laden.",
     "connectionError": "Verbindungsfehler beim Laden der Aufgabe. Bitte versuchen Sie es erneut.",
-    "failedToGenerate": "Höraufgabe konnte nicht generiert werden. Bitte versuchen Sie es erneut."
+    "failedToGenerate": "Höraufgabe konnte nicht generiert werden. Bitte versuchen Sie es erneut.",
+    "passageTitle": "Hörtext",
+    "showPassage": "Text anzeigen",
+    "hidePassage": "Text ausblenden",
+    "noPassageAvailable": "Kein Text verfügbar."
   },
   "speaking": {
     "title": "Sprechen",

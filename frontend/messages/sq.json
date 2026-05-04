@@ -174,7 +174,11 @@
     "notGiven": "Nuk jepet",
     "authError": "Duhet të jeni të identifikuar për të ngarkuar një detyrë dëgjimi.",
     "connectionError": "Gabim lidhjeje gjatë ngarkimit të detyrës. Ju lutem provoni përsëri.",
-    "failedToGenerate": "Dështoi gjenerimi i detyrës së dëgjimit. Ju lutem provoni përsëri."
+    "failedToGenerate": "Dështoi gjenerimi i detyrës së dëgjimit. Ju lutem provoni përsëri.",
+    "passageTitle": "Teksti i dëgjimit",
+    "showPassage": "Shfaq tekstin",
+    "hidePassage": "Fshih tekstin",
+    "noPassageAvailable": "Nuk ka tekst të disponueshëm."
   },
   "speaking": {
     "title": "Të folurit",

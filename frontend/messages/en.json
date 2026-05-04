@@ -174,7 +174,11 @@
     "notGiven": "Not Given",
     "authError": "You must be logged in to load a listening task.",
     "connectionError": "Connection error while loading task. Please try again.",
-    "failedToGenerate": "Failed to generate listening task. Please try again."
+    "failedToGenerate": "Failed to generate listening task. Please try again.",
+    "passageTitle": "Listening Passage",
+    "showPassage": "Show passage",
+    "hidePassage": "Hide passage",
+    "noPassageAvailable": "No passage text available."
   },
   "speaking": {
     "title": "Speaking",
