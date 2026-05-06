@@ -360,7 +360,7 @@ export function ListeningPage() {
                             stateClass = 'border-slate-200 bg-white text-slate-400';
                           }
                         } else if (isSelected) {
-                          stateClass = 'border-teal-600 bg-teal-50 text-teal-900';
+                          stateClass = 'border-slate-400 bg-slate-100 text-slate-800';
                         }
                         return (
                           <button
@@ -416,7 +416,7 @@ export function ListeningPage() {
                             stateClass = 'border-slate-200 bg-white text-slate-400';
                           }
                         } else if (isSelected) {
-                          stateClass = 'border-teal-600 bg-teal-50 text-teal-900';
+                          stateClass = 'border-slate-400 bg-slate-100 text-slate-800';
                         }
                         return (
                           <button

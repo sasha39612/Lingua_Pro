@@ -576,14 +576,11 @@ export class AudioService {
     if (isNewFormat) {
       const maxRawScore = questions.reduce((sum: number, q: any) => sum + (q.points ?? 1), 0);
       score = maxRawScore > 0 ? rawScore / maxRawScore : 0;
-      const taskLevel = task.level ?? 'B1';
-      const userLevelIdx = Math.max(0, CEFR_LEVELS.indexOf(taskLevel as typeof CEFR_LEVELS[number]));
+      // Exercise always spans B1–C2 (fixed difficulty range). Map score % to
+      // comprehension level using absolute thresholds so A2 users get a meaningful
+      // result rather than always being clamped to B1.
       const pct = score;
-      const cefrIdx = pct >= 0.9
-        ? userLevelIdx
-        : pct >= 0.6
-          ? Math.max(0, userLevelIdx - 1)
-          : Math.max(0, userLevelIdx - 2);
+      const cefrIdx = pct >= 0.875 ? 3 : pct >= 0.625 ? 2 : pct >= 0.375 ? 1 : 0;
       cefrLevel = CEFR_LEVELS[cefrIdx];
       try {
         await this.audioRepository.upsertListeningScore(parseInt(userId, 10), taskId, score);
