@@ -5,6 +5,7 @@ import { LabFrame } from '@/components/lab-frame';
 import { useAppStore } from '@/store/app-store';
 import { useAiStream } from '@/lib/use-ai-stream';
 import { useTranslations } from 'next-intl';
+import { diffWords } from 'diff';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,34 @@ function scoreLabel(score: number): string {
   return 'text-red-600';
 }
 
+// ── Diff types & helper ───────────────────────────────────────────────────────
+
+type DiffToken =
+  | { type: 'unchanged'; value: string }
+  | { type: 'removed'; value: string }
+  | { type: 'added'; value: string }
+  | { type: 'replace'; from: string; to: string };
+
+function buildWordDiff(original: string, corrected: string): DiffToken[] {
+  const raw = diffWords(original, corrected);
+  const tokens: DiffToken[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const curr = raw[i];
+    const next = raw[i + 1];
+    if (curr.removed && next?.added) {
+      tokens.push({ type: 'replace', from: curr.value, to: next.value });
+      i++;
+    } else if (curr.removed) {
+      tokens.push({ type: 'removed', value: curr.value });
+    } else if (curr.added) {
+      tokens.push({ type: 'added', value: curr.value });
+    } else {
+      tokens.push({ type: 'unchanged', value: curr.value });
+    }
+  }
+  return tokens;
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function CriterionCard({ label, criterion }: { label: string; criterion: WritingCriterion }) {
@@ -75,6 +104,52 @@ function CriterionCardSkeleton({ label }: { label: string }) {
           <div className="h-3 w-3/4 rounded bg-slate-200" />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Diff view ─────────────────────────────────────────────────────────────────
+
+function DiffView({ original, corrected }: { original: string; corrected: string }) {
+  const t = useTranslations('writing');
+  const lineTokens = useMemo(() => {
+    const origLines = original.split('\n');
+    const corrLines = corrected.split('\n');
+    const count = Math.max(origLines.length, corrLines.length);
+    return Array.from({ length: count }, (_, i) =>
+      buildWordDiff(origLines[i] ?? '', corrLines[i] ?? '')
+    );
+  }, [original, corrected]);
+
+  return (
+    <div
+      className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800"
+      aria-label={t('diffViewAriaLabel')}
+    >
+      {lineTokens.map((tokens, li) => (
+        <span key={li}>
+          {tokens.map((token, ti) => {
+            if (token.type === 'unchanged') return <span key={ti}>{token.value}</span>;
+            if (token.type === 'removed') return (
+              <span key={ti} className="line-through opacity-60 text-red-600 bg-red-50 rounded px-0.5">
+                {token.value}
+              </span>
+            );
+            if (token.type === 'added') return (
+              <span key={ti} className="underline decoration-amber-400 decoration-2 text-amber-700 bg-amber-50 rounded px-0.5">
+                {token.value}
+              </span>
+            );
+            return (
+              <span key={ti}>
+                <span className="line-through opacity-60 text-red-600 bg-red-50 rounded-l px-0.5">{token.from}</span>
+                <span className="underline decoration-amber-400 decoration-2 text-amber-700 bg-amber-50 rounded-r px-0.5">{token.to}</span>
+              </span>
+            );
+          })}
+          {li < lineTokens.length - 1 && <br />}
+        </span>
+      ))}
     </div>
   );
 }
@@ -159,6 +234,7 @@ export function WritingPage() {
         }));
       } else if (ev.event === 'analysis_complete') {
         setStreamedComplete(ev.data);
+        setShowCorrected(true);
         // Persist score (fire-and-forget)
         if (user) {
           fetch('/api/text/score', {
@@ -452,33 +528,44 @@ export function WritingPage() {
               )}
             </section>
 
-            {/* Corrected text — only available once analysis_complete fires */}
-            {streamedComplete && (
-              <section className="rounded-2xl bg-white p-5 shadow-float">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-base font-semibold text-slate-800">{t('correctedVersion')}</h2>
+            {/* ── Your text (inline diff) ──────────────────────────────── */}
+            <section className="rounded-2xl bg-white p-5 shadow-float">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold text-slate-800">{t('yourText')}</h2>
+                {streamedComplete && (
                   <button
                     type="button"
                     onClick={() => setShowCorrected((v) => !v)}
                     className="text-sm text-slate-400 hover:text-slate-600"
                   >
-                    {showCorrected ? t('hideCorrected') : t('showCorrected')}
+                    {showCorrected ? t('hideCorrections') : t('showCorrections')}
                   </button>
-                </div>
-                {showCorrected && (
-                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
-                    {streamedComplete.correctedText}
+                )}
+              </div>
+
+              <div className="mt-3">
+                {streamedComplete && showCorrected ? (
+                  <DiffView original={text} corrected={streamedComplete.correctedText} />
+                ) : (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
+                    {text}
                   </div>
                 )}
-              </section>
-            )}
-
-            {/* Your original */}
-            <section className="rounded-2xl bg-white p-5 shadow-float">
-              <h2 className="mb-3 text-base font-semibold text-slate-800">{t('yourOriginalText')}</h2>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
-                {text}
               </div>
+
+              {streamedComplete && showCorrected && (
+                <div className="mt-2 flex items-center gap-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded bg-red-50 border border-red-200" />
+                    <span className="line-through text-red-600">{t('legendRemoved')}</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded bg-amber-50 border border-amber-200" />
+                    <span className="underline decoration-amber-400 decoration-2 text-amber-700">{t('legendAdded')}</span>
+                  </span>
+                </div>
+              )}
+
               <div className="mt-3 flex gap-3">
                 <button
                   type="button"
@@ -487,6 +574,7 @@ export function WritingPage() {
                     setPhase('editor');
                     setStreamedCriteria({});
                     setStreamedComplete(null);
+                    setShowCorrected(false);
                     setError(null);
                   }}
                   className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
