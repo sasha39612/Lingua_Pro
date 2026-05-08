@@ -580,7 +580,9 @@ export class AudioService {
       // comprehension level using absolute thresholds so A2 users get a meaningful
       // result rather than always being clamped to B1.
       const pct = score;
-      const cefrIdx = pct >= 0.875 ? 3 : pct >= 0.625 ? 2 : pct >= 0.375 ? 1 : 0;
+      // Level-relative: ≥90% → task level, ≥60% → one below, <60% → two below, floor at B1
+      const taskIdx = Math.max(0, CEFR_LEVELS.indexOf(task.level as typeof CEFR_LEVELS[number]));
+      const cefrIdx = Math.max(0, taskIdx - (pct >= 0.9 ? 0 : pct >= 0.6 ? 1 : 2));
       cefrLevel = CEFR_LEVELS[cefrIdx];
       try {
         await this.audioRepository.upsertListeningScore(parseInt(userId, 10), taskId, score);

@@ -5,10 +5,10 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  axios: '>=1.15.0'
+  axios: '>=1.15.2'
   multer: '>=2.1.1'
   ws: '>=8.17.1'
-  hono: '>=4.12.14'
+  hono: '>=4.12.16'
   '@hono/node-server': '>=1.19.13'
   '@nestjs/core': '>=11.1.18'
   brace-expansion@^1: 1.1.13
@@ -31,6 +31,9 @@ overrides:
   uuid: '>=14.0.0'
   postcss: '>=8.5.10'
   tmp: ^0.2.4
+  basic-ftp: '>=5.3.1'
+  ip-address: '>=10.1.1'
+  icu-minify: '>=4.9.2'
 
 importers:
 
@@ -46,8 +49,8 @@ importers:
         specifier: ^9.0.10
         version: 9.0.10
       axios:
-        specifier: '>=1.15.0'
-        version: 1.15.0
+        specifier: '>=1.15.2'
+        version: 1.16.0
       dotenv:
         specifier: ^16.6.1
         version: 16.6.1
@@ -220,8 +223,8 @@ importers:
         specifier: ^10.49.0
         version: 10.49.0
       axios:
-        specifier: '>=1.15.0'
-        version: 1.15.0
+        specifier: '>=1.15.2'
+        version: 1.16.0
       dotenv:
         specifier: ^10.0.0
         version: 10.0.0
@@ -362,7 +365,7 @@ importers:
         version: 2.13.2(graphql@16.13.0)
       '@nestjs/axios':
         specifier: '*'
-        version: 4.0.1(@nestjs/common@11.1.16(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.1.14)(rxjs@7.8.2))(axios@1.15.0)(rxjs@7.8.2)
+        version: 4.0.1(@nestjs/common@11.1.16(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.1.14)(rxjs@7.8.2))(axios@1.16.0)(rxjs@7.8.2)
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.16(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.1.14)(rxjs@7.8.2)
@@ -385,8 +388,8 @@ importers:
         specifier: ^10.49.0
         version: 10.49.0
       axios:
-        specifier: '>=1.15.0'
-        version: 1.15.0
+        specifier: '>=1.15.2'
+        version: 1.16.0
       express:
         specifier: '*'
         version: 4.22.1
@@ -458,8 +461,8 @@ importers:
         specifier: ^15.5.15
         version: 15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       next-intl:
-        specifier: ^4.9.1
-        version: 4.9.1(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
+        specifier: ^4.9.2
+        version: 4.11.0(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
       nodemailer:
         specifier: ^8.0.6
         version: 8.0.6
@@ -1247,7 +1250,7 @@ packages:
     resolution: {integrity: sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
-      hono: '>=4.12.14'
+      hono: '>=4.12.16'
 
   '@hookform/resolvers@3.10.0':
     resolution: {integrity: sha512-79Dv+3mDF7i+2ajj7SkypSKHhl1cbln1OGavqrsF7p6mbUv11xpqpacPsGDCTRvCSjEEIez2ef1NveSVL3b0Ag==}
@@ -1644,7 +1647,7 @@ packages:
     resolution: {integrity: sha512-68pFJgu+/AZbWkGu65Z3r55bTsCPlgyKaV4BSG8yUAD72q1PPuyVRgUwFv6BxdnibTUHlyxm06FmYWNC+bjN7A==}
     peerDependencies:
       '@nestjs/common': ^10.0.0 || ^11.0.0
-      axios: '>=1.15.0'
+      axios: '>=1.15.2'
       rxjs: ^7.0.0
 
   '@nestjs/cli@11.0.16':
@@ -3498,8 +3501,8 @@ packages:
     resolution: {integrity: sha512-BASOg+YwO2C+346x3LZOeoovTIoTrRqEsqMa6fmfAV0P+U9mFr9NsyOEpiYvFjbc64NMrSswhV50WdXzdb/Z5A==}
     engines: {node: '>=4'}
 
-  axios@1.15.0:
-    resolution: {integrity: sha512-wWyJDlAatxk30ZJer+GeCWS209sA42X+N5jU2jy6oHTp7ufw8uzUTVFBX9+wTfAlhiJXGS0Bq7X6efruWjuK9Q==}
+  axios@1.16.0:
+    resolution: {integrity: sha512-6hp5CwvTPlN2A31g5dxnwAX0orzM7pmCRDLnZSX772mv8WDqICwFjowHuPs04Mc8deIld1+ejhtaMn5vp6b+1w==}
 
   axobject-query@4.1.0:
     resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
@@ -3572,8 +3575,8 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-  basic-ftp@5.3.0:
-    resolution: {integrity: sha512-5K9eNNn7ywHPsYnFwjKgYH8Hf8B5emh7JKcPaVjjrMJFQQwGpwowEnZNEtHs7DfR7hCZsmaK3VA4HUK0YarT+w==}
+  basic-ftp@6.0.1:
+    resolution: {integrity: sha512-3ilxa3n4276wGQp/ImRAuz4ALdsj/2Wd3FqoZBZlajDYnByCZ0JMb4+26Rde0wGXIbM0G2HWSfr/Fi8b21KX8g==}
     engines: {node: '>=10.0.0'}
 
   bent@7.3.12:
@@ -4727,8 +4730,8 @@ packages:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
-  hono@4.12.14:
-    resolution: {integrity: sha512-am5zfg3yu6sqn5yjKBNqhnTX7Cv+m00ox+7jbaKkrLMRJ4rAdldd1xPd/JzbBWspqaQv6RSTrgFN95EsfhC+7w==}
+  hono@4.12.18:
+    resolution: {integrity: sha512-RWzP96k/yv0PQfyXnWjs6zot20TqfpfsNXhOnev8d1InAxubW93L11/oNUc3tQqn2G0bSdAOBpX+2uDFHV7kdQ==}
     engines: {node: '>=16.9.0'}
 
   html-encoding-sniffer@4.0.0:
@@ -4780,8 +4783,8 @@ packages:
     resolution: {integrity: sha512-im9DjEDQ55s9fL4EYzOAv0yMqmMBSZp6G0VvFyTMPKWxiSBHUj9NW/qqLmXUwXrrM7AvqSlTCfvqRb0cM8yYqw==}
     engines: {node: '>=0.10.0'}
 
-  icu-minify@4.9.1:
-    resolution: {integrity: sha512-6NkfF9GHHFouqnz+wuiLjCWQiyxoEyJ5liUv4Jxxo/8wyhV7MY0L0iTEGDAVEa4aAD58WqTxFMa20S5nyMjwNw==}
+  icu-minify@4.11.0:
+    resolution: {integrity: sha512-XRvblCwLqWXio5ZLcmDqXvJv7alSACK6UjXuuMOdQWB//d25AQX6xlVlI1FEbc3Q6iPLXXo6HaVLn8LcAFhn1Q==}
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -4836,8 +4839,8 @@ packages:
   intl-messageformat@11.2.2:
     resolution: {integrity: sha512-yUfyIkPGqMvvk2onw2xBJeLsjXdiYUYebR8mmZVQYBuZUJsFGVht48Ftm1khgu8EZ0n+izX4rAEj3fLAilkh9g==}
 
-  ip-address@10.1.0:
-    resolution: {integrity: sha512-XXADHxXmvT9+CRxhXg56LJovE+bmWnEWB78LB83VZTprKTmaC5QfruXocxzTZ2Kl0DNwKuBdlIhjL8LeY8Sf8Q==}
+  ip-address@10.2.0:
+    resolution: {integrity: sha512-/+S6j4E9AHvW9SWMSEY9Xfy66O5PWvVEJ08O0y5JGyEKQpojb0K0GKpz/v5HJ/G0vi3D2sjGK78119oXZeE0qA==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -5617,11 +5620,11 @@ packages:
     resolution: {integrity: sha512-eonl3sLUha+S1GzTPxychyhnUzKyeQkZ7jLjKrBagJgPla13F+uQ71HgpFefyHgqrjEbCPkDArxYsjY8/+gLKA==}
     engines: {node: '>= 0.4.0'}
 
-  next-intl-swc-plugin-extractor@4.9.1:
-    resolution: {integrity: sha512-8whJJ6oxJz8JqkHarggmmuEDyXgC7nEnaPhZD91CJwEWW4xp0AST3Mw17YxvHyP2vAF3taWfFbs1maD+WWtz3w==}
+  next-intl-swc-plugin-extractor@4.11.0:
+    resolution: {integrity: sha512-WUGBSxGNd8eQ0rAsJHFmRw2H7+SZAXQIY/HAnYM57JaUsj5D2vx4KOz4zFtXlyKDtsw9awHfgWVvBae2/RDF9A==}
 
-  next-intl@4.9.1:
-    resolution: {integrity: sha512-N7ga0CjtYcdxNvaKNIi6eJ2mmatlHK5hp8rt0YO2Omoc1m0gean242/Ukdj6+gJNiReBVcYIjK0HZeNx7CV1ug==}
+  next-intl@4.11.0:
+    resolution: {integrity: sha512-Chp8rgEVUYOX/bCtYy+PXH6lDX3X+GPT9sR9HScHroL283em/4urP9btfdHEMEHJJXdq2W/5wDaDDtWONPdNSA==}
     peerDependencies:
       next: ^12.0.0 || ^13.0.0 || ^14.0.0 || ^15.0.0 || ^16.0.0
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || >=19.0.0-rc <19.0.0 || ^19.0.0
@@ -6976,8 +6979,8 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  use-intl@4.9.1:
-    resolution: {integrity: sha512-iGVV/xFYlhe3btafRlL8RPLD2Jsuet4yqn9DR6LWWbMhULsJnXgLonDkzDmsAIBIwFtk02oJuX/Ox2vwHKF+UQ==}
+  use-intl@4.11.0:
+    resolution: {integrity: sha512-7ILhTLuo3fnSKhoTGDk5X9591pjtWr6qB4inrlvGkN9OEyKhoiG73GZFoLSs68wz3BsSGtoWa62iWvrYEYU+iA==}
     peerDependencies:
       react: ^17.0.0 || ^18.0.0 || >=19.0.0-rc <19.0.0 || ^19.0.0
 
@@ -8106,9 +8109,9 @@ snapshots:
     dependencies:
       graphql: 16.13.0
 
-  '@hono/node-server@1.19.14(hono@4.12.14)':
+  '@hono/node-server@1.19.14(hono@4.12.18)':
     dependencies:
-      hono: 4.12.14
+      hono: 4.12.18
 
   '@hookform/resolvers@3.10.0(react-hook-form@7.71.2(react@19.2.4))':
     dependencies:
@@ -8495,10 +8498,10 @@ snapshots:
       '@apollo/gateway': 2.13.2(graphql@16.13.0)
       '@apollo/subgraph': 2.13.2(graphql@16.13.0)
 
-  '@nestjs/axios@4.0.1(@nestjs/common@11.1.16(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.1.14)(rxjs@7.8.2))(axios@1.15.0)(rxjs@7.8.2)':
+  '@nestjs/axios@4.0.1(@nestjs/common@11.1.16(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.1.14)(rxjs@7.8.2))(axios@1.16.0)(rxjs@7.8.2)':
     dependencies:
       '@nestjs/common': 11.1.16(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.1.14)(rxjs@7.8.2)
-      axios: 1.15.0
+      axios: 1.16.0
       rxjs: 7.8.2
 
   '@nestjs/cli@11.0.16(@swc/core@1.15.30)(@types/node@20.19.35)':
@@ -9190,13 +9193,13 @@ snapshots:
       '@electric-sql/pglite': 0.3.15
       '@electric-sql/pglite-socket': 0.0.20(@electric-sql/pglite@0.3.15)
       '@electric-sql/pglite-tools': 0.2.20(@electric-sql/pglite@0.3.15)
-      '@hono/node-server': 1.19.14(hono@4.12.14)
+      '@hono/node-server': 1.19.14(hono@4.12.18)
       '@mrleebo/prisma-ast': 0.13.1
       '@prisma/get-platform': 7.2.0
       '@prisma/query-plan-executor': 7.2.0
       foreground-child: 3.3.1
       get-port-please: 3.2.0
-      hono: 4.12.14
+      hono: 4.12.18
       http-status-codes: 2.3.0
       pathe: 2.0.3
       proper-lockfile: 4.1.2
@@ -10227,6 +10230,14 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.0.3
 
+  '@vitest/mocker@3.2.4(vite@6.4.2(@types/node@20.19.35)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0))':
+    dependencies:
+      '@vitest/spy': 3.2.4
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 6.4.2(@types/node@20.19.35)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0)
+
   '@vitest/mocker@3.2.4(vite@6.4.2(@types/node@22.19.15)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.46.0))':
     dependencies:
       '@vitest/spy': 3.2.4
@@ -10234,14 +10245,6 @@ snapshots:
       magic-string: 0.30.21
     optionalDependencies:
       vite: 6.4.2(@types/node@22.19.15)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.46.0)
-
-  '@vitest/mocker@3.2.4(vite@6.4.2(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0))':
-    dependencies:
-      '@vitest/spy': 3.2.4
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 6.4.2(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0)
 
   '@vitest/mocker@4.0.18(vite@6.4.2(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0))':
     dependencies:
@@ -10709,7 +10712,7 @@ snapshots:
 
   axe-core@4.11.1: {}
 
-  axios@1.15.0:
+  axios@1.16.0:
     dependencies:
       follow-redirects: 1.16.0
       form-data: 4.0.5
@@ -10763,7 +10766,7 @@ snapshots:
 
   baseline-browser-mapping@2.10.0: {}
 
-  basic-ftp@5.3.0: {}
+  basic-ftp@6.0.1: {}
 
   bent@7.3.12:
     dependencies:
@@ -12114,7 +12117,7 @@ snapshots:
 
   get-uri@6.0.5:
     dependencies:
-      basic-ftp: 5.3.0
+      basic-ftp: 6.0.1
       data-uri-to-buffer: 6.0.2
       debug: 4.4.3
     transitivePeerDependencies:
@@ -12214,7 +12217,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  hono@4.12.14: {}
+  hono@4.12.18: {}
 
   html-encoding-sniffer@4.0.0:
     dependencies:
@@ -12276,7 +12279,7 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
-  icu-minify@4.9.1:
+  icu-minify@4.11.0:
     dependencies:
       '@formatjs/icu-messageformat-parser': 3.5.5
 
@@ -12352,7 +12355,7 @@ snapshots:
       '@formatjs/fast-memoize': 3.1.2
       '@formatjs/icu-messageformat-parser': 3.5.5
 
-  ip-address@10.1.0: {}
+  ip-address@10.2.0: {}
 
   ipaddr.js@1.9.1: {}
 
@@ -13136,20 +13139,20 @@ snapshots:
 
   netmask@2.1.1: {}
 
-  next-intl-swc-plugin-extractor@4.9.1: {}
+  next-intl-swc-plugin-extractor@4.11.0: {}
 
-  next-intl@4.9.1(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3):
+  next-intl@4.11.0(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3):
     dependencies:
       '@formatjs/intl-localematcher': 0.8.4
       '@parcel/watcher': 2.5.6
       '@swc/core': 1.15.30
-      icu-minify: 4.9.1
+      icu-minify: 4.11.0
       negotiator: 1.0.0
       next: 15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      next-intl-swc-plugin-extractor: 4.9.1
+      next-intl-swc-plugin-extractor: 4.11.0
       po-parser: 2.1.1
       react: 19.2.4
-      use-intl: 4.9.1(react@19.2.4)
+      use-intl: 4.11.0(react@19.2.4)
     optionalDependencies:
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -14136,7 +14139,7 @@ snapshots:
 
   socks@2.8.7:
     dependencies:
-      ip-address: 10.1.0
+      ip-address: 10.2.0
       smart-buffer: 4.2.0
 
   sonic-boom@3.8.1:
@@ -14718,11 +14721,11 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  use-intl@4.9.1(react@19.2.4):
+  use-intl@4.11.0(react@19.2.4):
     dependencies:
       '@formatjs/fast-memoize': 3.1.2
       '@schummar/icu-type-parser': 1.21.5
-      icu-minify: 4.9.1
+      icu-minify: 4.11.0
       intl-messageformat: 11.2.2
       react: 19.2.4
 
@@ -14837,7 +14840,7 @@ snapshots:
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(vite@6.4.2(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0))
+      '@vitest/mocker': 3.2.4(vite@6.4.2(@types/node@20.19.35)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0))
       '@vitest/pretty-format': 3.2.4
       '@vitest/runner': 3.2.4
       '@vitest/snapshot': 3.2.4
