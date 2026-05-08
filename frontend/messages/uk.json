@@ -334,6 +334,14 @@
     "errorMessage": "Помилка надсилання. Будь ласка, спробуйте ще раз.",
     "mathLabel": "Перевірка людини: Скільки буде {a} + {b}?",
     "mathPlaceholder": "Відповідь",
-    "mathError": "Неправильна відповідь — спробуйте ще раз."
+    "mathError": "Неправильна відповідь — спробуйте ще раз.",
+    "fileLabel": "Attachments (optional)",
+    "fileHint": "Up to 3 files · 5 MB each · 10 MB total · JPG, PNG, GIF, WebP, PDF, DOC, DOCX, TXT, CSV, XLS, XLSX",
+    "fileTooMany": "You can attach a maximum of 3 files.",
+    "fileTypeError": "File type not allowed: {name}",
+    "fileSizeError": "{name} exceeds the 5 MB per-file limit.",
+    "fileTotalSizeError": "Total attachment size exceeds 10 MB.",
+    "selectedFilesLabel": "Selected files",
+    "removeFileAriaLabel": "Remove {name}"
   }
 }
