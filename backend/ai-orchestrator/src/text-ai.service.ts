@@ -205,7 +205,7 @@ export class TextAiService {
                     '"grammarVocabulary": { "score": 0..1, "feedback": "1-2 sentences on grammar accuracy and vocabulary range" }\n' +
                     '"coherenceStructure": { "score": 0..1, "feedback": "1-2 sentences on paragraph organisation and flow" }\n' +
                     '"style": { "score": 0..1, "feedback": "1-2 sentences on whether the register matches the task requirement" }\n' +
-                    '"correctedText": "the full corrected version of the student text with all errors fixed"\n' +
+                    '"correctedText": "the full corrected student text — fix EVERY spelling, grammar, and vocabulary error, including all errors mentioned in the feedback fields above"\n' +
                     '"overallScore": average of the four scores as a single 0..1 number\n' +
                     '"overallFeedback": "2-3 sentence summary of strengths and main areas to improve"',
                 },
@@ -358,7 +358,7 @@ export class TextAiService {
               '[FINAL]\n' +
               'OverallScore: <0.0-1.0>\n' +
               'OverallFeedback: <two sentences>\n' +
-              'CorrectedText: <full corrected student text>',
+              'CorrectedText: <full corrected student text — fix EVERY spelling, grammar, and vocabulary error, including all errors mentioned in the Feedback lines above>',
           },
           {
             role: 'user',
