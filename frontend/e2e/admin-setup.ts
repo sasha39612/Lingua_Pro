@@ -10,7 +10,10 @@ const TEST_PASSWORD = 'Test1234!';
 setup('register and authenticate admin test user', async ({ page, request }) => {
   fs.mkdirSync(path.dirname(ADMIN_AUTH_FILE), { recursive: true });
 
-  const registerResp = await request.post('http://localhost:8080/graphql', {
+  // register is invite-only — bootstrap the test user by calling auth-service
+  // directly with internal-service credentials, bypassing the API Gateway
+  // (which does not forward x-internal-token/x-internal-service to subgraphs).
+  const registerResp = await request.post('http://localhost:4001/graphql', {
     data: {
       query: `mutation {
         register(email: "${TEST_EMAIL}", password: "${TEST_PASSWORD}") {
@@ -18,6 +21,10 @@ setup('register and authenticate admin test user', async ({ page, request }) => 
           user { id email role language }
         }
       }`,
+    },
+    headers: {
+      'x-internal-token': process.env.INTERNAL_SERVICE_SECRET ?? '',
+      'x-internal-service': 'e2e-test',
     },
   });
 

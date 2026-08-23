@@ -94,6 +94,7 @@ jobs:
         run: pnpm --filter frontend e2e
         env:
           CI: "true"
+          INTERNAL_SERVICE_SECRET: e2e-test-internal-secret
 
       # ── Artifacts ────────────────────────────────────────────────────────────
       - name: Upload Playwright report
