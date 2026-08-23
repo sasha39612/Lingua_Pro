@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AudioRecorder } from '@/components/audio-recorder';
 import { LabFrame } from '@/components/lab-frame';
 import { useAppStore } from '@/store/app-store';
@@ -98,6 +98,12 @@ export function SpeakingPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [feedbackResult, setFeedbackResult] = useState<FeedbackResult | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') window.speechSynthesis.cancel();
+    };
+  }, []);
 
   type SpeakingStreamEvent =
     | { event: 'task_generating'; requestId?: string }

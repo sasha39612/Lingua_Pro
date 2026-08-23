@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 const MAX_RECORDING_SECONDS = 60;
 
@@ -13,6 +13,7 @@ interface AudioRecorderProps {
 
 export function AudioRecorder({ onRecordingComplete, onSendToReview, disabled, isAnalyzing }: AudioRecorderProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -20,10 +21,17 @@ export function AudioRecorder({ onRecordingComplete, onSendToReview, disabled, i
   const [elapsed, setElapsed] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
-  const audioUrl = useMemo(() => {
-    if (!audioBlob) return null;
-    return URL.createObjectURL(audioBlob);
+  // Revoke the previous object URL whenever a new recording replaces it, and on unmount.
+  useEffect(() => {
+    if (!audioBlob) {
+      setAudioUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(audioBlob);
+    setAudioUrl(url);
+    return () => URL.revokeObjectURL(url);
   }, [audioBlob]);
 
   // Clean up timers when component unmounts or recording stops
@@ -39,7 +47,13 @@ export function AudioRecorder({ onRecordingComplete, onSendToReview, disabled, i
   };
 
   useEffect(() => {
-    return () => clearTimers();
+    return () => {
+      clearTimers();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
   }, []);
 
   const startRecording = async () => {
@@ -47,6 +61,7 @@ export function AudioRecorder({ onRecordingComplete, onSendToReview, disabled, i
     setElapsed(0);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       chunksRef.current = [];

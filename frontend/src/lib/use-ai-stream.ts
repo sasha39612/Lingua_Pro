@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateRequestId } from './request-id';
 
 /**
@@ -80,6 +80,10 @@ export function useAiStream<T extends { requestId?: string }>(
   const [requestId, setRequestId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const { url, method = 'GET', body, onEvent, onError } = options;
+
+  useEffect(() => {
+    return () => abortRef.current?.abort();
+  }, []);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
