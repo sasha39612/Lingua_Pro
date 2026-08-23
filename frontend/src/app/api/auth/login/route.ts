@@ -50,10 +50,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 401 });
     }
 
+    const isHttps = req.headers.get('x-forwarded-proto') === 'https' || req.nextUrl.protocol === 'https:';
     const response = NextResponse.json({ user: login.user });
     response.cookies.set('auth-token', login.token as string, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'strict',
       maxAge: COOKIE_MAX_AGE,
       path: '/',
