@@ -2,6 +2,12 @@
 
 A microservices-based language learning platform supporting Listening, Reading, Writing, and Speaking skills with AI-powered feedback.
 
+## What is this?
+
+Lingua Pro is a language-learning app where users practice reading, writing,
+listening, and speaking in 5 languages and get AI-powered feedback —
+including phoneme-level pronunciation coaching, not just "you said it wrong."
+
 ## Key Differentiator
 
 Lingua Pro provides phoneme-level pronunciation feedback using Azure Speech scoring combined with GPT-generated explanations.
@@ -365,3 +371,9 @@ AI endpoints (pronunciation analysis, text analysis, TTS) are the primary target
 - Async AI processing via job queue (Redis / BullMQ) — decouple long-running pronunciation analysis from the HTTP request cycle
 - Real-time streaming pronunciation feedback via SSE (foundation already exists for text analysis)
 - Caching layer for frequently generated tasks to reduce repeated AI spend
+
+---
+
+## Author
+
+Oleksandr Stolyarov — [Portfolio](https://portfolio-omega-ten-jmp4r3edbt.vercel.app/) · [LinkedIn](https://www.linkedin.com/in/oleksandr-stolyarov-58343658/) · [Email](mailto:stolyarov_396@icloud.com)
