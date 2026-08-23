@@ -2,9 +2,11 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/store/app-store';
+import { useMeQuery } from '@/lib/graphql-hooks';
 import { useTranslations } from 'next-intl';
 
 const SKILL_LINKS = [
@@ -20,7 +22,15 @@ export function DashboardHome() {
   const router = useRouter();
   const user = useAppStore((s) => s.user);
   const logout = useAppStore((s) => s.logout);
+  const setLevel = useAppStore((s) => s.setLevel);
   const queryClient = useQueryClient();
+
+  const meQuery = useMeQuery({ enabled: !!user });
+  useEffect(() => {
+    if (meQuery.data?.me?.level) {
+      setLevel(meQuery.data.me.level);
+    }
+  }, [meQuery.data?.me?.level, setLevel]);
 
   const handleLogout = async () => {
     try {

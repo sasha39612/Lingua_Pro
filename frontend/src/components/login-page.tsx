@@ -21,6 +21,7 @@ export function LoginPage() {
   const t = useTranslations('login');
   const router = useRouter();
   const setUser = useAppStore((s) => s.setUser);
+  const setLevel = useAppStore((s) => s.setLevel);
   const [status, setStatus] = useState('');
   const [isPending, setIsPending] = useState(false);
 
@@ -43,6 +44,7 @@ export function LoginPage() {
         return;
       }
       setUser(data.user as AuthUser);
+      setLevel(data.user.level);
       router.push('/dashboard');
     } catch {
       setStatus(t('loginFailedRetry'));
