@@ -1,5 +1,3 @@
-version: '3.8'
-
 # All services use context: . (monorepo root) because pnpm-lock.yaml lives there.
 # Each Dockerfile is a multi-stage build: builder (install + compile) → runner (lean image).
 # Each service connects to its own database (auth_db / text_db / audio_db).

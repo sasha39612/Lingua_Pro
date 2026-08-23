@@ -31,9 +31,13 @@ jobs:
             echo "DATABASE_URL_AUTH=postgresql://lingua:e2etestpassword@postgres:5432/auth_db"
             echo "DATABASE_URL_TEXT=postgresql://lingua:e2etestpassword@postgres:5432/text_db"
             echo "DATABASE_URL_AUDIO=postgresql://lingua:e2etestpassword@postgres:5432/audio_db"
+            echo "DATABASE_URL_AI_ORCHESTRATOR=postgresql://lingua:e2etestpassword@postgres:5432/ai_orchestrator_db"
             echo "JWT_SECRET=e2e-test-jwt-secret-minimum-32-chars"
             echo "JWT_EXPIRY=1d"
             echo "AI_API_KEY="
+            echo "OPENAI_API_KEY="
+            echo "INTERNAL_SERVICE_SECRET=e2e-test-internal-secret"
+            echo "ALLOWED_ORIGINS=http://localhost:3000"
           } > .env
 
       # ── Docker ───────────────────────────────────────────────────────────────
