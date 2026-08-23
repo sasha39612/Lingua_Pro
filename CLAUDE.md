@@ -104,7 +104,7 @@ All frontend GraphQL goes through the Next.js `/api/graphql` route, which proxie
 
 | Service | Port | Framework | GraphQL subgraph? | Database | Notes |
 |---------|------|-----------|-------------------|----------|-------|
-| auth-service | 4001 | Raw Node.js `http` + `buildSubgraphSchema` | ✅ yes | `auth_db` | No NestJS, uses argon2, JWT via `jsonwebtoken`; exposes `users(limit,offset,cursor)` + `usersCount` queries (admin + internal-token gated); `updateLevel(level: CEFRLevel!): User!` mutation (authenticated users); `CEFRLevel` enum |
+| auth-service | 4001 | Raw Node.js `http` + `buildSubgraphSchema` | ✅ yes | `auth_db` | No NestJS, uses argon2, JWT via `jsonwebtoken`; exposes `users(limit,offset,cursor)` + `usersCount` queries (admin + internal-token gated); `register` mutation is **invite-only** (admin JWT or internal-service credentials — see below); `updateLevel(level: CEFRLevel!): User!` mutation (authenticated users); `CEFRLevel` enum |
 | text-service | 4002 | NestJS + Apollo subgraph | ✅ yes | `text_db` | Calls ai-orchestrator for analysis; `GET /text/admin/summary` (internal-token gated) |
 | audio-service | 4003 | NestJS | ❌ REST only | `audio_db` | Custom Prisma output path; frontend calls it directly; `GET /audio/admin/summary` (internal-token gated) |
 | stats-service | 4004 | NestJS | ❌ REST only | **none** | Aggregates via fetch to text-service + audio-service; `GET /admin/stats` aggregates all services (internal-token gated) |
@@ -264,7 +264,7 @@ Lingua_Pro/
     │
     ├── auth-service/                # Plain Node.js http, :4001 → auth_db
     │   ├── prisma/schema.prisma         # users, sessions only
-    │   └── src/graphql/auth.schema.ts   # register, login, me, logout; users(limit,offset,cursor) + usersCount (admin JWT or x-internal-token + x-internal-service); CEFRLevel enum; updateLevel(level: CEFRLevel!): User! (auth required); User type includes level: CEFRLevel!
+    │   └── src/graphql/auth.schema.ts   # register (invite-only: admin JWT or x-internal-token + x-internal-service), login, me, logout; users(limit,offset,cursor) + usersCount (admin JWT or x-internal-token + x-internal-service); CEFRLevel enum; updateLevel(level: CEFRLevel!): User! (auth required); User type includes level: CEFRLevel!
     │
     ├── text-service/                # NestJS + Apollo subgraph, :4002 → text_db
     │   ├── prisma/schema.prisma         # texts, tasks (no User model — userId is plain Int)
@@ -376,11 +376,13 @@ Service-level env (with defaults):
 - Supported languages: English, German, Albanian, Polish, Ukrainian
 
 ### Internal service authentication
-Admin endpoints (text/audio/stats-service) and the auth-service `usersCount` query are protected by two headers that **both** must be present and valid:
+Admin endpoints (text/audio/stats-service), the auth-service `usersCount` query, and the auth-service `register` mutation are protected by two headers that **both** must be present and valid:
 - `x-internal-token` — value must match `INTERNAL_SERVICE_SECRET` env var (server-side only — never sent to browser)
-- `x-internal-service` — value must be in the service's allowlist (e.g. `['stats-service', 'api-gateway']`)
+- `x-internal-service` — value must be in the service's allowlist (e.g. `['stats-service', 'api-gateway', 'e2e-test']` for auth-service)
 
 This pattern is used instead of trusting `x-user-role` (which is forgeable by any service in the Docker network). The allowed-service list is logged on each call for auditability.
+
+**Bootstrapping the first admin account**: since `register` is invite-only (requires an admin JWT — see below), a fresh deployment has no way to create its first user via the normal API. Call auth-service's `/graphql` endpoint **directly** (bypassing the API Gateway, which does not forward `x-internal-token`/`x-internal-service` to subgraphs) with those two headers to run the `register` mutation without an admin JWT. `scripts/e2e-test.sh` uses this path (service name `e2e-test`) to create its test user.
 
 **`x-user-role: admin`** is only trusted for endpoints where the gateway has already verified the JWT — never use it as the sole guard for internal service-to-service calls.
 

@@ -66,6 +66,7 @@ jobs:
           STATS_URL: http://localhost:4004
           AI_URL: http://localhost:4005
           FE_URL: http://localhost:3000
+          INTERNAL_SERVICE_SECRET: e2e-test-internal-secret
 
       - name: Show container logs on smoke failure
         if: failure()

@@ -32,7 +32,7 @@ const JWT_EXPIRY = process.env.JWT_EXPIRY || '7d';
 const ALLOWED_ROLES = new Set(['student', 'admin']);
 
 const INTERNAL_SERVICE_SECRET = requireEnv('INTERNAL_SERVICE_SECRET');
-const ALLOWED_INTERNAL_SERVICES = new Set(['stats-service', 'api-gateway']);
+const ALLOWED_INTERNAL_SERVICES = new Set(['stats-service', 'api-gateway', 'e2e-test']);
 
 function isInternalServiceCall(context: any): boolean {
   if (!INTERNAL_SERVICE_SECRET) return false;
@@ -228,7 +228,11 @@ export const authSchema = buildSubgraphSchema([
       },
       Mutation: {
         register: async (_: any, { email, password, language }: any, context: any) => {
-          requireAdmin(context);
+          // Invite-only: callers need an admin JWT, or a trusted internal service
+          // (used to bootstrap the first admin account on a fresh deployment).
+          if (!isInternalServiceCall(context)) {
+            requireAdmin(context);
+          }
           validateEmail(email);
           validatePassword(password);
           const normalizedEmail = email.trim().toLowerCase();

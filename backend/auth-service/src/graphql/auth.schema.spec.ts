@@ -216,6 +216,32 @@ describe('Auth resolvers (captured from buildSubgraphSchema)', () => {
       ).rejects.toThrow('Forbidden');
     });
 
+    it('throws Unauthorized for an internal call with a wrong or missing token', async () => {
+      await expect(
+        capturedSchema.resolvers.Mutation.register(
+          null,
+          { email: 'x@x.com', password: 'Test1234' },
+          { internalToken: 'wrong-secret', internalService: 'e2e-test' },
+        ),
+      ).rejects.toThrow('Unauthorized');
+    });
+
+    it('trusted internal service creates user without an admin JWT', async () => {
+      mockPrismaInstance.user.findUnique.mockResolvedValue(null);
+      mockArgon2Hash.mockResolvedValue('hashed-pw');
+      mockPrismaInstance.user.create.mockResolvedValue(fakeUser);
+      mockPrismaInstance.session.create.mockResolvedValue(fakeSession);
+
+      const result = await capturedSchema.resolvers.Mutation.register(
+        null,
+        { email: 'new@example.com', password: 'Test1234', language: 'english' },
+        { internalToken: 'test-internal-secret', internalService: 'e2e-test' },
+      );
+
+      expect(mockPrismaInstance.user.create).toHaveBeenCalled();
+      expect(result).toBeTruthy();
+    });
+
     it('admin creates user and returns token + user on success', async () => {
       mockPrismaInstance.user.findUnique.mockResolvedValue(null);
       mockArgon2Hash.mockResolvedValue('hashed-pw');

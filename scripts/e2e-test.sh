@@ -24,6 +24,7 @@ STATS_URL="${STATS_URL:-http://localhost:4004}"
 AI_URL="${AI_URL:-http://localhost:4005}"
 AUTH_URL="${AUTH_URL:-http://localhost:4001}"
 FE_URL="${FE_URL:-http://localhost:3000}"
+INTERNAL_SERVICE_SECRET="${INTERNAL_SERVICE_SECRET:-}"
 
 PASS=0
 FAIL=0
@@ -83,8 +84,13 @@ section "2. Auth – register, login, me & refreshToken"
 EMAIL="e2e_test_$(date +%s)@lingua.test"
 PASSWORD="Test1234!"
 
-REGISTER=$(curl -s -X POST "${GW_URL}/graphql" \
+# register is invite-only (admin JWT required) — bootstrap the test user by calling
+# auth-service directly with internal-service credentials, bypassing the gateway
+# (which does not forward x-internal-token/x-internal-service to subgraphs).
+REGISTER=$(curl -s -X POST "${AUTH_URL}/graphql" \
   -H "Content-Type: application/json" \
+  -H "x-internal-token: ${INTERNAL_SERVICE_SECRET}" \
+  -H "x-internal-service: e2e-test" \
   -d "{\"query\":\"mutation { register(email: \\\"${EMAIL}\\\", password: \\\"${PASSWORD}\\\") { token user { id email } } }\"}")
 assert_key "register returns token" "$REGISTER" '.data.register.token'
 assert_key "register returns user.id" "$REGISTER" '.data.register.user.id'
