@@ -35,13 +35,8 @@
     "passwordPlaceholder": "Hasło",
     "submitButton": "Zaloguj się",
     "submittingButton": "Logowanie...",
-    "temporaryAccess": "Dostęp tymczasowy",
-    "demoUser": "Użytkownik demo",
-    "demoAdmin": "Admin demo",
     "loginFailed": "Logowanie nie powiodło się",
-    "loginFailedRetry": "Logowanie nie powiodło się — spróbuj ponownie",
-    "demoLoginFailed": "Logowanie demo nie powiodło się",
-    "demoLoginFailedRetry": "Logowanie demo nie powiodło się — spróbuj ponownie"
+    "loginFailedRetry": "Logowanie nie powiodło się — spróbuj ponownie"
   },
   "dashboard": {
     "brand": "LanguageLab",

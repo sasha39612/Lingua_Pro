@@ -35,13 +35,8 @@
     "passwordPlaceholder": "Пароль",
     "submitButton": "Увійти",
     "submittingButton": "Вхід...",
-    "temporaryAccess": "Тимчасовий доступ",
-    "demoUser": "Демо-користувач",
-    "demoAdmin": "Демо-адміністратор",
     "loginFailed": "Помилка входу",
-    "loginFailedRetry": "Помилка входу — спробуйте ще раз",
-    "demoLoginFailed": "Помилка демо-входу",
-    "demoLoginFailedRetry": "Помилка демо-входу — спробуйте ще раз"
+    "loginFailedRetry": "Помилка входу — спробуйте ще раз"
   },
   "dashboard": {
     "brand": "LanguageLab",

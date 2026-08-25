@@ -35,13 +35,8 @@
     "passwordPlaceholder": "Password",
     "submitButton": "Login",
     "submittingButton": "Logging in...",
-    "temporaryAccess": "Temporary Access",
-    "demoUser": "Demo User",
-    "demoAdmin": "Demo Admin",
     "loginFailed": "Login failed",
-    "loginFailedRetry": "Login failed — please try again",
-    "demoLoginFailed": "Demo login failed",
-    "demoLoginFailedRetry": "Demo login failed — please try again"
+    "loginFailedRetry": "Login failed — please try again"
   },
   "dashboard": {
     "brand": "LanguageLab",

@@ -35,13 +35,8 @@
     "passwordPlaceholder": "Fjalëkalimi",
     "submitButton": "Hyni",
     "submittingButton": "Duke hyrë...",
-    "temporaryAccess": "Qasje e përkohshme",
-    "demoUser": "Përdorues demo",
-    "demoAdmin": "Admin demo",
     "loginFailed": "Hyrja dështoi",
-    "loginFailedRetry": "Hyrja dështoi — ju lutem provoni përsëri",
-    "demoLoginFailed": "Hyrja demo dështoi",
-    "demoLoginFailedRetry": "Hyrja demo dështoi — ju lutem provoni përsëri"
+    "loginFailedRetry": "Hyrja dështoi — ju lutem provoni përsëri"
   },
   "dashboard": {
     "brand": "LanguageLab",
