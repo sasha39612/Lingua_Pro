@@ -1,14 +1,17 @@
 import { test, expect } from '@playwright/test';
 
-// Stats page reads from Zustand store — no API call required.
-// Uses the storageState from global-setup (authenticated).
+// Stats page fetches live data from /api/stats — uses the storageState from
+// global-setup (authenticated). A fresh user has no history, so the exam
+// readiness dashboard renders in its zero-data state.
 
 test('stats page renders for authenticated user', async ({ page }) => {
   await page.goto('/stats');
 
-  await expect(page.getByRole('heading', { name: 'Stats' })).toBeVisible();
+  // Page renders an exam-readiness dashboard now — heading is "Prepare for {targetLevel} Exam"
+  // (defaults to B2 with no prior localStorage selection).
+  await expect(page.getByRole('heading', { name: /Prepare for .+ Exam/ })).toBeVisible();
   await expect(
-    page.getByText('Charts for text and audio performance over time.'),
+    page.getByText('Based on reading, writing, speaking, and listening performance'),
   ).toBeVisible();
 });
 
@@ -26,5 +29,5 @@ test('dashboard links to stats page', async ({ page }) => {
   await page.getByRole('link', { name: 'Statistic' }).click();
 
   await expect(page).toHaveURL('/stats');
-  await expect(page.getByRole('heading', { name: 'Stats' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Prepare for .+ Exam/ })).toBeVisible();
 });

@@ -6,7 +6,8 @@ test('speaking page renders for authenticated user', async ({ page }) => {
   await page.goto('/speaking');
 
   await expect(page.getByRole('heading', { name: 'Speaking' })).toBeVisible();
-  await expect(page.getByText('Read the generated text aloud, record yourself, and get pronunciation feedback.')).toBeVisible();
+  // Subtitle shows the user's language and level (matches reading/listening pages)
+  await expect(page.getByText('English · A2')).toBeVisible();
 });
 
 test('speaking page shows AudioRecorder with Start Recording and Stop buttons', async ({ page }) => {
@@ -31,17 +32,14 @@ test('speaking page shows Generated Text section and Generate text button', asyn
 test('"Generate text" button shows generated passage', async ({ page }) => {
   const mockText = 'The morning light filtered through the curtains as she prepared her bag.';
 
-  await page.route('/api/graphql', async (route) => {
-    const body = route.request().postDataJSON();
-    if (body?.operationName === 'Tasks') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: { tasks: [{ referenceText: mockText, prompt: mockText }] } }),
-      });
-    } else {
-      await route.continue();
-    }
+  // The speaking page fetches its task via a two-phase SSE stream, matching
+  // reading/listening — not a GraphQL Tasks query.
+  await page.route('**/api/speaking/task/stream', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: `data: ${JSON.stringify({ event: 'task_ready', data: [{ referenceText: mockText, focusPhonemes: [] }] })}\n\n`,
+    });
   });
 
   await page.goto('/speaking');

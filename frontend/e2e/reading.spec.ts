@@ -52,9 +52,11 @@ test('reading page shows comprehension questions with options', async ({ page })
   await page.getByRole('button', { name: 'Start Reading' }).click();
 
   await expect(page.getByRole('heading', { name: 'Multiple Choice' })).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByRole('button', { name: 'A. Six-thirty' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'B. Tuesday' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'C. Berlin' })).toBeVisible();
+  // Option buttons render as "{letter}.{text}" with no space between — match on
+  // the distinctive option text rather than the exact concatenated label.
+  await expect(page.getByRole('button', { name: /Six-thirty/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Tuesday/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Berlin/ })).toBeVisible();
 });
 
 test('submitting answers shows score result', async ({ page }) => {
@@ -63,12 +65,14 @@ test('submitting answers shows score result', async ({ page }) => {
   await page.goto('/reading');
   await page.getByRole('button', { name: 'Start Reading' }).click();
 
-  await expect(page.getByRole('button', { name: 'A. Six-thirty' })).toBeVisible({ timeout: 5_000 });
+  // Option buttons render as "{letter}.{text}" with no space between — match on
+  // the distinctive option text rather than the exact concatenated label.
+  await expect(page.getByRole('button', { name: /Six-thirty/ })).toBeVisible({ timeout: 5_000 });
 
   // Only the first answer is correct (1/3) — the other two are deliberately wrong.
-  await page.getByRole('button', { name: 'A. Six-thirty' }).click();
-  await page.getByRole('button', { name: 'A. Monday' }).click();
-  await page.getByRole('button', { name: 'A. Paris' }).click();
+  await page.getByRole('button', { name: /Six-thirty/ }).click();
+  await page.getByRole('button', { name: /Monday/ }).click();
+  await page.getByRole('button', { name: /Paris/ }).click();
 
   await page.getByRole('button', { name: 'Submit Answers' }).click();
 
