@@ -8,9 +8,10 @@ test('dashboard renders user info and skill cards', async ({ page }) => {
   await expect(page.getByText('LanguageLab')).toBeVisible();
   await expect(page.getByText('Language Studying')).toBeVisible();
 
-  // Skill cards
+  // Skill cards — each skill also has a matching icon link in the top nav,
+  // so scope to the last match (the card grid, which renders after the nav).
   for (const skill of ['Speaking', 'Listening', 'Reading', 'Writing']) {
-    await expect(page.getByRole('link', { name: skill })).toBeVisible();
+    await expect(page.getByRole('link', { name: skill }).last()).toBeVisible();
   }
 });
 
