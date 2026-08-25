@@ -56,5 +56,5 @@ test('settings page shows logged-in user email and logout button', async ({ page
 
   // "Signed in as: <email>" text is shown
   await expect(page.getByText(/Signed in as:/)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Log Out' })).toBeVisible();
 });
