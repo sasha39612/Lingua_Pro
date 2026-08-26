@@ -1,11 +1,11 @@
 import { test as setup } from '@playwright/test';
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { TEST_EMAIL, TEST_PASSWORD } from './admin-test-user';
 
 const ADMIN_AUTH_FILE = path.join(__dirname, '../playwright/.auth/admin.json');
-
-const TEST_EMAIL = `e2e.admin.${Date.now()}@lingua.test`;
-const TEST_PASSWORD = 'Test1234!';
+const REPO_ROOT = path.join(__dirname, '../..');
 
 setup('register and authenticate admin test user', async ({ page, request }) => {
   fs.mkdirSync(path.dirname(ADMIN_AUTH_FILE), { recursive: true });
@@ -37,10 +37,49 @@ setup('register and authenticate admin test user', async ({ page, request }) => 
     throw new Error(`Admin registration failed: ${JSON.stringify(body)}`);
   }
 
-  const { token, user } = body.data.register;
+  // register always creates a 'student' — there is no API path to create an
+  // admin directly (updateUserRole itself requires an existing admin JWT).
+  // Promote the row directly in Postgres, then re-authenticate so the new
+  // JWT (and the `me` query dashboard.tsx hydrates from) both carry
+  // role: 'admin'. A client-side-only override doesn't survive navigation:
+  // dashboard.tsx's meQuery sync overwrites the Zustand user with the
+  // server-authoritative role on every mount.
+  execFileSync(
+    'docker',
+    [
+      'compose',
+      'exec',
+      '-T',
+      'postgres',
+      'sh',
+      '-c',
+      `psql -U "$POSTGRES_USER" -d auth_db -c "UPDATE users SET role = 'admin' WHERE email = '${TEST_EMAIL}';"`,
+    ],
+    { cwd: REPO_ROOT, stdio: 'inherit' },
+  );
 
-  // Override role to 'admin' in client-side state — the admin page only
-  // checks the Zustand store role, not a server-side session claim.
+  const loginResp = await request.post('http://localhost:4001/graphql', {
+    data: {
+      query: `mutation {
+        login(email: "${TEST_EMAIL}", password: "${TEST_PASSWORD}") {
+          token
+          user { id email role language }
+        }
+      }`,
+    },
+  });
+
+  const loginBody = (await loginResp.json()) as {
+    data?: { login?: { token?: string; user?: { id: string; email: string; role: string; language: string } } };
+    errors?: { message: string }[];
+  };
+
+  if (!loginBody?.data?.login?.token || loginBody.data.login.user?.role !== 'admin') {
+    throw new Error(`Admin promotion failed: ${JSON.stringify(loginBody)}`);
+  }
+
+  const { token, user: adminUser } = loginBody.data.login;
+
   await page.goto('/');
   await page.evaluate(
     ({ authToken, authUser, storageKey }) => {
@@ -49,7 +88,7 @@ setup('register and authenticate admin test user', async ({ page, request }) => 
         JSON.stringify({
           state: {
             token: authToken,
-            user: { ...authUser, role: 'admin' },
+            user: authUser,
             language: 'English',
             level: 'B2',
             theme: 'system',
@@ -59,7 +98,7 @@ setup('register and authenticate admin test user', async ({ page, request }) => 
         }),
       );
     },
-    { authToken: token, authUser: user, storageKey: 'lingua-pro-zustand' },
+    { authToken: token, authUser: adminUser, storageKey: 'lingua-pro-zustand' },
   );
 
   await page.goto('/dashboard');
