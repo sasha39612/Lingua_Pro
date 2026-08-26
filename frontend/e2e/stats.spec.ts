@@ -18,10 +18,9 @@ test('stats page renders for authenticated user', async ({ page }) => {
 test('stats page shows two chart sections', async ({ page }) => {
   await page.goto('/stats');
 
-  // StatsChart components render inside an lg:grid-cols-2 grid
-  const charts = page.locator('section.mt-5 canvas, section.mt-5 svg');
-  // At minimum the chart containers should be present in the DOM
-  await expect(page.locator('section.mt-5')).toBeVisible();
+  // ChartsSection renders two cards: "Progress Over Time" and "Mistakes by Type"
+  await expect(page.getByRole('heading', { name: 'Progress Over Time' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mistakes by Type' })).toBeVisible();
 });
 
 test('dashboard links to stats page', async ({ page }) => {
