@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { TtsService } from './tts.service';
 
 vi.mock('@nestjs/common', async (importOriginal) => {
   const actual = (await importOriginal()) as any;
@@ -10,27 +11,32 @@ vi.mock('@nestjs/common', async (importOriginal) => {
   };
 });
 
+// Prevent Prisma WASM from loading in tests — AiUsageService is imported by
+// tts.service.ts only for Nest's design:paramtypes DI metadata; tests pass a
+// mock instance directly to the constructor and never touch the real class.
+vi.mock('./usage/ai-usage.service', () => ({
+  AiUsageService: class { log = vi.fn(); },
+}));
+
+// Hoisted, file-scoped mock — registered once, so there's no per-test
+// resetModules()/doMock() race that could let a real `openai` import (and a
+// real network call) slip through under load.
+const mockCreate = vi.fn();
+vi.mock('openai', () => ({
+  default: vi.fn().mockImplementation(() => ({
+    audio: { speech: { create: mockCreate } },
+  })),
+}));
+
 const mockAiUsage = { log: vi.fn() } as any;
 
-async function makeService() {
-  const orig = process.env.AI_API_KEY;
-  delete process.env.AI_API_KEY;
-  vi.resetModules();
-  // Prevent Prisma WASM from loading in tests — AiUsageService is already
-  // passed as a mock constructor arg; blocking the real module import avoids
-  // a >5s WASM initialisation penalty on first fresh module load.
-  vi.doMock('./usage/ai-usage.service', () => ({
-    AiUsageService: class { log = vi.fn(); },
-  }));
-  const { TtsService } = await import('./tts.service');
-  const svc = new TtsService(mockAiUsage);
-  if (orig !== undefined) process.env.AI_API_KEY = orig;
-  return svc;
-}
-
 describe('TtsService — no AI_API_KEY', () => {
+  beforeEach(() => {
+    delete process.env.AI_API_KEY;
+  });
+
   it('returns null result without throwing', async () => {
-    const svc = await makeService();
+    const svc = new TtsService(mockAiUsage);
     const result = await svc.synthesize('Hello world', 'English');
     expect(result.audioBase64).toBeNull();
     expect(result.mimeType).toBeNull();
@@ -38,36 +44,27 @@ describe('TtsService — no AI_API_KEY', () => {
   });
 
   it('returns null result for empty text', async () => {
-    const svc = await makeService();
+    const svc = new TtsService(mockAiUsage);
     const result = await svc.synthesize('', 'English');
     expect(result.audioBase64).toBeNull();
   });
 });
 
 describe('TtsService — with mocked OpenAI', () => {
+  beforeEach(() => {
+    process.env.AI_API_KEY = 'test-key';
+    mockCreate.mockReset();
+  });
+
   afterEach(() => {
-    vi.doUnmock('openai');
     delete process.env.AI_API_KEY;
   });
 
   it('returns base64 audioBase64 and audio/mpeg mimeType', async () => {
     const fakeBuffer = Buffer.from('fake mp3 bytes');
-    vi.resetModules();
-    vi.doMock('openai', () => ({
-      default: vi.fn().mockImplementation(() => ({
-        audio: {
-          speech: {
-            create: vi.fn().mockResolvedValue({
-              arrayBuffer: async () => fakeBuffer.buffer,
-            }),
-          },
-        },
-      })),
-    }));
-    process.env.AI_API_KEY = 'test-key';
+    mockCreate.mockResolvedValue({ arrayBuffer: async () => fakeBuffer.buffer });
 
-    const { TtsService: Fresh } = await import('./tts.service');
-    const svc = new Fresh(mockAiUsage);
+    const svc = new TtsService(mockAiUsage);
     const result = await svc.synthesize('Hello world', 'English');
 
     expect(typeof result.audioBase64).toBe('string');
@@ -77,22 +74,9 @@ describe('TtsService — with mocked OpenAI', () => {
 
   it('duration estimate: 5-word text is ~2000ms', async () => {
     const fakeBuffer = Buffer.from('x');
-    vi.resetModules();
-    vi.doMock('openai', () => ({
-      default: vi.fn().mockImplementation(() => ({
-        audio: {
-          speech: {
-            create: vi.fn().mockResolvedValue({
-              arrayBuffer: async () => fakeBuffer.buffer,
-            }),
-          },
-        },
-      })),
-    }));
-    process.env.AI_API_KEY = 'test-key';
+    mockCreate.mockResolvedValue({ arrayBuffer: async () => fakeBuffer.buffer });
 
-    const { TtsService: Fresh } = await import('./tts.service');
-    const svc = new Fresh(mockAiUsage);
+    const svc = new TtsService(mockAiUsage);
     const result = await svc.synthesize('one two three four five', 'English');
 
     // 5 words / 2.5 words per second = 2000ms
@@ -100,20 +84,9 @@ describe('TtsService — with mocked OpenAI', () => {
   });
 
   it('returns null result when OpenAI throws — does not propagate error', async () => {
-    vi.resetModules();
-    vi.doMock('openai', () => ({
-      default: vi.fn().mockImplementation(() => ({
-        audio: {
-          speech: {
-            create: vi.fn().mockRejectedValue(new Error('TTS unavailable')),
-          },
-        },
-      })),
-    }));
-    process.env.AI_API_KEY = 'test-key';
+    mockCreate.mockRejectedValue(new Error('TTS unavailable'));
 
-    const { TtsService: Fresh } = await import('./tts.service');
-    const svc = new Fresh(mockAiUsage);
+    const svc = new TtsService(mockAiUsage);
     const result = await svc.synthesize('Hello', 'English');
 
     expect(result.audioBase64).toBeNull();
