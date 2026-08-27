@@ -58,36 +58,50 @@ setup('register and authenticate admin test user', async ({ page, request }) => 
     { cwd: REPO_ROOT, stdio: 'inherit' },
   );
 
-  const loginResp = await request.post('http://localhost:4001/graphql', {
-    data: {
-      query: `mutation {
-        login(email: "${TEST_EMAIL}", password: "${TEST_PASSWORD}") {
-          token
-          user { id email role language }
-        }
-      }`,
-    },
+  // Log in through the real Next.js route (not the auth-service directly) so
+  // the browser gets the httpOnly `auth-token` cookie that graphql-client.ts
+  // relies on — admin-page.tsx's data fetches (useAdminStats/useAdminUsers)
+  // 401 without it, unlike the rest of the dashboard which tolerates a failed
+  // `me` query by falling back to the Zustand-cached user.
+  const loginResp = await request.post('http://localhost:3000/api/auth/login', {
+    data: { email: TEST_EMAIL, password: TEST_PASSWORD },
   });
 
   const loginBody = (await loginResp.json()) as {
-    data?: { login?: { token?: string; user?: { id: string; email: string; role: string; language: string } } };
-    errors?: { message: string }[];
+    user?: { id: string; email: string; role: string; language: string };
+    error?: string;
   };
 
-  if (!loginBody?.data?.login?.token || loginBody.data.login.user?.role !== 'admin') {
+  if (!loginResp.ok() || loginBody.user?.role !== 'admin') {
     throw new Error(`Admin promotion failed: ${JSON.stringify(loginBody)}`);
   }
 
-  const { token, user: adminUser } = loginBody.data.login;
+  const setCookieHeader = loginResp
+    .headersArray()
+    .find((h) => h.name.toLowerCase() === 'set-cookie')?.value;
+  const cookieMatch = setCookieHeader?.match(/auth-token=([^;]+)/);
+  if (!cookieMatch) {
+    throw new Error(`Login response did not set auth-token cookie: ${setCookieHeader}`);
+  }
+
+  await page.context().addCookies([
+    {
+      name: 'auth-token',
+      value: cookieMatch[1],
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Strict',
+    },
+  ]);
 
   await page.goto('/');
   await page.evaluate(
-    ({ authToken, authUser, storageKey }) => {
+    ({ authUser, storageKey }) => {
       localStorage.setItem(
         storageKey,
         JSON.stringify({
           state: {
-            token: authToken,
             user: authUser,
             language: 'English',
             level: 'B2',
@@ -98,7 +112,7 @@ setup('register and authenticate admin test user', async ({ page, request }) => 
         }),
       );
     },
-    { authToken: token, authUser: adminUser, storageKey: 'lingua-pro-zustand' },
+    { authUser: loginBody.user, storageKey: 'lingua-pro-zustand' },
   );
 
   await page.goto('/dashboard');
