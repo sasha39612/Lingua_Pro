@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { TEST_EMAIL as ADMIN_EMAIL } from './admin-test-user';
 
 // Uses the storageState created by admin-setup (a genuine server-side admin user).
 
@@ -31,8 +30,19 @@ test('admin page shows Users tab with correct columns', async ({ page }) => {
 test('admin page user table contains the logged-in admin', async ({ page }) => {
   await page.goto('/admin');
 
+  // The admin's own email is generated fresh per test run in admin-setup.ts —
+  // read it back from the Zustand state admin-setup wrote into localStorage
+  // rather than hardcoding/importing a value, since a shared constant
+  // computed from Date.now() at module-load time isn't guaranteed to match
+  // across the separate processes/retries that setup and this spec run in.
+  const adminEmail = await page.evaluate(() => {
+    const raw = localStorage.getItem('lingua-pro-zustand');
+    return raw ? (JSON.parse(raw)?.state?.user?.email as string | undefined) : undefined;
+  });
+  expect(adminEmail).toBeTruthy();
+
   await page.getByRole('button', { name: 'Users' }).click();
-  await expect(page.getByText(ADMIN_EMAIL)).toBeVisible();
+  await expect(page.getByText(adminEmail as string)).toBeVisible();
 });
 
 // Unauthenticated visitors — verify /admin is protected

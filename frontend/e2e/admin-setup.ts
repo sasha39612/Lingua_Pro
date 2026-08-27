@@ -2,10 +2,12 @@ import { test as setup } from '@playwright/test';
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { TEST_EMAIL, TEST_PASSWORD } from './admin-test-user';
 
 const ADMIN_AUTH_FILE = path.join(__dirname, '../playwright/.auth/admin.json');
 const REPO_ROOT = path.join(__dirname, '../..');
+
+const TEST_EMAIL = `e2e.admin.${Date.now()}@lingua.test`;
+const TEST_PASSWORD = 'Test1234!';
 
 setup('register and authenticate admin test user', async ({ page, request }) => {
   fs.mkdirSync(path.dirname(ADMIN_AUTH_FILE), { recursive: true });
