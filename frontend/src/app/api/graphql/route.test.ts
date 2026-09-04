@@ -37,6 +37,10 @@ vi.mock('@/lib/persisted-queries', () => ({
   },
 }));
 
+vi.mock('@sentry/nextjs', () => ({
+  getTraceData: () => ({}),
+}));
+
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
