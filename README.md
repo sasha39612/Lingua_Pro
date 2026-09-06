@@ -173,15 +173,15 @@ pnpm --filter ai-orchestrator test
 pnpm --filter api-gateway test
 ```
 
-| Package | Files | Tests | What's covered |
-|---------|-------|-------|----------------|
-| `frontend` | 12 | 68 | `graphqlRequest` (persisted queries, fallback, error handling), `useAppStore` (all actions), TanStack Query hooks (`useRegisterMutation`, `useLoginMutation`, `useCheckTextMutation`, `useTasksQuery`, `useTextsQuery`, `useMeQuery`, `useUpdateLevelMutation`), persisted-query hash map integrity, `checkOrigin` CSRF guard, SSE `useAiStream` hook, `/api/graphql` route proxy, a11y suites (login, settings, contact form, select dropdown, page skeleton) |
-| `auth-service` | 1 | 36 | All GraphQL resolvers — `register` (invite-only), `login`, `me`, `users`/`usersCount`, `updateLevel`, `logout`; JWT sign/verify, argon2 hashing, session revocation, internal-service header gating |
-| `text-service` | 3 | 38 | `TextService` (analyzeText with orchestrator/fallback/DB-fail, getTextsByLanguage, getTasks, getAdminSummary), `TextController` (all REST endpoints, error propagation), `PrismaService` (lifecycle hooks, connection strings) |
-| `audio-service` | 5 | 131 | `AudioService` (evaluateComprehension, processAudio, getRecords, generateComprehension, getAdminSummary), `AudioController` (all endpoints, missing-field validation), `AudioRepository` (all Prisma queries, admin SQL helpers), `AiOrchestratorService` (Whisper path, fallback, confidence scoring, pronunciation analysis), audio validation edge cases |
-| `stats-service` | 3 | 39 | `StatsService` (averages, language normalisation, mistake counts, daily history, charts, resilience), `StatsController` (language uppercasing, period forwarding, admin stats), `GetStatsQueryDto` (class-validator rules) |
-| `ai-orchestrator` | 9 | 86 | `SpeechService` (word alignment, Azure/Whisper fallback chain, FFmpeg probe), `TextAiService` (text analysis + SSE), `TaskService` (task generation + local fallback), `PronunciationAiService` (GPT feedback, scoring boundary enforcement), `TtsService` (TTS + null fallback), `OrchestratorService` (facade delegation), `OrchestratorController` (all endpoints), `util` helpers, usage `error-type` classification |
-| `api-gateway` | 4 | 23 | `JwtAuthGuard` (public routes, missing/invalid/valid/malformed token, dev-secret fallback), `CircuitBreakerService` (success, async fallback, rejection propagation), `AuthContextService` (header extraction, token parsing edge cases), `GatewayResolver` (health + hello) |
+| Package | What's covered |
+|---------|----------------|
+| `frontend` | `graphqlRequest` (persisted queries, fallback, error handling), `useAppStore` (all actions), TanStack Query hooks (`useRegisterMutation`, `useLoginMutation`, `useCheckTextMutation`, `useTasksQuery`, `useTextsQuery`, `useMeQuery`, `useUpdateLevelMutation`), persisted-query hash map integrity, `checkOrigin` CSRF guard, SSE `useAiStream` hook, `/api/graphql` route proxy, a11y suites (login, settings, contact form, select dropdown, page skeleton) |
+| `auth-service` | All GraphQL resolvers — `register` (invite-only), `login`, `me`, `users`/`usersCount`, `updateLevel`, `logout`; JWT sign/verify, argon2 hashing, session revocation, internal-service header gating |
+| `text-service` | `TextService` (analyzeText with orchestrator/fallback/DB-fail, getTextsByLanguage, getTasks, getAdminSummary), `TextController` (all REST endpoints, error propagation), `PrismaService` (lifecycle hooks, connection strings) |
+| `audio-service` | `AudioService` (evaluateComprehension, processAudio, getRecords, generateComprehension, getAdminSummary), `AudioController` (all endpoints, missing-field validation), `AudioRepository` (all Prisma queries, admin SQL helpers), `AiOrchestratorService` (Whisper path, fallback, confidence scoring, pronunciation analysis), audio validation edge cases |
+| `stats-service` | `StatsService` (averages, language normalisation, mistake counts, daily history, charts, resilience), `StatsController` (language uppercasing, period forwarding, admin stats), `GetStatsQueryDto` (class-validator rules) |
+| `ai-orchestrator` | `SpeechService` (word alignment, Azure/Whisper fallback chain, FFmpeg probe), `TextAiService` (text analysis + SSE), `TaskService` (task generation + local fallback), `PronunciationAiService` (GPT feedback, scoring boundary enforcement), `TtsService` (TTS + null fallback), `OrchestratorService` (facade delegation), `OrchestratorController` (all endpoints), `util` helpers, usage `error-type` classification |
+| `api-gateway` | `JwtAuthGuard` (public routes, missing/invalid/valid/malformed token, dev-secret fallback), `CircuitBreakerService` (success, async fallback, rejection propagation), `AuthContextService` (header extraction, token parsing edge cases), `GatewayResolver` (health + hello) |
 
 ### End-to-End Smoke Test
 
